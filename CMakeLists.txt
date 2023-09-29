@@ -1,7 +1,4 @@
-﻿# CMakeList.txt : CMake project for Midori, include source and define
-# project specific logic here.
-#
-cmake_minimum_required (VERSION 3.8)
+﻿cmake_minimum_required(VERSION 3.8)
 
 # Enable Hot Reload for MSVC compilers if supported.
 if (POLICY CMP0141)
@@ -9,13 +6,38 @@ if (POLICY CMP0141)
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
 endif()
 
-project ("Midori")
+# Project name
+project("Midori")
 
-# Add source to this project's executable.
-add_executable (Midori "Midori.cpp" "Midori.h")
+# Enforce C++20
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-if (CMAKE_VERSION VERSION_GREATER 3.12)
-  set_property(TARGET Midori PROPERTY CXX_STANDARD 20)
+# Compiler flags
+if (MSVC)
+    add_compile_options(/W4 /WX)
+else()
+    add_compile_options(-Wall -Wextra -pedantic -Werror)
 endif()
 
-# TODO: Add tests and install targets if needed.
+include_directories(${CMAKE_SOURCE_DIR}/src)
+
+# Source files
+file(GLOB_RECURSE SRC_FILES
+    "src/Midori.cpp"
+    "src/Common/ByteCode/*.h"
+    "src/Common/Value/*.h"
+    "src/Compiler/*.h"
+    "src/Compiler/*.cpp"
+    "src/Interpreter/VirtualMachine/*.h"
+    "src/Interpreter/VirtualMachine/*.cpp"
+    "src/Utility/*.h"
+)
+
+# Add source to this project's executable.
+add_executable(Midori ${SRC_FILES})
+
+# Specify where to put the build artifacts (this makes sure they go into 'out')
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/out)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/out)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/out)

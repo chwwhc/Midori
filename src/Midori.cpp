@@ -16,7 +16,7 @@ int main()
 	std::cout << std::endl;
 	std::cout << "\033[0m";  // Reset the text color to default
 
-	Lexer lexer("var x = [1,2,3];");
+	Lexer lexer("var x = [1];" "var y = x[0];" "x[0] = \"sd\";");
 	try
 	{
 		TokenStream tokens = lexer.Lex();
