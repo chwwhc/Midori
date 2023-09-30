@@ -67,7 +67,9 @@ std::unique_ptr<Expression> Parser::ParseAssignment()
 			return std::make_unique<Expression>(ArraySet(std::move(access_expr.m_op), std::move(access_expr.m_arr_var), std::move(access_expr.m_indices), std::move(value)));
 		}
 
-        throw CompilerError(CompilerError::Type::PARSER, "Invalid assignment target.", equal.m_line);
+        CompilerError::PrintError(CompilerError::Type::PARSER, "Invalid assignment target.", equal);
+        m_error = true;
+        Synchronize();
     }
 
     return expr;
@@ -101,7 +103,9 @@ std::unique_ptr<Expression> Parser::ParseTernary()
         }
         else
         {
-            throw CompilerError(CompilerError::Type::PARSER, "Expected ':' for ternary expression.", question.m_line);
+            CompilerError::PrintError(CompilerError::Type::PARSER, "Expected ':' for ternary expression.", question);
+            m_error = true;
+            Synchronize();
         }
     }
 
@@ -182,7 +186,7 @@ std::unique_ptr<Expression> Parser::ParseCall()
         }
         else if (Match(Token::Type::DOT))
         {
-            Token& name = Consume(Token::Type::IDENTIFIER, "Expected identifier after '.'.");
+            Token name = Consume(Token::Type::IDENTIFIER, "Expected identifier after '.'.");
             expr = std::make_unique<Expression>(Get(std::move(name), std::move(expr)));
         }
         else
@@ -205,15 +209,13 @@ std::unique_ptr<Expression> Parser::FinishCall(std::unique_ptr<Expression>&& cal
         } while (Match(Token::Type::COMMA));
     }
 
-    Token& paren = Consume(Token::Type::RIGHT_PAREN, "Expected ')' after arguments.");
+    Token paren = Consume(Token::Type::RIGHT_PAREN, "Expected ')' after arguments.");
 
     return std::make_unique<Expression>(Call(std::move(paren), std::move(callee), std::move(arguments)));
 }
 
 std::unique_ptr<Expression> Parser::ParsePrimary()
 {
-    Token& value = Previous();
-
     if (Match(Token::Type::LEFT_PAREN))
     {
         std::unique_ptr<Expression> expr_in = ParseExpression();
@@ -222,10 +224,11 @@ std::unique_ptr<Expression> Parser::ParsePrimary()
     }
     else if (Match(Token::Type::IDENTIFIER))
     {
-        return std::make_unique<Expression>(Variable(std::move(value)));
+        return std::make_unique<Expression>(Variable(std::move(Previous()), false));
     }
     else if (Match(Token::Type::BACKSLASH))
     {
+        Token& backslash = Previous();
         std::vector<Token> params;
         do
         {
@@ -240,11 +243,11 @@ std::unique_ptr<Expression> Parser::ParsePrimary()
 
         std::unique_ptr<Expression> body = ParseExpression();
 
-        return std::make_unique<Expression>(Lambda(std::move(value), std::move(params), std::move(body)));
+        return std::make_unique<Expression>(Lambda(std::move(backslash), std::move(params), std::move(body)));
     }
     else if (Match(Token::Type::THIS))
     {
-        return std::make_unique<Expression>(This(std::move(value)));
+        return std::make_unique<Expression>(This(std::move(Previous())));
     }
     else if (Match(Token::Type::SUPER))
     {
@@ -253,14 +256,32 @@ std::unique_ptr<Expression> Parser::ParsePrimary()
         Token method = Consume(Token::Type::IDENTIFIER, "Expected superclass method name.");
         return std::make_unique<Expression>(Super(std::move(keyword), std::move(method)));
     }
-
-    if (Match(Token::Type::FALSE, Token::Type::TRUE, Token::Type::NIL, Token::Type::NUMBER, Token::Type::STRING))
+    else if (Match(Token::Type::TRUE))
     {
-		return std::make_unique<Expression>(Literal(std::move(Previous())));
-	}
+        return std::make_unique<Expression>(Bool(true));
+    }
+    else if (Match(Token::Type::FALSE))
+    {
+        return std::make_unique<Expression>(Bool(false));
+    }
+    else if (Match(Token::Type::NIL))
+    {
+        return std::make_unique<Expression>(Nil());
+    }
+    else if (Match(Token::Type::NUMBER))
+    {
+        return std::make_unique<Expression>(Number(std::stod(Previous().m_lexeme)));
+    }
+    else if (Match(Token::Type::STRING))
+    {
+        return std::make_unique<Expression>(String(std::move(Previous().m_lexeme)));
+    }
     else
     {
-        throw CompilerError(CompilerError::Type::PARSER, "Expected expression.", value.m_line);
+        CompilerError::PrintError(CompilerError::Type::PARSER, "Expected expression.", Previous());
+        m_error = true;
+        Synchronize();
+        return nullptr;
     }
 }
 
@@ -319,15 +340,13 @@ std::unique_ptr<Expression> Parser::ParseComma()
 
 std::unique_ptr<Statement> Parser::ParseDeclaration()
 {
-    try
-    {
         bool is_fixed = Match(Token::Type::FIXED);
 
         if (Match(Token::Type::FUN))
         {
             return ParseFunctionStatement(false, is_fixed);
         }
-        else if (Match(Token::Type::VAR))
+        else if (Match(Token::Type::LET))
         {
             return ParseVarDeclaration(is_fixed);
         }
@@ -340,13 +359,6 @@ std::unique_ptr<Statement> Parser::ParseDeclaration()
             return ParseNamespaceDeclaration(is_fixed);
         }
         return ParseStatement();
-    }
-    catch (CompilerError& e)
-    {
-        std::cerr << e.what() << std::endl;
-        Synchronize();
-        return nullptr;
-    }
 }
 
 std::unique_ptr<Statement> Parser::ParseBlockStatement()
@@ -365,36 +377,36 @@ std::unique_ptr<Statement> Parser::ParseBlockStatement()
 
 std::unique_ptr<Statement> Parser::ParseVarDeclaration(bool is_fixed)
 {
-    std::vector<Var::VarContext> var_inits;
+    std::vector<Let::LetContext> let_inits;
     do
     {
-        Token& name = Consume(Token::Type::IDENTIFIER, "Expected variable name.");
+        Token name = Consume(Token::Type::IDENTIFIER, "Expected variable name.");
 
         if (Match(Token::Type::SINGLE_EQUAL))
         {
             std::unique_ptr<Expression> initializer = ParseExpression();
-            var_inits.emplace_back(std::move(name), std::move(is_fixed), std::move(initializer));
+            let_inits.emplace_back(std::move(name), std::move(is_fixed), std::move(initializer));
         }
         else
         {
-            var_inits.emplace_back(std::move(name), std::move(is_fixed), nullptr);
+            let_inits.emplace_back(std::move(name), std::move(is_fixed), nullptr);
         }
     } while (Match(Token::Type::COMMA));
     Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after variable declaration.");
 
-    return std::make_unique<Statement>(Var(std::move(var_inits)));
+    return std::make_unique<Statement>(Let(std::move(let_inits)));
 }
 
 std::unique_ptr<Statement> Parser::ParseNamespaceDeclaration(bool is_fixed)
 {
-    Token& name = Consume(Token::Type::IDENTIFIER, "Expected module name.");
+    Token name = Consume(Token::Type::IDENTIFIER, "Expected module name.");
     Consume(Token::Type::LEFT_BRACE, "Expected '{' before module body.");
     return std::make_unique<Statement>(Namespace(std::move(name), std::move(is_fixed), ParseBlockStatement()));
 }
 
 std::unique_ptr<Statement> Parser::ParseClassDeclaration(bool is_fixed)
 {
-    Token& name = Consume(Token::Type::IDENTIFIER, "Expected class name.");
+    Token name = Consume(Token::Type::IDENTIFIER, "Expected class name.");
 
     std::unique_ptr<Expression> superclass;
     if (Match(Token::Type::LESS))
@@ -419,7 +431,7 @@ std::unique_ptr<Statement> Parser::ParseClassDeclaration(bool is_fixed)
 
 std::unique_ptr<Statement> Parser::ParseFunctionStatement(bool is_sig, bool is_fixed)
 {
-    Token& name = Consume(Token::Type::IDENTIFIER, "Expected function name.");
+    Token name = Consume(Token::Type::IDENTIFIER, "Expected function name.");
 
     if (is_sig)
     {
@@ -477,7 +489,7 @@ std::unique_ptr<Statement> Parser::ParseForStatement()
 {
     Consume(Token::Type::LEFT_PAREN, "Expected '(' after \"for\".");
     std::unique_ptr<Statement> initializer;
-    if (Match(Token::Type::VAR))
+    if (Match(Token::Type::LET))
     {
         initializer = ParseVarDeclaration(false);
     }
@@ -508,7 +520,7 @@ std::unique_ptr<Statement> Parser::ParseForStatement()
     }
     if (condition == nullptr)
     {
-        condition = std::make_unique<Expression>(Literal(Token(Token::Type::TRUE, "", Previous().m_line)));
+        condition = std::make_unique<Expression>(Bool(true));
     }
 
     if (initializer != nullptr)
@@ -629,7 +641,7 @@ std::unique_ptr<Statement> Parser::ParseStatement()
     }
 }
 
-Program Parser::Parse()
+Parser::ParserResult Parser::Parse()
 {
     Program program;
     while (!IsAtEnd())
@@ -637,7 +649,7 @@ Program Parser::Parse()
 		program.emplace_back(ParseDeclaration());
 	}
 
-    return program;
+    return ParserResult(std::move(program), m_error);
 }
 
 void Parser::Synchronize()
@@ -654,7 +666,7 @@ void Parser::Synchronize()
         {
         case Token::Type::CLASS:
         case Token::Type::FUN:
-        case Token::Type::VAR:
+        case Token::Type::LET:
         case Token::Type::FOR:
         case Token::Type::IF:
         case Token::Type::WHILE:

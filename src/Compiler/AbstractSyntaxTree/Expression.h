@@ -11,7 +11,10 @@ struct Binary;
 struct Pipe;
 struct Logical;
 struct Group;
-struct Literal;
+struct String;
+struct Bool;
+struct Number;
+struct Nil;
 struct Unary;
 struct Assign;
 struct Variable;
@@ -27,7 +30,7 @@ struct ArrayGet;
 struct ArraySet;
 struct Comma;
 
-using Expression = std::variant<Binary, Pipe, Logical, Group, Literal, Unary, Assign, Variable, Call, Lambda, Ternary, Get, Set, This, Super, Array, ArrayGet, ArraySet, Comma>;
+using Expression = std::variant < Binary, Pipe, Logical, Group, String, Bool, Number, Nil, Unary, Assign, Variable, Call, Lambda, Ternary, Get, Set, This, Super, Array, ArrayGet, ArraySet, Comma > ;
 
 struct Binary
 {
@@ -55,9 +58,24 @@ struct Group
 	std::unique_ptr<Expression> m_expr_in;
 };
 
-struct Literal
+struct String
 {
-	Token m_value;
+	std::string m_value;
+};
+
+struct Bool
+{
+	bool m_value;
+};
+
+struct Number
+{
+	double m_value;
+};
+
+struct Nil
+{
+
 };
 
 struct Unary

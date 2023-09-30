@@ -4,7 +4,7 @@ const std::unordered_map<std::string, Token::Type> Lexer::s_keywords = {
     {"class", Token::Type::CLASS},
     {"else", Token::Type::ELSE},
     {"false", Token::Type::FALSE},
-    {"fun", Token::Type::FUN},
+    {"fn", Token::Type::FUN},
     {"for", Token::Type::FOR},
     {"if", Token::Type::IF},
     {"nil", Token::Type::NIL},
@@ -12,7 +12,7 @@ const std::unordered_map<std::string, Token::Type> Lexer::s_keywords = {
     {"super", Token::Type::SUPER},
     {"this", Token::Type::THIS},
     {"true", Token::Type::TRUE},
-    {"var", Token::Type::VAR},
+    {"let", Token::Type::LET},
     {"while", Token::Type::WHILE},
     {"do", Token::Type::DO},
     {"break", Token::Type::BREAK},
@@ -23,6 +23,70 @@ const std::unordered_map<std::string, Token::Type> Lexer::s_keywords = {
     {"namespace", Token::Type::NAMESPACE},
     {"fixed", Token::Type::FIXED},
     {"halt", Token::Type::HALT}, };
+
+void Lexer::SkipWhitespaceAndComments()
+{
+    while (true)
+    {
+        char c = LookAhead(0u);
+
+        switch (c)
+        {
+        case ' ':
+        case '\r':
+        case '\t':
+            Advance();
+            break;
+        case '\n':
+            m_line++;
+            Advance();
+            break;
+        case '/':
+            if (LookAhead(1u) == '/')
+            {
+                // A comment goes until the end of the line.
+                while (LookAhead(0u) != '\n' && !IsAtEnd(0u))
+                {
+                    Advance();
+                }
+            }
+            else if (LookAhead(1u) == '*')
+            {
+                // A block comment goes until the closing "*/".
+                Advance();
+                Advance();
+
+                while (LookAhead(0u) != '*' && LookAhead(1u) != '/' && !IsAtEnd(0u))
+                {
+                    if (LookAhead(0u) == '\n')
+                    {
+                        m_line += 1u;
+                    }
+                    Advance();
+                }
+
+                if (IsAtEnd(0u))
+                {
+                    Token error_token(Token::Type::ERROR, "error-token", m_line);
+                    CompilerError::PrintError(CompilerError::Type::LEXER, "Unterminated block comment.", error_token);
+                    m_error = true;
+                    return;
+                }
+
+                // The closing "*/".
+                Advance();
+                Advance();
+            }
+            else
+            {
+                return;
+            }
+            break;
+        default:
+            return;
+        }
+    }
+}
 
 Token Lexer::MatchString()
 {
@@ -70,7 +134,9 @@ Token Lexer::MatchString()
 
     if (IsAtEnd(0u))
     {
-        throw CompilerError(CompilerError::Type::LEXER, "Unterminated string.", m_line);
+        Token error_token(Token::Type::ERROR, "error-token", m_line);
+        CompilerError::PrintError(CompilerError::Type::LEXER, "Unterminated string.", error_token);
+        m_error = true;
     }
 
     Advance();
@@ -113,7 +179,7 @@ Token Lexer::MatchIdentifierOrReserved()
 
     if (it != s_keywords.cend())
     {
-        return MakeToken(s_keywords.at(identifier));
+        return MakeToken(it->second);
     }
     else
     {
@@ -121,41 +187,12 @@ Token Lexer::MatchIdentifierOrReserved()
     }
 }
 
-void Lexer::SkipComment()
-{
-    uint32_t flag = 1u;
-
-    while (flag != 0u && !IsAtEnd(0u))
-    {
-        if (MatchNext('/') && MatchNext('*'))
-        {
-            flag += 1u;
-        }
-        else if (MatchNext('*') && MatchNext('/'))
-        {
-            flag -= 1u;
-            if (IsAtEnd(0u))
-            {
-                return;
-            }
-        }
-        if (IsAtEnd(0u))
-        {
-            throw CompilerError(CompilerError::Type::LEXER, "Unterminated comment.", m_line);
-        }
-        else if (MatchNext('\n'))
-        {
-            m_line += 1u;
-        }
-        else
-        {
-            Advance();
-        }
-    }
-}
-
 Token Lexer::LexOneToken()
 {
+    SkipWhitespaceAndComments();
+
+    m_begin = m_current;
+
     char next_char = Advance();
     switch (next_char)
     {
@@ -215,10 +252,6 @@ Token Lexer::LexOneToken()
                 Advance();
             }
             m_line += 1u;
-        }
-        else if (MatchNext('*'))
-        {
-            SkipComment();
         }
         else
         {
@@ -295,6 +328,7 @@ Token Lexer::LexOneToken()
     case ' ':
     case '\r':
     case '\t':
+        Advance();
         return LexOneToken();
     case '"':
         return MatchString();
@@ -312,22 +346,24 @@ Token Lexer::LexOneToken()
         }
         else
         {
-            throw CompilerError(CompilerError::Type::LEXER, "Invalid character.", m_line);
+            Token error_token(Token::Type::ERROR, "error-token", m_line);
+            CompilerError::PrintError(CompilerError::Type::LEXER, "Invalid character.", error_token);
+            m_error = true;
+            return error_token;
         }
     }
 }
 
-TokenStream Lexer::Lex()
+Lexer::LexerResult Lexer::Lex()
 {
     TokenStream result;
 
     while (!IsAtEnd(0u))
     {
-        m_begin = m_current;
         result.AddToken(LexOneToken());
     }
 
     result.AddToken(MakeToken(Token::Type::END_OF_FILE));
     
-    return result;
+    return LexerResult(std::move(result), m_error);
 }

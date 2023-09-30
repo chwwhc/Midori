@@ -5,7 +5,7 @@
 struct Block;
 struct Simple;
 struct Print;
-struct Var;
+struct Let;
 struct If;
 struct While;
 struct Break;
@@ -17,7 +17,7 @@ struct Class;
 struct Namespace;
 struct Halt;
 
-using Statement = std::variant<Block, Simple, Print, Var, If, While, Break, Continue, Function, Return, Import, Class, Namespace, Halt>;
+using Statement = std::variant<Block, Simple, Print, Let, If, While, Break, Continue, Function, Return, Import, Class, Namespace, Halt>;
 using Program = std::vector<std::unique_ptr<Statement>>;
 
 struct Block
@@ -35,16 +35,16 @@ struct Print
     std::unique_ptr<Expression> m_expr;
 };
 
-struct Var
+struct Let
 {
-    struct VarContext
+    struct LetContext
     {
         Token m_name;
         bool m_is_fixed;
         std::unique_ptr<Expression> m_value;
     };
 
-    std::vector<VarContext> m_var_inits;
+    std::vector<LetContext> m_let_inits;
 };
 
 struct If

@@ -10,19 +10,27 @@
 class Lexer
 {
 public:
+    struct LexerResult
+    {
+		TokenStream m_tokens;
+        bool m_error;
+
+        LexerResult(TokenStream&& tokens, bool error) : m_tokens(std::move(tokens)), m_error(error) {}
+	};
 
 private:
     std::string m_source_code;
     uint32_t m_line = 1u;
     uint32_t m_begin = 0u;
     uint32_t m_current = 0u;
+    bool m_error = false;
     static const std::unordered_map<std::string, Token::Type> s_keywords;
 
 public:
 
     explicit Lexer(std::string&& source_code) noexcept : m_source_code(std::move(source_code)) {}
 
-    TokenStream Lex();
+    LexerResult Lex();
 
 private:
 
@@ -44,7 +52,7 @@ private:
 
     Token LexOneToken();
 
-    void SkipComment();
+    void SkipWhitespaceAndComments();
 
     Token MatchString();
 

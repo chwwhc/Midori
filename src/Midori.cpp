@@ -16,24 +16,53 @@ int main()
 	std::cout << std::endl;
 	std::cout << "\033[0m";  // Reset the text color to default
 
-	Lexer lexer("var x = [1];" "var y = x[0];" "x[0] = \"sd\";");
-	try
+	std::string script_1 = "let x = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]; "
+		"let y = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0];"
+
+		"for (let i = 0; i < 10; i = i + 1)"
+		"{"
+		"for (let j = 0; j < 10; j = j + 1)"
+		"{"
+		"print x[i];"
+		"print y[j];"
+		"}"
+		"}";
+
+	std::string script_2 = "fn add(a, b) "
+		"{"
+		"return a + b;"
+		"}"
+		"let x = add(1, 2);"
+		"print x;";
+
+	std::string script_3 = 
+		"class X < Y {"
+		"init() {"
+		"let x = 1;"
+		"let y = false;"
+		"let z = \"hello\";"
+		"let a = nil;"
+		"super.init();"
+		"}"
+		"}";
+
+	Lexer lexer(std::move(script_3));
+	Lexer::LexerResult lexer_result = lexer.Lex();
+	if (!lexer_result.m_error)
 	{
-		TokenStream tokens = lexer.Lex();
+		TokenStream tokens = std::move(lexer_result.m_tokens);
 		Parser parser(std::move(tokens));
-
-		Program program = parser.Parse();
-
-		AbstractSyntaxTreePrinter printer;
-
-		for (const auto& statement : program)
+		Parser::ParserResult parser_result = parser.Parse();
+		if (!parser_result.m_error)
 		{
-			std::visit(printer, *statement);
+			Program program = std::move(parser_result.m_program);
+			AbstractSyntaxTreePrinter printer;
+			for (const auto& statement : program)
+			{
+				std::visit(printer, *statement);
+			}
+
 		}
-	}
-	catch (const CompilerError& e)
-	{
-		std::cerr << e.what() << std::endl;
 	}
 
 	return 0;

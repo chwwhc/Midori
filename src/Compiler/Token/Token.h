@@ -7,81 +7,87 @@ struct Token
 {
 	enum class Type
 	{
-        // symbol
-        LEFT_PAREN,
-        RIGHT_PAREN,
-        LEFT_BRACE,
-        RIGHT_BRACE,
-        LEFT_BRACKET,
-        RIGHT_BRACKET,
-        COMMA,
-        DOT,
-        SINGLE_SEMICOLON,
-        PLUS,
-        MINUS,
-        LEFT_SHIFT,
-        RIGHT_SHIFT,
-        PERCENT,
-        STAR,
-        SLASH,
-        SINGLE_BAR,
-        DOUBLE_BAR,
-        CARET,
-        SINGLE_AMPERSAND,
-        DOUBLE_AMPERSAND,
-        BANG,
-        BANG_EQUAL,
-        SINGLE_EQUAL,
-        DOUBLE_EQUAL,
-        PIPE,
-        GREATER,
-        GREATER_EQUAL,
-        LESS,
-        LESS_EQUAL,
-        QUESTION,
-        SINGLE_COLON,
-        DOUBLE_COLON,
-        RIGHT_ARROW,
-        AT,
-        BACKSLASH,
+		// symbol
+		LEFT_PAREN,
+		RIGHT_PAREN,
+		LEFT_BRACE,
+		RIGHT_BRACE,
+		LEFT_BRACKET,
+		RIGHT_BRACKET,
+		COMMA,
+		DOT,
+		SINGLE_SEMICOLON,
+		PLUS,
+		MINUS,
+		LEFT_SHIFT,
+		RIGHT_SHIFT,
+		PERCENT,
+		STAR,
+		SLASH,
+		SINGLE_BAR,
+		DOUBLE_BAR,
+		CARET,
+		SINGLE_AMPERSAND,
+		DOUBLE_AMPERSAND,
+		BANG,
+		BANG_EQUAL,
+		SINGLE_EQUAL,
+		DOUBLE_EQUAL,
+		PIPE,
+		GREATER,
+		GREATER_EQUAL,
+		LESS,
+		LESS_EQUAL,
+		QUESTION,
+		SINGLE_COLON,
+		DOUBLE_COLON,
+		RIGHT_ARROW,
+		AT,
+		BACKSLASH,
 
-        // Literal
-        IDENTIFIER,
-        STRING,
-        NUMBER,
+		// Literal
+		IDENTIFIER,
+		STRING,
+		NUMBER,
 
-        // reserved
-        CLASS,
-        ELSE,
-        FALSE,
-        FUN,
-        FOR,
-        IF,
-        NIL,
-        RETURN,
-        SUPER,
-        THIS,
-        TRUE,
-        VAR,
-        WHILE,
-        DO,
-        BREAK,
-        CONTINUE,
-        PRINT,
-        AND,
-        OR,
-        SIG,
-        IMPORT,
-        NAMESPACE,
-        FIXED,
-        HALT,
+		// reserved
+		CLASS,
+		ELSE,
+		FALSE,
+		FUN,
+		FOR,
+		IF,
+		NIL,
+		RETURN,
+		SUPER,
+		THIS,
+		TRUE,
+		LET,
+		WHILE,
+		DO,
+		BREAK,
+		CONTINUE,
+		PRINT,
+		AND,
+		OR,
+		SIG,
+		IMPORT,
+		NAMESPACE,
+		FIXED,
+		HALT,
 
-        END_OF_FILE,
+		END_OF_FILE,
+		ERROR,
 	};
 
 	Type m_type;
 	std::string m_lexeme;
 	uint32_t m_line;
+
+	Token(Type type, std::string&& lexeme, uint32_t line)
+		: m_type(type), m_lexeme(std::move(lexeme)), m_line(line)
+	{
+	}
 };
 
 class TokenStream
@@ -89,9 +95,10 @@ class TokenStream
 public:
 
 private:
-    std::vector<Token> m_tokens;
+	std::vector<Token> m_tokens;
 
 public:
+
 	// Adding iterator support
 	using iterator = std::vector<Token>::iterator;
 	using const_iterator = std::vector<Token>::const_iterator;
@@ -109,7 +116,7 @@ public:
 
 	inline Token& operator[](int index) const { return const_cast<Token&>(m_tokens[index]); }
 
-    inline uint32_t Size() const { return static_cast<uint32_t>(m_tokens.size()); }
+	inline uint32_t Size() const { return static_cast<uint32_t>(m_tokens.size()); }
 
 private:
 };

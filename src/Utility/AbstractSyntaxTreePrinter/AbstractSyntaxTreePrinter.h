@@ -41,18 +41,18 @@ struct AbstractSyntaxTreePrinter
 		PrintWithIndentation(depth, "}");
 	}
 
-	void operator()(const Var& var, int depth = 0) const
+	void operator()(const Let& let, int depth = 0) const
 	{
-		PrintWithIndentation(depth, "Var {");
-		for (const Var::VarContext& var_context : var.m_var_inits)
+		PrintWithIndentation(depth, "Let {");
+		for (const Let::LetContext& let_context : let.m_let_inits)
 		{
 			PrintWithIndentation(depth + 1, "VarContext {");
-			PrintWithIndentation(depth + 1, "Name: " + var_context.m_name.m_lexeme);
-			PrintWithIndentation(depth + 1, std::string("IsFixed: ") + (var_context.m_is_fixed ? "true" : "false"));
+			PrintWithIndentation(depth + 1, "Name: " + let_context.m_name.m_lexeme);
+			PrintWithIndentation(depth + 1, std::string("IsFixed: ") + (let_context.m_is_fixed ? "true" : "false"));
 			PrintWithIndentation(depth + 1, "Value: ");
-			if (var_context.m_value != nullptr)
+			if (let_context.m_value != nullptr)
 			{
-				std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *var_context.m_value);
+				std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *let_context.m_value);
 			}
 			else
 			{
@@ -265,11 +265,30 @@ struct AbstractSyntaxTreePrinter
 		PrintWithIndentation(depth, "}");
 	}
 
-	void operator()(const Literal& literal, int depth = 0) const
+	void operator()(const String& string, int depth = 0) const
 	{
-		PrintWithIndentation(depth, "Literal {");
-		PrintWithIndentation(depth + 1, "Value: " + literal.m_value.m_lexeme);
+		PrintWithIndentation(depth, "String {");
+		PrintWithIndentation(depth + 1, "Value: \"" + string.m_value + "\"");
 		PrintWithIndentation(depth, "}");
+	}
+
+	void operator()(const Bool& bool_, int depth = 0) const
+	{
+		PrintWithIndentation(depth, "Bool {");
+		PrintWithIndentation(depth + 1, "Value: " + std::string(bool_.m_value ? "true" : "false"));
+		PrintWithIndentation(depth, "}");
+	}
+
+	void operator()(const Number& number, int depth = 0) const
+	{
+		PrintWithIndentation(depth, "Number {");
+		PrintWithIndentation(depth + 1, "Value: " + std::to_string(number.m_value));
+		PrintWithIndentation(depth, "}");
+	}
+
+	void operator()(const Nil&, int depth = 0) const
+	{
+		PrintWithIndentation(depth, "Nil");
 	}
 
 	void operator()(const Lambda& lambda, int depth = 0) const

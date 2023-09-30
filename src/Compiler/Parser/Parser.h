@@ -7,16 +7,24 @@
 class Parser
 {
 public:
+	struct ParserResult
+	{
+		Program m_program;
+		bool m_error;
+
+		ParserResult(Program&& program, bool error) : m_program(std::move(program)), m_error(error) {}
+	};
 
 private:
 	TokenStream m_tokens;
+	bool m_error = false;
 	uint32_t m_lambda_count = 0u;
 	uint32_t m_current = 0u;
 
 public:
 	explicit Parser(TokenStream&& tokens) : m_tokens(std::move(tokens)) {}
 
-	Program Parse();
+	ParserResult Parse();
 
 private:
 
@@ -30,14 +38,17 @@ private:
 
 	inline Token& Advance() { if (!IsAtEnd()) { m_current += 1u; } return Previous(); }
 
-	inline Token& Consume(Token::Type type, const char* message) 
+	inline Token Consume(Token::Type type, const char* message) 
 	{
 		if (Check(type, 0u)) 
 		{
-			return Advance(); 
+			return std::move(Advance()); 
 		}
 
-		throw CompilerError(CompilerError::Type::PARSER, message, Peek(0u).m_line);
+		CompilerError::PrintError(CompilerError::Type::PARSER, message, Peek(0u));
+		m_error = true;
+		Synchronize();
+		return Token(Token::Type::ERROR, "", Peek(0u).m_line);
 	}
 
 	template <typename... T>

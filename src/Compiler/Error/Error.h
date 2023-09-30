@@ -1,32 +1,31 @@
 #pragma once
 
-#include <exception>
+#include "Compiler/Token/Token.h"
 
-class CompilerError : public std::exception
+#include <iostream>
+#include <string>
+
+namespace CompilerError
 {
-public:
 	enum class Type
 	{
 		LEXER,
 		PARSER,
 	};
 
-private:
-	std::string m_message;
-
-public:
-	CompilerError(CompilerError::Type type, const char* message, uint32_t line)
+	inline void PrintError(Type type, const char* message, const Token& token)
 	{
+		std::cerr << "[line " << token.m_line << "] " << "'" << token.m_lexeme << "' ";
 		switch (type)
 		{
 			case CompilerError::Type::LEXER:
 			{
-				m_message.append("Lexer Error: ");
+				std::cerr << "Lexer Error: ";
 				break;
 			}
 			case CompilerError::Type::PARSER:
 			{
-				m_message.append("Parser Error: ");
+				std::cerr << "Parser Error: ";
 				break;
 			}
 			default:
@@ -34,16 +33,6 @@ public:
 				break; // unreachable
 			}
 		}
-
-		m_message.append(message);
-		m_message.append("\n[line ");
-		m_message.append(std::to_string(line));
-		m_message.append("] in script\n");
+		std::cerr << message << std::endl;
 	}
-	const char* what() const noexcept override
-	{
-		return m_message.data();
-	}
-
-private:
-};
+}
