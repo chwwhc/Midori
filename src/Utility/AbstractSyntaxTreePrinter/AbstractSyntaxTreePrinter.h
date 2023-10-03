@@ -5,13 +5,13 @@
 
 #include <iostream>
 
-struct AbstractSyntaxTreePrinter
+struct PrintAbstractSyntaxTree
 {
-	void PrintWithIndentation(int depth, std::string text) const 
+	void PrintWithIndentation(int depth, std::string text) const
 	{
-		for (int i = 0; i < depth; i += 1) 
+		for (int i = 0; i < depth; i += 1)
 		{
-			std::cout << "\t";  
+			std::cout << "\t";
 		}
 
 		std::cout << text << std::endl;
@@ -22,7 +22,7 @@ struct AbstractSyntaxTreePrinter
 		PrintWithIndentation(depth, "Block {");
 		for (const std::unique_ptr<Statement>& stmt : block.m_stmts)
 		{
-			std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 1); }, *stmt);
+			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 1); }, *stmt);
 		}
 		PrintWithIndentation(depth, "}");
 	}
@@ -30,35 +30,29 @@ struct AbstractSyntaxTreePrinter
 	void operator()(const Simple& simple, int depth = 0) const
 	{
 		PrintWithIndentation(depth, "Simple {");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 1); }, *simple.m_expr);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 1); }, *simple.m_expr);
 		PrintWithIndentation(depth, "}");
 	}
 
 	void operator()(const Print& print, int depth = 0) const
 	{
 		PrintWithIndentation(depth, "Print {");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 1); }, *print.m_expr);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 1); }, *print.m_expr);
 		PrintWithIndentation(depth, "}");
 	}
 
 	void operator()(const Let& let, int depth = 0) const
 	{
 		PrintWithIndentation(depth, "Let {");
-		for (const Let::LetContext& let_context : let.m_let_inits)
+		PrintWithIndentation(depth + 1, "Name: " + let.m_name.m_lexeme);
+		PrintWithIndentation(depth + 1, "Value: ");
+		if (let.m_value != nullptr)
 		{
-			PrintWithIndentation(depth + 1, "VarContext {");
-			PrintWithIndentation(depth + 1, "Name: " + let_context.m_name.m_lexeme);
-			PrintWithIndentation(depth + 1, std::string("IsFixed: ") + (let_context.m_is_fixed ? "true" : "false"));
-			PrintWithIndentation(depth + 1, "Value: ");
-			if (let_context.m_value != nullptr)
-			{
-				std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *let_context.m_value);
-			}
-			else
-			{
-				PrintWithIndentation(depth + 2, "nil");
-			}
-			PrintWithIndentation(depth + 1, "}");
+			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *let.m_value);
+		}
+		else
+		{
+			PrintWithIndentation(depth + 2, "nil");
 		}
 		PrintWithIndentation(depth, "}");
 	}
@@ -67,11 +61,14 @@ struct AbstractSyntaxTreePrinter
 	{
 		PrintWithIndentation(depth, "If {");
 		PrintWithIndentation(depth + 1, "Condition: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *if_stmt.m_condition);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *if_stmt.m_condition);
 		PrintWithIndentation(depth + 1, "TrueBranch: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *if_stmt.m_true_branch);
-		PrintWithIndentation(depth + 1, "ElseBranch: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *if_stmt.m_else_branch);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *if_stmt.m_true_branch);
+		if (if_stmt.m_else_branch.has_value())
+		{
+			PrintWithIndentation(depth + 1, "ElseBranch: ");
+			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *if_stmt.m_else_branch.value());
+		}
 		PrintWithIndentation(depth + 1, "}");
 	}
 
@@ -79,9 +76,29 @@ struct AbstractSyntaxTreePrinter
 	{
 		PrintWithIndentation(depth, "While {");
 		PrintWithIndentation(depth + 1, "Condition: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *while_stmt.m_condition);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *while_stmt.m_condition);
 		PrintWithIndentation(depth + 1, "Body: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *while_stmt.m_body);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *while_stmt.m_body);
+		PrintWithIndentation(depth + 1, "}");
+	}
+
+	void operator()(const For& for_stmt, int depth = 0) const
+	{
+		PrintWithIndentation(depth, "For {");
+		PrintWithIndentation(depth + 1, "Condition Initializer: ");
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *for_stmt.m_condition_intializer);
+		if (for_stmt.m_condition.has_value())
+		{
+			PrintWithIndentation(depth + 1, "Condition: ");
+			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *for_stmt.m_condition.value());
+		}
+		PrintWithIndentation(depth + 1, "Body: ");
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *for_stmt.m_body);
+		if (for_stmt.m_condition_incrementer.has_value())
+		{
+			PrintWithIndentation(depth + 1, "Condition Incrementer: ");
+			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *for_stmt.m_condition_incrementer.value());
+		}
 		PrintWithIndentation(depth + 1, "}");
 	}
 
@@ -99,22 +116,20 @@ struct AbstractSyntaxTreePrinter
 	{
 		PrintWithIndentation(depth, "Function {");
 		PrintWithIndentation(depth + 1, "Name: " + function.m_name.m_lexeme);
-		PrintWithIndentation(depth + 1, std::string("IsFixed: ") + (function.m_is_fixed ? "true" : "false"));
-		PrintWithIndentation(depth + 1, std::string("IsSignature: ") + (function.m_is_sig ? "true" : "false"));
 		PrintWithIndentation(depth + 1, "Params: ");
 		for (const Token& param : function.m_params)
 		{
 			PrintWithIndentation(depth + 2, param.m_lexeme);
 		}
 		PrintWithIndentation(depth + 1, "Body: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *function.m_body);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *function.m_body);
 		PrintWithIndentation(depth, "}");
 	}
 
 	void operator()(const Return& return_stmt, int depth = 0) const
 	{
 		PrintWithIndentation(depth, "Return {");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 1); }, *return_stmt.m_value);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 1); }, *return_stmt.m_value);
 		PrintWithIndentation(depth, "}");
 	}
 
@@ -122,32 +137,16 @@ struct AbstractSyntaxTreePrinter
 	{
 		PrintWithIndentation(depth, "Import {");
 		PrintWithIndentation(depth + 1, "Path: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *import.m_path);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *import.m_path);
 		PrintWithIndentation(depth, "}");
 	}
 
-	void operator()(const Class& class_, int depth = 0) const
-	{
-		PrintWithIndentation(depth, "Class {");
-		PrintWithIndentation(depth + 1, "Name: " + class_.m_name.m_lexeme);
-		PrintWithIndentation(depth + 1, std::string("IsFixed: ") + (class_.m_is_fixed ? "true" : "false"));
-		PrintWithIndentation(depth + 1, "Superclass: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *class_.m_superclass);
-		PrintWithIndentation(depth + 1, "Methods: ");
-		for (const std::unique_ptr<Statement>& method : class_.m_methods)
-		{
-			std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *method);
-		}
-		PrintWithIndentation(depth, "}");
-	}
-
-	void operator()(const Namespace& namespace_, int depth = 0) const
+	void operator()(const Namespace& namespace_stmt, int depth = 0) const
 	{
 		PrintWithIndentation(depth, "Namespace {");
-		PrintWithIndentation(depth + 1, "Name: " + namespace_.m_name.m_lexeme);
-		PrintWithIndentation(depth + 1, "IsFixed: " + namespace_.m_is_fixed ? "true" : "false");
+		PrintWithIndentation(depth + 1, "Name: " + namespace_stmt.m_name.m_lexeme);
 		PrintWithIndentation(depth + 1, "Body: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *namespace_.m_stmts);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *namespace_stmt.m_stmts);
 		PrintWithIndentation(depth, "}");
 	}
 
@@ -161,9 +160,9 @@ struct AbstractSyntaxTreePrinter
 		PrintWithIndentation(depth, "Binary {");
 		PrintWithIndentation(depth + 1, "Operator: " + binary.m_op.m_lexeme);
 		PrintWithIndentation(depth + 1, "Left: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *binary.m_left);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *binary.m_left);
 		PrintWithIndentation(depth + 1, "Right: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *binary.m_right);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *binary.m_right);
 		PrintWithIndentation(depth, "}");
 	}
 
@@ -171,9 +170,9 @@ struct AbstractSyntaxTreePrinter
 	{
 		PrintWithIndentation(depth, "Pipe {");
 		PrintWithIndentation(depth + 1, "Left: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *pipe.m_left);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *pipe.m_left);
 		PrintWithIndentation(depth + 1, "Right: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *pipe.m_right);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *pipe.m_right);
 		PrintWithIndentation(depth, "}");
 	}
 
@@ -182,16 +181,16 @@ struct AbstractSyntaxTreePrinter
 		PrintWithIndentation(depth, "Logical {");
 		PrintWithIndentation(depth + 1, "Operator: " + logical.m_op.m_lexeme);
 		PrintWithIndentation(depth + 1, "Left: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *logical.m_left);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *logical.m_left);
 		PrintWithIndentation(depth + 1, "Right: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *logical.m_right);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *logical.m_right);
 		PrintWithIndentation(depth, "}");
 	}
 
 	void operator()(const Group& group, int depth = 0) const
 	{
 		PrintWithIndentation(depth, "Group {");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 1); }, *group.m_expr_in);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 1); }, *group.m_expr_in);
 		PrintWithIndentation(depth, "}");
 	}
 
@@ -200,7 +199,7 @@ struct AbstractSyntaxTreePrinter
 		PrintWithIndentation(depth, "Unary {");
 		PrintWithIndentation(depth + 1, "Operator: " + unary.m_op.m_lexeme);
 		PrintWithIndentation(depth + 1, "Right: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *unary.m_right);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *unary.m_right);
 		PrintWithIndentation(depth, "}");
 	}
 
@@ -208,11 +207,11 @@ struct AbstractSyntaxTreePrinter
 	{
 		PrintWithIndentation(depth, "Call {");
 		PrintWithIndentation(depth + 1, "Callee: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *call.m_callee);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *call.m_callee);
 		PrintWithIndentation(depth + 1, "Args: ");
 		for (const std::unique_ptr<Expression>& arg : call.m_arguments)
 		{
-			std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *arg);
+			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *arg);
 		}
 		PrintWithIndentation(depth, "}");
 	}
@@ -221,7 +220,7 @@ struct AbstractSyntaxTreePrinter
 	{
 		PrintWithIndentation(depth, "Get {");
 		PrintWithIndentation(depth + 1, "Object: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *get.m_object);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *get.m_object);
 		PrintWithIndentation(depth + 1, "Name: " + get.m_name.m_lexeme);
 		PrintWithIndentation(depth, "}");
 	}
@@ -230,22 +229,10 @@ struct AbstractSyntaxTreePrinter
 	{
 		PrintWithIndentation(depth, "Set {");
 		PrintWithIndentation(depth + 1, "Object: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *set.m_object);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *set.m_object);
 		PrintWithIndentation(depth + 1, "Name: " + set.m_name.m_lexeme);
 		PrintWithIndentation(depth + 1, "Value: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *set.m_value);
-		PrintWithIndentation(depth, "}");
-	}
-
-	void operator()(const This&, int depth = 0) const
-	{
-		PrintWithIndentation(depth, "This");
-	}
-
-	void operator()(const Super& super, int depth = 0) const
-	{
-		PrintWithIndentation(depth, "Super {");
-		PrintWithIndentation(depth + 1, "Method: " + super.m_method.m_lexeme);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *set.m_value);
 		PrintWithIndentation(depth, "}");
 	}
 
@@ -261,28 +248,28 @@ struct AbstractSyntaxTreePrinter
 		PrintWithIndentation(depth, "Assign {");
 		PrintWithIndentation(depth + 1, "Name: " + assign.m_name.m_lexeme);
 		PrintWithIndentation(depth + 1, "Value: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *assign.m_value);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *assign.m_value);
 		PrintWithIndentation(depth, "}");
 	}
 
 	void operator()(const String& string, int depth = 0) const
 	{
 		PrintWithIndentation(depth, "String {");
-		PrintWithIndentation(depth + 1, "Value: \"" + string.m_value + "\"");
+		PrintWithIndentation(depth + 1, "Value: \"" + string.m_token.m_lexeme + "\"");
 		PrintWithIndentation(depth, "}");
 	}
 
-	void operator()(const Bool& bool_, int depth = 0) const
+	void operator()(const Bool& bool_val, int depth = 0) const
 	{
 		PrintWithIndentation(depth, "Bool {");
-		PrintWithIndentation(depth + 1, "Value: " + std::string(bool_.m_value ? "true" : "false"));
+		PrintWithIndentation(depth + 1, "Value: " + bool_val.m_token.m_lexeme);
 		PrintWithIndentation(depth, "}");
 	}
 
 	void operator()(const Number& number, int depth = 0) const
 	{
 		PrintWithIndentation(depth, "Number {");
-		PrintWithIndentation(depth + 1, "Value: " + std::to_string(number.m_value));
+		PrintWithIndentation(depth + 1, "Value: " + number.m_token.m_lexeme);
 		PrintWithIndentation(depth, "}");
 	}
 
@@ -300,7 +287,7 @@ struct AbstractSyntaxTreePrinter
 			PrintWithIndentation(depth + 2, param.m_lexeme);
 		}
 		PrintWithIndentation(depth + 1, "Body: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *lambda.m_body);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *lambda.m_body);
 		PrintWithIndentation(depth, "}");
 	}
 
@@ -310,7 +297,7 @@ struct AbstractSyntaxTreePrinter
 		PrintWithIndentation(depth + 1, "Elements: ");
 		for (const std::unique_ptr<Expression>& element : array.m_elems)
 		{
-			std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *element);
+			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *element);
 		}
 		PrintWithIndentation(depth, "}");
 	}
@@ -319,11 +306,11 @@ struct AbstractSyntaxTreePrinter
 	{
 		PrintWithIndentation(depth, "ArrayGet {");
 		PrintWithIndentation(depth + 1, "Array: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *array_get.m_arr_var);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *array_get.m_arr_var);
 		PrintWithIndentation(depth + 1, "Index: ");
 		for (const std::unique_ptr<Expression>& index : array_get.m_indices)
 		{
-			std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *index);
+			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *index);
 		}
 		PrintWithIndentation(depth, "}");
 	}
@@ -332,24 +319,14 @@ struct AbstractSyntaxTreePrinter
 	{
 		PrintWithIndentation(depth, "ArraySet {");
 		PrintWithIndentation(depth + 1, "Array: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *array_set.m_arr_var);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *array_set.m_arr_var);
 		PrintWithIndentation(depth + 1, "Index: ");
 		for (const std::unique_ptr<Expression>& index : array_set.m_indices)
 		{
-			std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *index);
+			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *index);
 		}
 		PrintWithIndentation(depth + 1, "Value: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *array_set.m_value);
-		PrintWithIndentation(depth, "}");
-	}
-
-	void operator()(const Comma& comma, int depth = 0) const
-	{
-		PrintWithIndentation(depth, "Comma {");
-		for (const std::unique_ptr<Expression>& expr : comma.m_exprs)
-		{
-			std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 1); }, *expr);
-		}
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *array_set.m_value);
 		PrintWithIndentation(depth, "}");
 	}
 
@@ -357,11 +334,11 @@ struct AbstractSyntaxTreePrinter
 	{
 		PrintWithIndentation(depth, "Ternary {");
 		PrintWithIndentation(depth + 1, "Condition: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *ternary.m_condition);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *ternary.m_condition);
 		PrintWithIndentation(depth + 1, "Then: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *ternary.m_true_branch);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *ternary.m_true_branch);
 		PrintWithIndentation(depth + 1, "Else: ");
-		std::visit([depth](auto&& arg) { AbstractSyntaxTreePrinter()(arg, depth + 2); }, *ternary.m_else_branch);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *ternary.m_else_branch);
 		PrintWithIndentation(depth, "}");
 	}
 };

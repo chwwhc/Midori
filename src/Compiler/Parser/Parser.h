@@ -4,22 +4,26 @@
 #include "Compiler/AbstractSyntaxTree/Statement.h"
 #include "Compiler/Error/Error.h"
 
+#include <unordered_map>
+
 class Parser
 {
 public:
 	struct ParserResult
 	{
-		Program m_program;
+		ProgramTree m_program;
 		bool m_error;
 
-		ParserResult(Program&& program, bool error) : m_program(std::move(program)), m_error(error) {}
+		ParserResult(ProgramTree&& program, bool error) : m_program(std::move(program)), m_error(error) {}
 	};
 
 private:
+	std::vector<std::unordered_map<std::string, int>> m_scopes = { std::unordered_map<std::string, int>() };
 	TokenStream m_tokens;
+	int m_lambda_count = 0;
+	int m_current = 0;
+	int m_total_locals = 0;
 	bool m_error = false;
-	uint32_t m_lambda_count = 0u;
-	uint32_t m_current = 0u;
 
 public:
 	explicit Parser(TokenStream&& tokens) : m_tokens(std::move(tokens)) {}
@@ -28,27 +32,27 @@ public:
 
 private:
 
-	inline bool IsAtEnd() { return Peek(0u).m_type == Token::Type::END_OF_FILE; }
+	inline bool IsAtEnd() { return Peek(0).m_type == Token::Type::END_OF_FILE; }
 
-	inline bool Check(Token::Type type, uint32_t offset) { return !IsAtEnd() && Peek(offset).m_type == type; }
+	inline bool Check(Token::Type type, int offset) { return !IsAtEnd() && Peek(offset).m_type == type; }
 
-	inline Token& Peek(uint32_t offset) { return m_current + offset < m_tokens.Size() ? m_tokens[m_current + offset] : m_tokens[m_tokens.Size() - 1u]; }
+	inline Token& Peek(int offset) { return m_current + offset < m_tokens.Size() ? m_tokens[m_current + offset] : m_tokens[m_tokens.Size() - 1]; }
 
-	inline Token& Previous() { return m_tokens[m_current - 1u]; }
+	inline Token& Previous() { return m_tokens[m_current - 1]; }
 
-	inline Token& Advance() { if (!IsAtEnd()) { m_current += 1u; } return Previous(); }
+	inline Token& Advance() { if (!IsAtEnd()) { m_current += 1; } return Previous(); }
 
-	inline Token Consume(Token::Type type, const char* message) 
+	inline Token Consume(Token::Type type, const char* message)
 	{
-		if (Check(type, 0u)) 
+		if (Check(type, 0))
 		{
-			return std::move(Advance()); 
+			return std::move(Advance());
 		}
 
-		CompilerError::PrintError(CompilerError::Type::PARSER, message, Peek(0u));
+		CompilerError::PrintError(CompilerError::Type::PARSER, message, Peek(0));
 		m_error = true;
 		Synchronize();
-		return Token(Token::Type::ERROR, "", Peek(0u).m_line);
+		return Token(Token::Type::ERROR, "", Peek(0).m_line);
 	}
 
 	template <typename... T>
@@ -75,6 +79,16 @@ private:
 		}
 
 		return lower_expr;
+	}
+
+	inline void BeginScope() { m_scopes.emplace_back(std::unordered_map<std::string, int>()); }
+
+	inline int EndScope()
+	{
+		int block_local_count = static_cast<int>(m_scopes.back().size());
+		m_total_locals -= block_local_count;
+		m_scopes.pop_back();
+		return block_local_count;
 	}
 
 	std::unique_ptr<Expression> ParseExpression();
@@ -119,19 +133,15 @@ private:
 
 	std::unique_ptr<Expression> ParsePipe();
 
-	std::unique_ptr<Expression> ParseComma();
-
 	std::unique_ptr<Statement> ParseDeclaration();
 
 	std::unique_ptr<Statement> ParseBlockStatement();
 
-	std::unique_ptr<Statement> ParseVarDeclaration(bool is_fixed);
+	std::unique_ptr<Statement> ParseLetStatement();
 
-	std::unique_ptr<Statement> ParseNamespaceDeclaration(bool is_fixed);
+	std::unique_ptr<Statement> ParseNamespaceDeclaration();
 
-	std::unique_ptr<Statement> ParseClassDeclaration(bool is_fixed);
-
-	std::unique_ptr<Statement> ParseFunctionStatement(bool is_sig, bool is_fixed);
+	std::unique_ptr<Statement> ParseFunctionStatement();
 
 	std::unique_ptr<Statement> ParseIfStatement();
 

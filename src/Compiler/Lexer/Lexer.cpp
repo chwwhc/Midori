@@ -1,7 +1,6 @@
 #include "Lexer.h"
 
 const std::unordered_map<std::string, Token::Type> Lexer::s_keywords = {
-    {"class", Token::Type::CLASS},
     {"else", Token::Type::ELSE},
     {"false", Token::Type::FALSE},
     {"fn", Token::Type::FUN},
@@ -9,8 +8,6 @@ const std::unordered_map<std::string, Token::Type> Lexer::s_keywords = {
     {"if", Token::Type::IF},
     {"nil", Token::Type::NIL},
     {"return", Token::Type::RETURN},
-    {"super", Token::Type::SUPER},
-    {"this", Token::Type::THIS},
     {"true", Token::Type::TRUE},
     {"let", Token::Type::LET},
     {"while", Token::Type::WHILE},
@@ -18,17 +15,15 @@ const std::unordered_map<std::string, Token::Type> Lexer::s_keywords = {
     {"break", Token::Type::BREAK},
     {"continue", Token::Type::CONTINUE},
     {"print", Token::Type::PRINT},
-    {"sig", Token::Type::SIG},
     {"import", Token::Type::IMPORT},
     {"namespace", Token::Type::NAMESPACE},
-    {"fixed", Token::Type::FIXED},
     {"halt", Token::Type::HALT}, };
 
 void Lexer::SkipWhitespaceAndComments()
 {
     while (true)
     {
-        char c = LookAhead(0u);
+        char c = LookAhead(0);
 
         switch (c)
         {
@@ -42,30 +37,30 @@ void Lexer::SkipWhitespaceAndComments()
             Advance();
             break;
         case '/':
-            if (LookAhead(1u) == '/')
+            if (LookAhead(1) == '/')
             {
                 // A comment goes until the end of the line.
-                while (LookAhead(0u) != '\n' && !IsAtEnd(0u))
+                while (LookAhead(0) != '\n' && !IsAtEnd(0))
                 {
                     Advance();
                 }
             }
-            else if (LookAhead(1u) == '*')
+            else if (LookAhead(1) == '*')
             {
                 // A block comment goes until the closing "*/".
                 Advance();
                 Advance();
 
-                while (LookAhead(0u) != '*' && LookAhead(1u) != '/' && !IsAtEnd(0u))
+                while (LookAhead(0) != '*' && LookAhead(1) != '/' && !IsAtEnd(0))
                 {
-                    if (LookAhead(0u) == '\n')
+                    if (LookAhead(0) == '\n')
                     {
-                        m_line += 1u;
+                        m_line += 1;
                     }
                     Advance();
                 }
 
-                if (IsAtEnd(0u))
+                if (IsAtEnd(0))
                 {
                     Token error_token(Token::Type::ERROR, "error-token", m_line);
                     CompilerError::PrintError(CompilerError::Type::LEXER, "Unterminated block comment.", error_token);
@@ -92,15 +87,15 @@ Token Lexer::MatchString()
 {
     std::string result;
 
-    while (LookAhead(0u) != '"' && !IsAtEnd(0u))
+    while (LookAhead(0) != '"' && !IsAtEnd(0))
     {
-        if (LookAhead(0u) == '\n')
+        if (LookAhead(0) == '\n')
         {
-            m_line += 1u;
+            m_line += 1;
         }
-        if (LookAhead(0u) == '\\' && !IsAtEnd(1u))
+        if (LookAhead(0) == '\\' && !IsAtEnd(1))
         {
-            switch (LookAhead(1u))
+            switch (LookAhead(1))
             {
             case 't':
                 result += '\t';
@@ -132,9 +127,9 @@ Token Lexer::MatchString()
         result += Advance();
     }
 
-    if (IsAtEnd(0u))
+    if (IsAtEnd(0))
     {
-        Token error_token(Token::Type::ERROR, "error-token", m_line);
+        Token error_token(Token::Type::ERROR, "", m_line);
         CompilerError::PrintError(CompilerError::Type::LEXER, "Unterminated string.", error_token);
         m_error = true;
     }
@@ -146,18 +141,18 @@ Token Lexer::MatchString()
 
 Token Lexer::MatchNumber()
 {
-    while (IsDigit(LookAhead(0u)))
+    while (IsDigit(LookAhead(0)))
     {
         Advance();
     }
 
     // Look for a fractional part.
-    if (LookAhead(0u) == '.' && IsDigit(LookAhead(1u)))
+    if (LookAhead(0) == '.' && IsDigit(LookAhead(1)))
     {
         // Consume the ".".
         Advance();
 
-        while (IsDigit(LookAhead(0u)))
+        while (IsDigit(LookAhead(0)))
         {
             Advance();
         }
@@ -168,12 +163,12 @@ Token Lexer::MatchNumber()
 
 Token Lexer::MatchIdentifierOrReserved()
 {
-    while (IsAlphaNumeric(LookAhead(0u)))
+    while (IsAlphaNumeric(LookAhead(0)))
     {
         Advance();
     }
 
-    std::string identifier = m_source_code.substr(m_begin, m_current - m_begin);
+    std::string identifier = m_source_code.substr(m_begin, static_cast<size_t>(m_current - m_begin));
 
     std::unordered_map<std::string, Token::Type>::const_iterator it = s_keywords.find(identifier);
 
@@ -190,6 +185,10 @@ Token Lexer::MatchIdentifierOrReserved()
 Token Lexer::LexOneToken()
 {
     SkipWhitespaceAndComments();
+    if (IsAtEnd(0))
+    {
+		return MakeToken(Token::Type::END_OF_FILE);
+	}
 
     m_begin = m_current;
 
@@ -213,7 +212,7 @@ Token Lexer::LexOneToken()
     case ',':
         return MakeToken(Token::Type::COMMA);
     case '.':
-        if (IsDigit(LookAhead(0u)))
+        if (IsDigit(LookAhead(0)))
         {
             return MatchNumber();
         }
@@ -247,11 +246,11 @@ Token Lexer::LexOneToken()
     case '/':
         if (MatchNext('/'))
         {
-            while (!IsAtEnd(0u) && !MatchNext('\n'))
+            while (!IsAtEnd(0) && !MatchNext('\n'))
             {
                 Advance();
             }
-            m_line += 1u;
+            m_line += 1;
         }
         else
         {
@@ -333,7 +332,7 @@ Token Lexer::LexOneToken()
     case '"':
         return MatchString();
     case '\n':
-        m_line += 1u;
+        m_line += 1;
         return LexOneToken();
     default:
         if (IsDigit(next_char))
@@ -346,7 +345,7 @@ Token Lexer::LexOneToken()
         }
         else
         {
-            Token error_token(Token::Type::ERROR, "error-token", m_line);
+            Token error_token(Token::Type::ERROR, "", m_line);
             CompilerError::PrintError(CompilerError::Type::LEXER, "Invalid character.", error_token);
             m_error = true;
             return error_token;
@@ -358,12 +357,15 @@ Lexer::LexerResult Lexer::Lex()
 {
     TokenStream result;
 
-    while (!IsAtEnd(0u))
+    while (!IsAtEnd(0))
     {
         result.AddToken(LexOneToken());
     }
 
-    result.AddToken(MakeToken(Token::Type::END_OF_FILE));
+    if (std::prev(result.cend())->m_type != Token::Type::END_OF_FILE)
+    {
+        result.AddToken(MakeToken(Token::Type::END_OF_FILE));
+    }
     
     return LexerResult(std::move(result), m_error);
 }

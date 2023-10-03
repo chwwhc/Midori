@@ -51,7 +51,6 @@ struct Token
 		NUMBER,
 
 		// reserved
-		CLASS,
 		ELSE,
 		FALSE,
 		FUN,
@@ -59,8 +58,6 @@ struct Token
 		IF,
 		NIL,
 		RETURN,
-		SUPER,
-		THIS,
 		TRUE,
 		LET,
 		WHILE,
@@ -68,12 +65,8 @@ struct Token
 		BREAK,
 		CONTINUE,
 		PRINT,
-		AND,
-		OR,
-		SIG,
 		IMPORT,
 		NAMESPACE,
-		FIXED,
 		HALT,
 
 		END_OF_FILE,
@@ -82,9 +75,9 @@ struct Token
 
 	Type m_type;
 	std::string m_lexeme;
-	uint32_t m_line;
+	int m_line;
 
-	Token(Type type, std::string&& lexeme, uint32_t line)
+	Token(Type type, std::string&& lexeme, int line)
 		: m_type(type), m_lexeme(std::move(lexeme)), m_line(line)
 	{
 	}
@@ -116,7 +109,7 @@ public:
 
 	inline Token& operator[](int index) const { return const_cast<Token&>(m_tokens[index]); }
 
-	inline uint32_t Size() const { return static_cast<uint32_t>(m_tokens.size()); }
+	inline int Size() const { return static_cast<int>(m_tokens.size()); }
 
 private:
 };
