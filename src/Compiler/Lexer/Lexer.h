@@ -22,7 +22,7 @@ private:
     std::string m_source_code;
     int m_line = 1;
     int m_begin = 0;
-    int m_current = 0u;
+    int m_current = 0;
     bool m_error = false;
     static const std::unordered_map<std::string, Token::Type> s_keywords;
 
@@ -49,6 +49,8 @@ private:
     inline bool MatchNext(char expected) { return ((IsAtEnd(0u) || m_source_code[m_current] != expected) ? false : (++m_current, true)); }
 
     inline Token MakeToken(Token::Type type) {  return Token(type, m_source_code.substr(m_begin, m_current - m_begin), m_line);}
+
+    inline Token MakeToken(Token::Type type, std::string&& lexeme) { return Token(type, std::move(lexeme), m_line); }
 
     Token LexOneToken();
 

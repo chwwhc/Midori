@@ -271,12 +271,15 @@ std::unique_ptr<Expression> Parser::ParsePrimary()
 		Synchronize();
 		return nullptr;
 	}
-	else if (Match(Token::Type::BACKSLASH))
+	else if (Match(Token::Type::FUN))
 	{
-		Token& backslash = Previous();
+		Token& fun_keyword = Previous();
+
+		Consume(Token::Type::LEFT_PAREN, "Expected '(' before function parameters.");
 		std::vector<Token> params;
 
 		BeginScope();
+		m_in_function = true;
 
 		do
 		{
@@ -290,17 +293,18 @@ std::unique_ptr<Expression> Parser::ParsePrimary()
 			{
 				return nullptr;
 			}
-		} while (!Check(Token::Type::RIGHT_ARROW, 0));
+		} while (Match(Token::Type::COMMA));
 
-		Consume(Token::Type::RIGHT_ARROW, "Expected '->' after bound variables.");
+		Consume(Token::Type::RIGHT_PAREN, "Expected ')' before function parameters.");
 
-		Consume(Token::Type::LEFT_BRACE, "Expected '{' before lambda expression body.");
+		Consume(Token::Type::LEFT_BRACE, "Expected '{' before function expression body.");
 
 		std::unique_ptr<Statement> body = ParseBlockStatement();
 
+		m_in_function = false;
 		EndScope();
 
-		return std::make_unique<Expression>(Lambda(std::move(backslash), std::move(params), std::move(body)));
+		return std::make_unique<Expression>(Function(std::move(fun_keyword), std::move(params), std::move(body)));
 	}
 	else if (Match(Token::Type::TRUE, Token::Type::FALSE))
 	{
@@ -420,7 +424,7 @@ std::unique_ptr<Statement> Parser::ParseLetStatement()
 	else
 	{
 		Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after variable declaration.");
-		return std::make_unique<Statement>(Let(std::move(name), nullptr, std::move(local_index)));
+		return std::make_unique<Statement>(Let(std::move(name), std::nullopt, std::move(local_index)));
 	}
 }
 
@@ -545,6 +549,12 @@ std::unique_ptr<Statement> Parser::ParseImportStatement()
 std::unique_ptr<Statement> Parser::ParseReturnStatement()
 {
 	Token& keyword = Previous();
+	if (!m_in_function)
+	{
+		CompilerError::PrintError(CompilerError::Type::PARSER, "'return' must be used inside a function.", keyword);
+		return nullptr;
+	}
+
 	std::optional<std::unique_ptr<Expression>> value = std::nullopt;
 	if (!Check(Token::Type::SINGLE_SEMICOLON, 0))
 	{

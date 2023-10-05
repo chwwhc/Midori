@@ -41,9 +41,7 @@ struct Token
 		QUESTION,
 		SINGLE_COLON,
 		DOUBLE_COLON,
-		RIGHT_ARROW,
 		AT,
-		BACKSLASH,
 
 		// Literal
 		IDENTIFIER,

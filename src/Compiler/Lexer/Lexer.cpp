@@ -9,6 +9,7 @@ const std::unordered_map<std::string, Token::Type> Lexer::s_keywords = {
     {"return", Token::Type::RETURN},
     {"true", Token::Type::TRUE},
     {"let", Token::Type::LET},
+    {"function", Token::Type::FUN},
     {"while", Token::Type::WHILE},
     {"do", Token::Type::DO},
     {"break", Token::Type::BREAK},
@@ -90,6 +91,7 @@ Token Lexer::MatchString()
         {
             m_line += 1;
         }
+
         if (LookAhead(0) == '\\' && !IsAtEnd(1))
         {
             switch (LookAhead(1))
@@ -104,7 +106,7 @@ Token Lexer::MatchString()
                 result += '\b';
                 break;
             case 'f':
-                result += 'f';
+                result += '\f'; 
                 break;
             case '"':
                 result += '"';
@@ -129,10 +131,12 @@ Token Lexer::MatchString()
         CompilerError::PrintError(CompilerError::Type::LEXER, "Unterminated string.", m_line);
         m_error = true;
     }
+    else
+    {
+        Advance();
+    }
 
-    Advance();
-
-    return MakeToken(Token::Type::STRING);
+    return MakeToken(Token::Type::STRING, std::move(result));  
 }
 
 Token Lexer::MatchNumber()
@@ -221,14 +225,7 @@ Token Lexer::LexOneToken()
     case '+':
         return MakeToken(Token::Type::PLUS);
     case '-':
-        if (MatchNext('>'))
-        {
-            return MakeToken(Token::Type::RIGHT_ARROW);
-        }
-        else
-        {
-            return MakeToken(Token::Type::MINUS);
-        }
+        return MakeToken(Token::Type::MINUS);
     case '?':
         return MakeToken(Token::Type::QUESTION);
     case ':':
@@ -237,8 +234,6 @@ Token Lexer::LexOneToken()
         return MakeToken(Token::Type::PERCENT);
     case '*':
         return MakeToken(Token::Type::STAR);
-    case '\\':
-        return MakeToken(Token::Type::BACKSLASH);
     case '/':
         if (MatchNext('/'))
         {

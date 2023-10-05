@@ -24,10 +24,10 @@ private:
 
 	struct CallFrame
 	{
-		ExecutableModule* m_return_module;
+		ExecutableModule* m_return_module = nullptr;
 		StackPointer<Value, VALUE_STACK_MAX>  m_return_bp;
 		InstructionPointer m_return_ip;
-		int m_arg_count;
+		int m_arg_count = 0;
 	};
 
 	ExecutableModule m_module;
@@ -157,7 +157,7 @@ private:
 	{
 		if (index < 0 || index >= size)
 		{
-			std::cerr << "Index out of bounds." << std::endl;
+			std::cerr << "Index out of bounds at index: " << index << std::endl;
 			m_error = true;
 		}
 	}

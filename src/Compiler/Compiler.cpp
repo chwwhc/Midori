@@ -1,4 +1,14 @@
 #include "Compiler.h"
+#include "Compiler/Lexer/Lexer.h"
+#include "Compiler/Parser/Parser.h"
+#include "Compiler/CodeGenerator/CodeGenerator.h"
+#include "StaticAnalyzer/StaticAnalyzer.h"
+
+
+#ifdef DEBUG
+#include "Utility/AbstractSyntaxTreePrinter/AbstractSyntaxTreePrinter.h"
+#include "Utility/Disassembler/Disassembler.h"
+#endif
 
 namespace Compiler
 {
@@ -14,6 +24,11 @@ namespace Compiler
 			if (!parser_result.m_error)
 			{
 				ProgramTree program = std::move(parser_result.m_program);
+				if (!StaticAnalyzer::AnalyzeProgram(program))
+				{
+					std::cerr << "Compilation failed due to static analysis error.\n";
+					return std::nullopt;
+				}
 #ifdef DEBUG
 				PrintAbstractSyntaxTree ast_printer;
 				for (const std::unique_ptr<Statement>& statement : program)

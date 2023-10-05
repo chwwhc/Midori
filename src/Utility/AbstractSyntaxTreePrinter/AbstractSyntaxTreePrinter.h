@@ -38,9 +38,9 @@ struct PrintAbstractSyntaxTree
 		PrintWithIndentation(depth, "Let {");
 		PrintWithIndentation(depth + 1, "Name: " + let.m_name.m_lexeme);
 		PrintWithIndentation(depth + 1, "Value: ");
-		if (let.m_value != nullptr)
+		if (let.m_value.has_value())
 		{
-			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *let.m_value);
+			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *let.m_value.value());
 		}
 		else
 		{
@@ -263,16 +263,16 @@ struct PrintAbstractSyntaxTree
 		PrintWithIndentation(depth, "Nil");
 	}
 
-	void operator()(const Lambda& lambda, int depth = 0) const
+	void operator()(const Function& function, int depth = 0) const
 	{
-		PrintWithIndentation(depth, "Lambda {");
+		PrintWithIndentation(depth, "Function {");
 		PrintWithIndentation(depth + 1, "Params: ");
-		for (const Token& param : lambda.m_params)
+		for (const Token& param : function.m_params)
 		{
 			PrintWithIndentation(depth + 2, param.m_lexeme);
 		}
 		PrintWithIndentation(depth + 1, "Body: ");
-		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *lambda.m_body);
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *function.m_body);
 		PrintWithIndentation(depth, "}");
 	}
 

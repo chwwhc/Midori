@@ -34,17 +34,18 @@ void VirtualMachine::Execute()
 {
 	InitializeNativeFunctions();
 
-	while (true)
+	while (m_instruction_pointer != m_current_module->cend())
 	{
+#ifdef DEBUG
 		std::cout << "          ";
-		for (StackPointer<Value, VALUE_STACK_MAX> it = m_base_pointer; it < m_value_stack_pointer; ++it)
+		for (StackPointer<Value, VALUE_STACK_MAX> it = m_value_stack.begin(); it < m_value_stack_pointer; ++it)
 		{
 			std::cout << "[ " << it->ToString() << " ]";
 		}
 		std::cout << std::endl;
 		int dbg_instruction_pointer = static_cast<int>(std::distance(m_current_module->cbegin(), m_instruction_pointer));
 		Disassembler::DisassembleInstruction(*m_current_module, dbg_instruction_pointer);
-
+#endif
 		OpCode instruction = ReadByte();
 
 		switch (instruction)
@@ -434,7 +435,7 @@ void VirtualMachine::Execute()
 			{
 				Object::DefinedFunction& defined_function = function.GetObjectPointer()->GetDefinedFunction();
 
-				*(m_call_stack_pointer++) = { m_current_module , m_base_pointer, m_instruction_pointer, arity + 1 }; // arity + 1: pop the callee as well
+				*m_call_stack_pointer++ = { m_current_module , m_base_pointer, m_instruction_pointer, arity };
 
 				m_current_module = defined_function.m_module.get();
 				m_instruction_pointer = m_current_module->cbegin();
@@ -485,7 +486,7 @@ void VirtualMachine::Execute()
 		case OpCode::SET_LOCAL:
 		{
 			int offset = static_cast<int>(ReadByte());
-			m_value_stack[offset] = Peek(0);
+			*(m_base_pointer + offset) = Peek(0);
 			break;
 		}
 		case OpCode::POP:
@@ -501,20 +502,12 @@ void VirtualMachine::Execute()
 		}
 		case OpCode::RETURN:
 		{
-			if (m_call_stack_pointer == std::next(m_call_stack.begin()))
-			{
-				return;
-			}
-
-			Value return_val = Pop();
 			CallFrame& top_frame = *(--m_call_stack_pointer);
+			Value return_val = Pop();
 			m_current_module = top_frame.m_return_module;
 			m_base_pointer = top_frame.m_return_bp;
 			m_instruction_pointer = top_frame.m_return_ip;
-			for (int i = 0; i < top_frame.m_arg_count; i += 1)
-			{
-				Pop();
-			}
+			m_value_stack_pointer -= top_frame.m_arg_count + 1;
 			Push(std::move(return_val));
 			break;
 		}

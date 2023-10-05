@@ -11,8 +11,6 @@ CodeGenerator::CodeGeneratorResult CodeGenerator::GenerateCode(ProgramTree&& pro
 		std::visit([this](auto&& arg) { (*this)(arg); }, *statement);
 	}
 
-	m_module.AddByteCode(OpCode::RETURN, -1);
-
 	return CodeGenerator::CodeGeneratorResult(std::move(m_module), std::move(m_sub_modules), m_error);
 }
 
@@ -48,7 +46,14 @@ void CodeGenerator::operator()(Let& let)
 		m_global_variables[let.m_name.m_lexeme] = index.value();
 	}
 
-	std::visit([this](auto&& arg) { (*this)(arg); }, *let.m_value);
+	if (let.m_value.has_value())
+	{
+		std::visit([this](auto&& arg) { (*this)(arg); }, *let.m_value.value());
+	}
+	else
+	{
+		EmitByte(OpCode::NIL, let.m_name.m_line);
+	}
 
 	if (is_global)
 	{
@@ -309,7 +314,6 @@ void CodeGenerator::operator()(Call& call)
 
 	EmitByte(OpCode::CALL, call.m_paren.m_line);
 	EmitByte(static_cast<OpCode>(arity), call.m_paren.m_line);
-	EmitByte(OpCode::POP, call.m_paren.m_line);
 }
 
 void CodeGenerator::operator()(Get& get)
@@ -369,13 +373,13 @@ void CodeGenerator::operator()(Nil& nil)
 	EmitByte(OpCode::NIL, nil.m_token.m_line);
 }
 
-void CodeGenerator::operator()(Lambda& lambda)
+void CodeGenerator::operator()(Function& function)
 {
-	int line = lambda.m_backslash.m_line;
-	int arity = static_cast<int>(lambda.m_params.size());
+	int line = function.m_function_keyword.m_line;
+	int arity = static_cast<int>(function.m_params.size());
 	if (arity > UINT8_MAX)
 	{
-		CompilerError::PrintError("Too many function arguments (max 255).", lambda.m_backslash.m_line);
+		CompilerError::PrintError("Too many function arguments (max 255).", line);
 		m_error = true;
 		return;
 	}
@@ -383,9 +387,7 @@ void CodeGenerator::operator()(Lambda& lambda)
 	ExecutableModule prev_module = std::move(m_module);
 	m_module = ExecutableModule();
 
-	std::visit([this](auto&& arg) {(*this)(arg); }, *lambda.m_body);
-
-	m_module.AddByteCode(OpCode::RETURN, line);
+	std::visit([this](auto&& arg) {(*this)(arg); }, *function.m_body);
 
 	std::shared_ptr<ExecutableModule> sub_module = std::make_shared<ExecutableModule>(std::move(m_module));
 	m_sub_modules.emplace_back(sub_module);
@@ -475,9 +477,11 @@ void CodeGenerator::operator()(Ternary& ternary)
 	int line = ternary.m_colon.m_line;
 	std::visit([this](auto&& arg) {(*this)(arg); }, *ternary.m_condition);
 	int jump_if_false = EmitJump(OpCode::JUMP_IF_FALSE, line);
+	EmitByte(OpCode::POP, line);
 	std::visit([this](auto&& arg) {(*this)(arg); }, *ternary.m_true_branch);
 	int jump = EmitJump(OpCode::JUMP, line);
 	PatchJump(jump_if_false, line);
+	EmitByte(OpCode::POP, line);
 	std::visit([this](auto&& arg) {(*this)(arg); }, *ternary.m_else_branch);
 	PatchJump(jump, line);
 }

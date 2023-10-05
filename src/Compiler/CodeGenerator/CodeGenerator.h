@@ -176,7 +176,7 @@ private:
 
 	void operator()(Nil& nil);
 
-	void operator()(Lambda& lambda);
+	void operator()(Function& function);
 
 	void operator()(Array& array);
 

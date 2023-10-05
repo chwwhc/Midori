@@ -23,6 +23,7 @@ private:
 	int m_current = 0;
 	int m_total_locals = 0;
 	bool m_error = false;
+	bool m_in_function = false;
 
 public:
 	explicit Parser(TokenStream&& tokens) : m_tokens(std::move(tokens)) 

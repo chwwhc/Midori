@@ -19,7 +19,7 @@ struct Unary;
 struct Assign;
 struct Variable;
 struct Call;
-struct Lambda;
+struct Function;
 struct Ternary;
 struct Get;
 struct Set;
@@ -27,7 +27,7 @@ struct Array;
 struct ArrayGet;
 struct ArraySet;
 
-using Expression = std::variant < Binary, Pipe, Logical, Group, String, Bool, Number, Nil, Unary, Assign, Variable, Call, Lambda, Ternary, Get, Set, Array, ArrayGet, ArraySet>;
+using Expression = std::variant < Binary, Pipe, Logical, Group, String, Bool, Number, Nil, Unary, Assign, Variable, Call, Function, Ternary, Get, Set, Array, ArrayGet, ArraySet>;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -122,9 +122,9 @@ struct Call
 	std::vector<std::unique_ptr<Expression>> m_arguments;
 };
 
-struct Lambda
+struct Function
 {
-	Token m_backslash;
+	Token m_function_keyword;
 	std::vector<Token> m_params;
 	std::unique_ptr<Statement> m_body;
 };
@@ -191,7 +191,7 @@ struct Simple
 struct Let
 {
 	Token m_name;
-	std::unique_ptr<Expression> m_value;
+	std::optional<std::unique_ptr<Expression>> m_value;
 	std::optional<int> m_local_index;
 };
 

@@ -2,7 +2,22 @@
 #include "Interpreter/VirtualMachine/VirtualMachine.h"
 
 #include <fstream>
+#include <sstream>
 #include <iostream>
+
+std::optional<std::string> ReadFile(const char* filename)
+{
+	std::ifstream file(filename);
+	if (!file.is_open())
+	{
+		std::cerr << "Could not open file: " << filename << std::endl;
+		return std::nullopt;
+	}
+
+	std::stringstream buffer;
+	buffer << file.rdbuf();
+	return buffer.str();
+}
 
 
 int main()
@@ -17,31 +32,16 @@ int main()
 	std::cout << std::endl;
 	std::cout << "\033[0m";  // Reset the text color to default
 
-	std::string script_1 = "let x = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]; "
-		"let y = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0];"
+	const char* filename = "E:\\Projects\\Midori\\test\\test.mdr";
 
-		"for (let i = 0; i < 10; i = i + 1)"
-		"{"
-		"for (let j = 0; j < 10; j = j + 1)"
-		"{"
-		"print x[i];"
-		"print y[j];"
-		"}"
-		"}";
+	std::optional<std::string> script = ReadFile(filename);
+	if (!script.has_value())
+	{
+		std::cerr << "Script is empty or could not be read." << std::endl;
+		std::exit(60);
+	}
 
-	std::string script_2 = "fn add(a, b) "
-		"{"
-		"return a + b;"
-		"}"
-		"let x = add(1, 2);"
-		"print x;";
-
-	std::string script_3 =
-		"let fun = \\ x -> {Print(x);};"
-		"let f = 1;"
-		"fun(f);";
-
-	std::optional<ExecutableModule> module = Compiler::Compile(std::move(script_3));
+	std::optional<ExecutableModule> module = Compiler::Compile(std::move(script.value()));
 	if (module.has_value())
 	{
 		VirtualMachine vm(std::move(module.value()));
