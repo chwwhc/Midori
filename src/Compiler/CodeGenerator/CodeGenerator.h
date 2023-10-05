@@ -1,7 +1,6 @@
 #pragma once
 
-#include "Compiler/AbstractSyntaxTree/Expression.h"
-#include "Compiler/AbstractSyntaxTree/Statement.h"
+#include "Compiler/AbstractSyntaxTree/AbstractSyntaxTree.h"
 #include "Compiler/Error/Error.h"
 #include "Common/ExecutableModule/ExecutableModule.h"
 
@@ -13,12 +12,15 @@ public:
 	struct CodeGeneratorResult
 	{
 		ExecutableModule m_module;
+		std::vector<std::shared_ptr<ExecutableModule>> m_sub_modules;
 		bool m_error;
-		CodeGeneratorResult(ExecutableModule&& module, bool error) : m_module(std::move(module)), m_error(error) {}
+		
+		CodeGeneratorResult(ExecutableModule&& module, std::vector<std::shared_ptr<ExecutableModule>>&& modules, bool error) : m_module(std::move(module)), m_sub_modules(std::move(modules)), m_error(error) {}
 	};
 
 private:
 	ExecutableModule m_module;
+	std::vector<std::shared_ptr<ExecutableModule>> m_sub_modules;
 	std::unordered_map<std::string, int> m_global_variables;
 	bool m_error = false;
 
@@ -29,6 +31,19 @@ public:
 private:
 
 	inline void EmitByte(OpCode byte, int line) { m_module.AddByteCode(byte, line); }
+
+	inline void EmitTwoBytes(int byte1, int byte2, int line)
+	{
+		EmitByte(static_cast<OpCode>(byte1), line);
+		EmitByte(static_cast<OpCode>(byte2), line);
+	}
+
+	inline void EmitThreeBytes(int byte1, int byte2, int byte3, int line)
+	{
+		EmitByte(static_cast<OpCode>(byte1), line);
+		EmitByte(static_cast<OpCode>(byte2), line);
+		EmitByte(static_cast<OpCode>(byte3), line);
+	}
 
 	inline void EmitConstant(Value&& value, int line)
 	{
@@ -54,7 +69,7 @@ private:
 		}
 		else
 		{
-			CompilerError::PrintError("Too many constants (max 16777215).");
+			CompilerError::PrintError("Too many constants (max 16777215).", line);
 			m_error = true;
 		}
 	}
@@ -63,7 +78,7 @@ private:
 	{
 		if (variable_index > UINT8_MAX)
 		{
-			CompilerError::PrintError("Too many variables (max 255).");
+			CompilerError::PrintError("Too many variables (max 255).", line);
 			m_error = true;
 			return;
 		}
@@ -80,12 +95,12 @@ private:
 		return m_module.GetByteCodeSize() - 2;
 	}
 
-	inline void PatchJump(int offset)
+	inline void PatchJump(int offset, int line)
 	{
 		int jump = m_module.GetByteCodeSize() - offset - 2;
 		if (jump > UINT16_MAX)
 		{
-			CompilerError::PrintError("Too much code to jump over (max 65535).");
+			CompilerError::PrintError("Too much code to jump over (max 65535).", line);
 			m_error = true;
 		}
 
@@ -100,7 +115,7 @@ private:
 		int offset = m_module.GetByteCodeSize() - loop_start + 2;
 		if (offset > UINT16_MAX)
 		{ 
-			CompilerError::PrintError("Loop body too large (max 65535).");
+			CompilerError::PrintError("Loop body too large (max 65535).", line);
 			m_error = true;
 			return;
 		}
@@ -113,8 +128,6 @@ private:
 
 	void operator()(Simple& simple);
 
-	void operator()(Print& print);
-
 	void operator()(Let& let);
 
 	void operator()(If& if_stmt);
@@ -126,8 +139,6 @@ private:
 	void operator()(Break&);
 
 	void operator()(Continue&);
-
-	void operator()(Function& function);
 
 	void operator()(Return& return_stmt);
 
@@ -174,4 +185,6 @@ private:
 	void operator()(ArraySet& array_set);
 
 	void operator()(Ternary& ternary);
+
+	void SetUpGlobalVariables();
 };

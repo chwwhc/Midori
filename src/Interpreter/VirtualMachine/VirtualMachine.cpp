@@ -3,6 +3,15 @@
 
 #include <cmath>
 
+void VirtualMachine::InitializeNativeFunctions()
+{
+	Object* print = new Object(Object::NativeFunction([this]()
+		{
+			std::cout << Pop().ToString() << std::endl;
+		}, "Print", 1));
+	m_global_vars[std::string("Print")] = print;
+}
+
 void VirtualMachine::BinaryOperation(std::function<Value(const Value&, const Value&)>&& op, bool (*type_checker)(const Value&, const Value&))
 {
 	const Value& right_peek = Peek(0);
@@ -23,16 +32,18 @@ void VirtualMachine::BinaryOperation(std::function<Value(const Value&, const Val
 
 void VirtualMachine::Execute()
 {
+	InitializeNativeFunctions();
+
 	while (true)
 	{
 		std::cout << "          ";
-		for (StackPointer it = m_value_stack.begin(); it < m_stack_pointer; ++it)
+		for (StackPointer<Value, VALUE_STACK_MAX> it = m_base_pointer; it < m_value_stack_pointer; ++it)
 		{
 			std::cout << "[ " << it->ToString() << " ]";
 		}
 		std::cout << std::endl;
-		int dbg_instruction_pointer = m_instruction_pointer;
-		Disassembler::DisassembleInstruction(m_module, dbg_instruction_pointer);
+		int dbg_instruction_pointer = static_cast<int>(std::distance(m_current_module->cbegin(), m_instruction_pointer));
+		Disassembler::DisassembleInstruction(*m_current_module, dbg_instruction_pointer);
 
 		OpCode instruction = ReadByte();
 
@@ -77,94 +88,141 @@ void VirtualMachine::Execute()
 		}
 		case OpCode::ARRAY_GET:
 		{
-			if (!Peek(1).IsObjectPointer() || !Peek(1).GetObjectPointer()->IsArray())
+			int num_indices = static_cast<int>(ReadByte());
+			CheckIsArray(Peek(num_indices));
+			if (m_error)
 			{
-				std::cerr << "Operand must be an array." << std::endl;
-				m_error = true;
 				return;
 			}
 
-			Value index = Pop();
+			std::vector<Value> indices;
+			for (int i = 0; i < num_indices; i += 1)
+			{
+				indices.emplace_back(Pop());
+			}
+
+			std::reverse(indices.begin(), indices.end());
+
 			Value arr = Pop();
 			std::vector<Value>& arr_ref = arr.GetObjectPointer()->GetArray();
 
-			if (!index.IsNumber())
+			for (Value& index : indices)
 			{
-				std::cerr << "Index must be a number." << std::endl;
-				m_error = true;
-				return;
-			}
+				CheckIsNumber(index);
+				if (m_error)
+				{
+					return;
+				}
 
-			double index_as_double = index.GetNumber();
-			if (index_as_double != static_cast<int>(index_as_double))
-			{
-				std::cerr << "Index must be an integer." << std::endl;
-			}
+				double index_as_double = index.GetNumber();
+				CheckIsInteger(index_as_double);
+				if (m_error)
+				{
+					return;
+				}
 
-			int i = static_cast<int>(index_as_double);
-			if (i < 0 || i >= static_cast<int>(arr_ref.size()))
-			{
-				std::cerr << "Index out of bounds." << std::endl;
-				m_error = true;
-				return;
-			}
+				int i = static_cast<int>(index_as_double);
+				CheckIndexBounds(i, static_cast<int>(arr_ref.size()));
+				if (m_error)
+				{
+					return;
+				}
 
-			Push(Value(arr_ref[i]));
+				Value next_val = arr_ref[i];
+
+				if (&index != &indices.back())
+				{
+					CheckIsArray(next_val);
+					if (m_error)
+					{
+						return;
+					}
+
+					arr_ref = next_val.GetObjectPointer()->GetArray();
+				}
+				else
+				{
+					Push(std::move(next_val));
+				}
+			}
 			break;
 		}
 		case OpCode::ARRAY_SET:
 		{
-			if (!Peek(2).IsObjectPointer() || !Peek(2).GetObjectPointer()->IsArray())
+			int num_indices = static_cast<int>(ReadByte());
+			CheckIsArray(Peek(num_indices + 1));
+			if (m_error)
 			{
-				std::cerr << "Operand must be an array." << std::endl;
-				m_error = true;
 				return;
 			}
 
-			Value value = Pop();
-			Value index = Pop();
+			Value value_to_set = Pop();
+			std::vector<Value> indices;
+
+			for (int i = 0; i < num_indices; ++i)
+			{
+				indices.emplace_back(Pop());
+			}
+
+			std::reverse(indices.begin(), indices.end());
+
 			Value arr = Pop();
 			std::vector<Value>& arr_ref = arr.GetObjectPointer()->GetArray();
 
-			if (!index.IsNumber())
+			for (Value& index : indices)
 			{
-				std::cerr << "Index must be a number." << std::endl;
-				m_error = true;
-				return;
-			}
+				CheckIsNumber(index);
+				if (m_error)
+				{
+					return;
+				}
 
-			double index_as_double = index.GetNumber();
-			if (index_as_double != static_cast<int>(index_as_double))
-			{
-				std::cerr << "Index must be an integer." << std::endl;
-			}
+				double index_as_double = index.GetNumber();
+				CheckIsInteger(index_as_double);
+				if (m_error)
+				{
+					return;
+				}
 
-			int i = static_cast<int>(index_as_double);
-			if (i < 0 || i >= static_cast<int>(arr_ref.size()))
-			{
-				std::cerr << "Index out of bounds." << std::endl;
-				m_error = true;
-				return;
-			}
+				int i = static_cast<int>(index_as_double);
+				CheckIndexBounds(i, static_cast<int>(arr_ref.size()));
+				if (m_error)
+				{
+					return;
+				}
 
-			arr_ref[i] = std::move(value);
+				if (&index != &indices.back())
+				{
+					CheckIsArray(arr_ref[i]);
+					if (m_error)
+					{
+						return;
+					}
+
+					arr_ref = arr_ref[i].GetObjectPointer()->GetArray();
+				}
+				else
+				{
+					arr_ref[i] = value_to_set;
+				}
+			}
 			break;
 		}
 		case OpCode::ARRAY_RESERVE:
 		{
 			Value value = Pop();
 
-			if (!value.IsNumber())
+			CheckIsNumber(value);
+			if (m_error)
 			{
-				std::cerr << "Length must be a number." << std::endl;
-				m_error = true;
 				return;
 			}
 
 			double value_as_double = value.GetNumber();
-			if (value_as_double < 0 || value_as_double > THREE_BYTE_MAX)
+			CheckArrayMaxLength(value_as_double);
+			if (m_error)
 			{
-				std::cerr << "Length must be between 0 and " << THREE_BYTE_MAX << "." << std::endl;
+				return;
 			}
 
 			size_t size = static_cast<size_t>(value_as_double);
@@ -293,7 +351,7 @@ void VirtualMachine::Execute()
 				return;
 			}
 
-			*(std::prev(m_stack_pointer)) = Value(!Peek(0).GetBool());
+			*(std::prev(m_value_stack_pointer)) = Value(!Peek(0).GetBool());
 			break;
 		}
 		case OpCode::NEGATE:
@@ -305,7 +363,7 @@ void VirtualMachine::Execute()
 				return;
 			}
 
-			*(std::prev(m_stack_pointer)) = Value(-Peek(0).GetNumber());
+			*(std::prev(m_value_stack_pointer)) = Value(-Peek(0).GetNumber());
 			break;
 		}
 		case OpCode::JUMP_IF_FALSE:
@@ -354,6 +412,35 @@ void VirtualMachine::Execute()
 		}
 		case OpCode::CALL:
 		{
+			int arity = static_cast<int>(ReadByte());
+			const Value& function = Peek(arity);
+
+			if (!function.IsObjectPointer())
+			{
+				std::cerr << "Not a callable.\n";
+				m_error = true;
+				return;
+			}
+
+			Object* function_ptr = function.GetObjectPointer();
+
+			// Native Function
+			if (function_ptr->IsNativeFunction())
+			{
+				Object::NativeFunction& native_function = function.GetObjectPointer()->GetNativeFunction();
+				native_function.m_cpp_function();
+			}
+			else if (function_ptr->IsDefinedFunction())
+			{
+				Object::DefinedFunction& defined_function = function.GetObjectPointer()->GetDefinedFunction();
+
+				*(m_call_stack_pointer++) = { m_current_module , m_base_pointer, m_instruction_pointer, arity + 1 }; // arity + 1: pop the callee as well
+
+				m_current_module = defined_function.m_module.get();
+				m_instruction_pointer = m_current_module->cbegin();
+				m_base_pointer = m_value_stack_pointer - arity;
+			}
+			
 			break;
 		}
 		case OpCode::DEFINE_GLOBAL:
@@ -391,7 +478,7 @@ void VirtualMachine::Execute()
 		case OpCode::GET_LOCAL:
 		{
 			int offset = static_cast<int>(ReadByte());
-			Value value_copy = m_value_stack[offset];
+			Value value_copy = *(m_base_pointer + offset);
 			Push(std::move(value_copy));
 			break;
 		}
@@ -409,18 +496,27 @@ void VirtualMachine::Execute()
 		case OpCode::POP_MULTIPLE:
 		{
 			int count = static_cast<int>(ReadByte());
-			m_stack_pointer -= count;
-			break;
-		}
-		case OpCode::PRINT:
-		{
-			Value value = Pop();
-			std::cout << value.ToString() << std::endl;
+			m_value_stack_pointer -= count;
 			break;
 		}
 		case OpCode::RETURN:
 		{
-			return;
+			if (m_call_stack_pointer == std::next(m_call_stack.begin()))
+			{
+				return;
+			}
+
+			Value return_val = Pop();
+			CallFrame& top_frame = *(--m_call_stack_pointer);
+			m_current_module = top_frame.m_return_module;
+			m_base_pointer = top_frame.m_return_bp;
+			m_instruction_pointer = top_frame.m_return_ip;
+			for (int i = 0; i < top_frame.m_arg_count; i += 1)
+			{
+				Pop();
+			}
+			Push(std::move(return_val));
+			break;
 		}
 
 

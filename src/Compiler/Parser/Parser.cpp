@@ -275,18 +275,30 @@ std::unique_ptr<Expression> Parser::ParsePrimary()
 	{
 		Token& backslash = Previous();
 		std::vector<Token> params;
+
+		BeginScope();
+
 		do
 		{
-			if (Match(Token::Type::IDENTIFIER))
+			std::optional<Token> param_name = DefineName();
+			if (param_name.has_value())
 			{
-				Token param = Previous();
-				params.emplace_back(std::move(param));
+				params.emplace_back(param_name.value());
+				GetLocalVariableIndex(param_name.value().m_lexeme);
+			}
+			else
+			{
+				return nullptr;
 			}
 		} while (!Check(Token::Type::RIGHT_ARROW, 0));
 
 		Consume(Token::Type::RIGHT_ARROW, "Expected '->' after bound variables.");
 
-		std::unique_ptr<Expression> body = ParseExpression();
+		Consume(Token::Type::LEFT_BRACE, "Expected '{' before lambda expression body.");
+
+		std::unique_ptr<Statement> body = ParseBlockStatement();
+
+		EndScope();
 
 		return std::make_unique<Expression>(Lambda(std::move(backslash), std::move(params), std::move(body)));
 	}
@@ -359,11 +371,7 @@ std::unique_ptr<Expression> Parser::ParsePipe()
 
 std::unique_ptr<Statement> Parser::ParseDeclaration()
 {
-	if (Match(Token::Type::FUN))
-	{
-		return ParseFunctionStatement();
-	}
-	else if (Match(Token::Type::LET))
+	if (Match(Token::Type::LET))
 	{
 		return ParseLetStatement();
 	}
@@ -393,27 +401,15 @@ std::unique_ptr<Statement> Parser::ParseBlockStatement()
 
 std::unique_ptr<Statement> Parser::ParseLetStatement()
 {
-	Token name = Consume(Token::Type::IDENTIFIER, "Expected variable name.");
-	std::unordered_map<std::string, int>::const_iterator it = m_scopes.back().find(name.m_lexeme);
-	if (it != m_scopes.back().end())
+	std::optional<Token> name_opt = DefineName();
+	if (!name_opt.has_value())
 	{
-		CompilerError::PrintError(CompilerError::Type::PARSER, "Variable already declared in this scope.", name);
-		m_error = true;
-		Synchronize();
 		return nullptr;
 	}
-	else
-	{
-		m_scopes.back()[name.m_lexeme] = -1;
-	}
 
-	bool is_global = static_cast<int>(m_scopes.size()) == 1;
-	std::optional<int> local_index = std::nullopt;
-	if (!is_global)
-	{
-		m_scopes.back()[name.m_lexeme] = m_total_locals++;
-		local_index.emplace(m_scopes.back()[name.m_lexeme]);
-	}
+	Token name = name_opt.value();
+
+	std::optional<int> local_index = GetLocalVariableIndex(name.m_lexeme);
 
 	if (Match(Token::Type::SINGLE_EQUAL))
 	{
@@ -433,26 +429,6 @@ std::unique_ptr<Statement> Parser::ParseNamespaceDeclaration()
 	Token name = Consume(Token::Type::IDENTIFIER, "Expected module name.");
 	Consume(Token::Type::LEFT_BRACE, "Expected '{' before module body.");
 	return std::make_unique<Statement>(Namespace(std::move(name), ParseBlockStatement()));
-}
-
-std::unique_ptr<Statement> Parser::ParseFunctionStatement()
-{
-	Token name = Consume(Token::Type::IDENTIFIER, "Expected function name.");
-
-	Consume(Token::Type::LEFT_PAREN, "Expected '(' after function name.");
-	std::vector<Token> params;
-	if (!Check(Token::Type::RIGHT_PAREN, 0))
-	{
-		do
-		{
-			params.emplace_back(Consume(Token::Type::IDENTIFIER, "Expected parameter name."));
-		} while (Match(Token::Type::COMMA));
-	}
-	Consume(Token::Type::RIGHT_PAREN, "Expected ')' after parameters.");
-
-	Consume(Token::Type::LEFT_BRACE, "Expected '{' before function body.");
-
-	return std::make_unique<Statement>(Function(std::move(name), std::move(params), ParseBlockStatement()));
 }
 
 std::unique_ptr<Statement> Parser::ParseIfStatement()
@@ -541,14 +517,6 @@ std::unique_ptr<Statement> Parser::ParseContinueStatement()
 	return std::make_unique<Statement>(Continue(std::move(keyword)));
 }
 
-std::unique_ptr<Statement> Parser::ParsePrintStatement()
-{
-	Token keyword = Previous();
-	std::unique_ptr<Expression> value = ParseExpression();
-	Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after value.");
-	return std::make_unique<Statement>(Print(std::move(keyword), std::move(value)));
-}
-
 std::unique_ptr<Statement> Parser::ParseSimpleStatement()
 {
 	std::unique_ptr<Expression> expr = ParseExpression();
@@ -577,10 +545,10 @@ std::unique_ptr<Statement> Parser::ParseImportStatement()
 std::unique_ptr<Statement> Parser::ParseReturnStatement()
 {
 	Token& keyword = Previous();
-	std::unique_ptr<Expression> value;
+	std::optional<std::unique_ptr<Expression>> value = std::nullopt;
 	if (!Check(Token::Type::SINGLE_SEMICOLON, 0))
 	{
-		value = ParseExpression();
+		value.emplace(ParseExpression());
 	}
 
 	Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after return value.");
@@ -591,11 +559,7 @@ std::unique_ptr<Statement> Parser::ParseReturnStatement()
 
 std::unique_ptr<Statement> Parser::ParseStatement()
 {
-	if (Match(Token::Type::PRINT))
-	{
-		return ParsePrintStatement();
-	}
-	else if (Match(Token::Type::LEFT_BRACE))
+    if (Match(Token::Type::LEFT_BRACE))
 	{
 		return ParseBlockStatement();
 	}
@@ -666,7 +630,6 @@ void Parser::Synchronize()
 		case Token::Type::FOR:
 		case Token::Type::IF:
 		case Token::Type::WHILE:
-		case Token::Type::PRINT:
 		case Token::Type::RETURN:
 			return;
 		default:

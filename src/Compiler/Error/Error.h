@@ -15,13 +15,17 @@ public:
 	};
 
 private:
-	static inline void PrintBaseError(Type type, const char* message, const Token* token = nullptr)
+	static inline void PrintBaseError(Type type, const char* message, int line, const Token* token = nullptr)
 	{
 		std::stringstream ss;
 
 		if (token != nullptr)
 		{
-			ss << "[line " << token->m_line << "] '" << token->m_lexeme << "' ";
+			ss << "[line " << line << "] '" << token->m_lexeme << "' ";
+		}
+		else
+		{
+			ss << "[line " << line << "] ";
 		}
 
 		switch (type)
@@ -36,13 +40,18 @@ private:
 	}
 
 public:
-	static inline void PrintError(const char* message)
+	static inline void PrintError(const char* message, int line)
 	{
-		PrintBaseError(Type::CODE_GENERATOR, message);
+		PrintBaseError(Type::CODE_GENERATOR, message, line);
+	}
+
+	static inline void PrintError(Type type, const char* message, int line)
+	{
+		PrintBaseError(type, message, line);
 	}
 
 	static inline void PrintError(Type type, const char* message, const Token& token)
 	{
-		PrintBaseError(type, message, &token);
+		PrintBaseError(type, message, token.m_line, &token);
 	}
 };

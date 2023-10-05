@@ -1,9 +1,12 @@
 #pragma once
 
+#include <functional>
 #include <string>
 #include <variant>
 #include <vector>
+#include <memory>
 
+class ExecutableModule;
 class Object;
 
 class Value
@@ -99,21 +102,47 @@ public:
 class Object
 {
 public:
-	template<typename T>
-	constexpr Object(T&& value) : m_value(std::forward<T>(value)) {}
+	struct NativeFunction
+	{
+		std::function<void()> m_cpp_function;
+		const char* m_name;
+		int m_arity;
+	};
+
+	struct DefinedFunction
+	{
+		std::shared_ptr<ExecutableModule> m_module;
+		int m_arity;
+	};
 
 private:
-	std::variant<std::string, std::vector<Value>> m_value;
+	std::variant<std::string, std::vector<Value>, NativeFunction, DefinedFunction> m_value;
 
 public:
 
-	constexpr inline std::string GetString() const { return std::get<std::string>(m_value); }
+	constexpr Object(std::string&& str) : m_value(std::move(str)) {}
+
+	constexpr Object(std::vector<Value>&& array) : m_value(std::move(array)) {}
+
+	constexpr Object(NativeFunction&& native_function) : m_value(std::move(native_function)) {}
+
+	constexpr Object(DefinedFunction&& defined_function) : m_value(std::move(defined_function)) {}
+
+	constexpr inline std::string& GetString() const { return const_cast<std::string&>(std::get<std::string>(m_value)); }
 
 	constexpr inline bool IsString() const { return std::holds_alternative<std::string>(m_value); }
 
 	constexpr inline std::vector<Value>& GetArray() const { return const_cast<std::vector<Value>&>(std::get<std::vector<Value>>(m_value)); }
 
 	constexpr inline bool IsArray() const { return std::holds_alternative<std::vector<Value>>(m_value); }
+
+	constexpr inline NativeFunction& GetNativeFunction() const { return const_cast<NativeFunction&>(std::get<NativeFunction>(m_value)); }
+
+	constexpr inline bool IsNativeFunction() const { return std::holds_alternative<NativeFunction>(m_value); }
+
+	constexpr inline DefinedFunction& GetDefinedFunction() const { return const_cast<DefinedFunction&>(std::get<DefinedFunction>(m_value)); }
+
+	constexpr inline bool IsDefinedFunction() const { return std::holds_alternative<DefinedFunction>(m_value); }
 
 	constexpr inline std::string ToString() const
 	{
@@ -136,8 +165,18 @@ public:
 					result.append("]");
 					return result;
 				}
+				else if constexpr (std::is_same_v<T, NativeFunction>)
+				{
+					return "<native function " + std::string(arg.m_name) + ">";
+				}
+				else if constexpr (std::is_same_v<T, DefinedFunction>)
+				{
+					return "<defined function at: "  + std::to_string(reinterpret_cast<uintptr_t>(arg.m_module.get())) + ">";
+				}
+				else
+				{
+					return "Unknown Object";	// Should never happen
+				}
 			}, m_value);
 	}
-
-private:
 };

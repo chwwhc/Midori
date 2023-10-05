@@ -22,7 +22,7 @@ private:
     std::string m_source_code;
     int m_line = 1;
     int m_begin = 0;
-    int m_current = 0;
+    int m_current = 0u;
     bool m_error = false;
     static const std::unordered_map<std::string, Token::Type> s_keywords;
 

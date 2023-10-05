@@ -1,7 +1,6 @@
 #pragma once
 
-#include "Compiler/AbstractSyntaxTree/Expression.h"
-#include "Compiler/AbstractSyntaxTree/Statement.h"
+#include "Compiler/AbstractSyntaxTree/AbstractSyntaxTree.h"
 
 #include <iostream>
 
@@ -31,13 +30,6 @@ struct PrintAbstractSyntaxTree
 	{
 		PrintWithIndentation(depth, "Simple {");
 		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 1); }, *simple.m_expr);
-		PrintWithIndentation(depth, "}");
-	}
-
-	void operator()(const Print& print, int depth = 0) const
-	{
-		PrintWithIndentation(depth, "Print {");
-		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 1); }, *print.m_expr);
 		PrintWithIndentation(depth, "}");
 	}
 
@@ -112,24 +104,17 @@ struct PrintAbstractSyntaxTree
 		PrintWithIndentation(depth, "Continue");
 	}
 
-	void operator()(const Function& function, int depth = 0) const
-	{
-		PrintWithIndentation(depth, "Function {");
-		PrintWithIndentation(depth + 1, "Name: " + function.m_name.m_lexeme);
-		PrintWithIndentation(depth + 1, "Params: ");
-		for (const Token& param : function.m_params)
-		{
-			PrintWithIndentation(depth + 2, param.m_lexeme);
-		}
-		PrintWithIndentation(depth + 1, "Body: ");
-		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *function.m_body);
-		PrintWithIndentation(depth, "}");
-	}
-
 	void operator()(const Return& return_stmt, int depth = 0) const
 	{
 		PrintWithIndentation(depth, "Return {");
-		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 1); }, *return_stmt.m_value);
+		if (return_stmt.m_value.has_value())
+		{
+			PrintWithIndentation(depth + 1, "Value: ");
+		}
+		else
+		{
+			PrintWithIndentation(depth + 1, "Value: nil");
+		}
 		PrintWithIndentation(depth, "}");
 	}
 

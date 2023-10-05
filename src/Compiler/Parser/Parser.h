@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Compiler/Token/Token.h"
-#include "Compiler/AbstractSyntaxTree/Statement.h"
+#include "Compiler/AbstractSyntaxTree/AbstractSyntaxTree.h"
 #include "Compiler/Error/Error.h"
 
 #include <unordered_map>
@@ -18,15 +18,17 @@ public:
 	};
 
 private:
-	std::vector<std::unordered_map<std::string, int>> m_scopes = { std::unordered_map<std::string, int>() };
+	std::vector<std::unordered_map<std::string, int>> m_scopes = { std::unordered_map<std::string, int>()};
 	TokenStream m_tokens;
-	int m_lambda_count = 0;
 	int m_current = 0;
 	int m_total_locals = 0;
 	bool m_error = false;
 
 public:
-	explicit Parser(TokenStream&& tokens) : m_tokens(std::move(tokens)) {}
+	explicit Parser(TokenStream&& tokens) : m_tokens(std::move(tokens)) 
+	{
+	m_scopes.back()["Print"] = 0;
+	}
 
 	ParserResult Parse();
 
@@ -91,6 +93,38 @@ private:
 		return block_local_count;
 	}
 
+	inline std::optional<Token> DefineName()
+	{
+		Token name = Consume(Token::Type::IDENTIFIER, "Expected name.");
+		std::unordered_map<std::string, int>::const_iterator it = m_scopes.back().find(name.m_lexeme);
+		if (it != m_scopes.back().end())
+		{
+			CompilerError::PrintError(CompilerError::Type::PARSER, "Name already declared in this scope.", name);
+			m_error = true;
+			Synchronize();
+			return std::nullopt;
+		}
+		else
+		{
+			m_scopes.back()[name.m_lexeme] = -1;
+		}
+
+		return name;
+	}
+
+	inline std::optional<int> GetLocalVariableIndex(const std::string& name)
+	{
+		bool is_global = static_cast<int>(m_scopes.size()) == 1;
+		std::optional<int> local_index = std::nullopt;
+		if (!is_global)
+		{
+			m_scopes.back()[name] = m_total_locals++;
+			local_index.emplace(m_scopes.back()[name]);
+		}
+
+		return local_index;
+	}
+
 	std::unique_ptr<Expression> ParseExpression();
 
 	std::unique_ptr<Expression> ParseFactor();
@@ -152,8 +186,6 @@ private:
 	std::unique_ptr<Statement> ParseBreakStatement();
 
 	std::unique_ptr<Statement> ParseContinueStatement();
-
-	std::unique_ptr<Statement> ParsePrintStatement();
 
 	std::unique_ptr<Statement> ParseSimpleStatement();
 

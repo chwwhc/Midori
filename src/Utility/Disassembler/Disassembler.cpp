@@ -61,12 +61,36 @@ namespace
 		std::cout << name << " " << index << " {{ variable: " << stream.GetGlobalVariable(index) << " }}" << std::endl;
 	}
 
+	void ArrayInstruction(const char* name, const ExecutableModule& stream, int& offset)
+	{
+		int index = static_cast<int>(stream.ReadByteCode(offset + 1));
+		offset += 2;
+
+		std::cout << name << " (- num of indices: " << index << " -)" << std::endl;
+	}
+
+	void ArrayCreateInstruction(const char* name, const ExecutableModule& stream, int& offset)
+	{
+		int length = static_cast<int>(stream.ReadByteCode(offset + 1)) |
+			(static_cast<int>(stream.ReadByteCode(offset + 2)) << 8) |
+			(static_cast<int>(stream.ReadByteCode(offset + 3)) << 16);
+		offset += 4;
+		std::cout << name << " (- num of elements: " << length << " -)" << std::endl;
+	}
+
 	void LocalVariableInstruction(const char* name, const ExecutableModule& stream, int& offset)
 	{
 		int index = static_cast<int>(stream.ReadByteCode(offset + 1));
 		offset += 2;
 
 		std::cout << name << " (* offset: " << index << " *)" << std::endl;
+	}
+
+	void CallInstruction(const char* name, const ExecutableModule& stream, int& offset)
+	{
+		int index = static_cast<int>(stream.ReadByteCode(offset + 1));
+		offset += 2;
+		std::cout << name << " (^ num of parameters: " << index << " ^)" << std::endl;
 	}
 }
 
@@ -117,10 +141,16 @@ namespace Disassembler
 			SimpleInstruction("FALSE", offset);
 			break;
 		case OpCode::ARRAY_CREATE:
+			ArrayCreateInstruction("ARRAY_CREATE", stream, offset);
 			break;
 		case OpCode::ARRAY_GET:
+			ArrayInstruction("ARRAY_GET", stream, offset);
 			break;
 		case OpCode::ARRAY_SET:
+			ArrayInstruction("ARRAY_SET", stream, offset);
+			break;
+		case OpCode::ARRAY_RESERVE:
+			SimpleInstruction("ARRAY_RESERVE", offset);
 			break;
 		case OpCode::LEFT_SHIFT:
 			SimpleInstruction("LEFT_SHIFT", offset);
@@ -189,6 +219,7 @@ namespace Disassembler
 			JumpInstruction("JUMP_BACK", -1, stream, offset);
 			break;
 		case OpCode::CALL:
+			CallInstruction("CALL", stream, offset);
 			break;
 		case OpCode::DEFINE_GLOBAL:
 			GlobalVariableInstruction("DEFINE_GLOBAL", stream, offset);
@@ -210,9 +241,6 @@ namespace Disassembler
 			break;
 		case OpCode::POP_MULTIPLE:
 			PopMultipleInstruction("POP_MULTIPLE", stream, offset);
-			break;
-		case OpCode::PRINT:
-			SimpleInstruction("PRINT", offset);
 			break;
 		case OpCode::RETURN:
 			SimpleInstruction("RETURN", offset);

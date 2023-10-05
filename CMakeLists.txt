@@ -20,6 +20,11 @@ else()
     add_compile_options(-Wall -Wextra -pedantic -Werror)
 endif()
 
+# Debug flags
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  add_definitions(-DDEBUG)
+endif()
+
 include_directories(${CMAKE_SOURCE_DIR}/src)
 
 # Source files

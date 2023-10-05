@@ -1,9 +1,4 @@
-﻿#include "Compiler/Lexer/Lexer.h"
-#include "Compiler/Parser/Parser.h"
-#include "Compiler/CodeGenerator/CodeGenerator.h"
-#include "Utility/AbstractSyntaxTreePrinter/AbstractSyntaxTreePrinter.h"
-#include "Utility/Disassembler/Disassembler.h"
-#include "Common/ExecutableModule/ExecutableModule.h"
+﻿#include "Compiler/Compiler.h"
 #include "Interpreter/VirtualMachine/VirtualMachine.h"
 
 #include <fstream>
@@ -42,36 +37,15 @@ int main()
 		"print x;";
 
 	std::string script_3 =
-		"let x = 2; \n for(let x = 1; x < 10; x = x + 1) {print x;}\n";
+		"let fun = \\ x -> {Print(x);};"
+		"let f = 1;"
+		"fun(f);";
 
-	Lexer lexer(std::move(script_3));
-	Lexer::LexerResult lexer_result = lexer.Lex();
-	if (!lexer_result.m_error)
+	std::optional<ExecutableModule> module = Compiler::Compile(std::move(script_3));
+	if (module.has_value())
 	{
-		TokenStream tokens = std::move(lexer_result.m_tokens);
-		Parser parser(std::move(tokens));
-		Parser::ParserResult parser_result = parser.Parse();
-		if (!parser_result.m_error)
-		{
-			ProgramTree program = std::move(parser_result.m_program);
-
-			PrintAbstractSyntaxTree ast_printer;
-			for (const std::unique_ptr<Statement>& statement : program)
-			{
-				std::visit(ast_printer, *statement);
-			}
-
-			CodeGenerator code_generator;
-			CodeGenerator::CodeGeneratorResult bytecode = code_generator.GenerateCode(std::move(program));
-			if (!bytecode.m_error)
-			{
-				bytecode.m_module.AddByteCode(OpCode::RETURN, 2);
-				Disassembler::DisassembleBytecodeStream(bytecode.m_module, "main");
-
-				VirtualMachine vm(std::move(bytecode.m_module));
-				vm.Execute();
-			}
-		}
+		VirtualMachine vm(std::move(module.value()));
+		vm.Execute();
 	}
 
 	return 0;

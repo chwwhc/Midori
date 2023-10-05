@@ -3,7 +3,6 @@
 const std::unordered_map<std::string, Token::Type> Lexer::s_keywords = {
     {"else", Token::Type::ELSE},
     {"false", Token::Type::FALSE},
-    {"fn", Token::Type::FUN},
     {"for", Token::Type::FOR},
     {"if", Token::Type::IF},
     {"nil", Token::Type::NIL},
@@ -14,7 +13,6 @@ const std::unordered_map<std::string, Token::Type> Lexer::s_keywords = {
     {"do", Token::Type::DO},
     {"break", Token::Type::BREAK},
     {"continue", Token::Type::CONTINUE},
-    {"print", Token::Type::PRINT},
     {"import", Token::Type::IMPORT},
     {"namespace", Token::Type::NAMESPACE},
     {"halt", Token::Type::HALT}, };
@@ -62,8 +60,7 @@ void Lexer::SkipWhitespaceAndComments()
 
                 if (IsAtEnd(0))
                 {
-                    Token error_token(Token::Type::ERROR, "error-token", m_line);
-                    CompilerError::PrintError(CompilerError::Type::LEXER, "Unterminated block comment.", error_token);
+                    CompilerError::PrintError(CompilerError::Type::LEXER, "Unterminated block comment.", m_line);
                     m_error = true;
                     return;
                 }
@@ -129,8 +126,7 @@ Token Lexer::MatchString()
 
     if (IsAtEnd(0))
     {
-        Token error_token(Token::Type::ERROR, "", m_line);
-        CompilerError::PrintError(CompilerError::Type::LEXER, "Unterminated string.", error_token);
+        CompilerError::PrintError(CompilerError::Type::LEXER, "Unterminated string.", m_line);
         m_error = true;
     }
 
@@ -345,10 +341,9 @@ Token Lexer::LexOneToken()
         }
         else
         {
-            Token error_token(Token::Type::ERROR, "", m_line);
-            CompilerError::PrintError(CompilerError::Type::LEXER, "Invalid character.", error_token);
+            CompilerError::PrintError(CompilerError::Type::LEXER, "Invalid character.", m_line);
             m_error = true;
-            return error_token;
+            return Token(Token::Type::ERROR, "", m_line);
         }
     }
 }
