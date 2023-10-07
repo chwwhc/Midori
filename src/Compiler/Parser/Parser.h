@@ -167,8 +167,6 @@ private:
 
 	std::unique_ptr<Expression> ParseArrayAccess();
 
-	std::unique_ptr<Expression> ParseArrayLiteral();
-
 	std::unique_ptr<Expression> ParseTernary();
 
 	std::unique_ptr<Expression> ParseCall();

@@ -14,7 +14,7 @@ std::unique_ptr<Expression> Parser::ParseShift()
 
 std::unique_ptr<Expression> Parser::ParseTerm()
 {
-	return ParseBinary(&Parser::ParseFactor, Token::Type::PLUS, Token::Type::MINUS);
+	return ParseBinary(&Parser::ParseFactor, Token::Type::SINGLE_PLUS, Token::Type::DOUBLE_PLUS, Token::Type::MINUS);
 }
 
 std::unique_ptr<Expression> Parser::ParseComparison()
@@ -44,7 +44,7 @@ std::unique_ptr<Expression> Parser::ParseBitwiseOr()
 
 std::unique_ptr<Expression> Parser::ParseAssignment()
 {
-	std::unique_ptr<Expression> expr = ParseArrayLiteral();
+	std::unique_ptr<Expression> expr = ParseTernary();
 
 	if (Match(Token::Type::SINGLE_EQUAL))
 	{
@@ -68,7 +68,6 @@ std::unique_ptr<Expression> Parser::ParseAssignment()
 					// local
 					else if (m_function_depth == 0 || scope_it == m_scopes.rbegin())
 					{
-						//int local_index = m_function_contexts.empty() ? find_result->second : find_result->second - m_function_contexts.back().m_captured_count;
 						return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value), VariableSemantic::Local(find_result->second.m_relative_index)));
 					}
 					// cell
@@ -166,37 +165,6 @@ std::unique_ptr<Expression> Parser::ParseArrayAccess()
 	return arr_var;
 }
 
-std::unique_ptr<Expression> Parser::ParseArrayLiteral()
-{
-	if (Match(Token::Type::LEFT_BRACKET))
-	{
-		Token& op = Previous();
-		std::vector<std::unique_ptr<Expression>> expr_vector;
-
-		if (Match(Token::Type::RIGHT_BRACKET))
-		{
-			return std::make_unique<Expression>(Array(std::move(op), std::move(expr_vector), std::nullopt));
-		}
-		else if (Match(Token::Type::AT))
-		{
-			std::unique_ptr<Expression> allocated_size = ParseTernary();
-			Consume(Token::Type::RIGHT_BRACKET, "Expected ']' for array expression.");
-			return std::make_unique<Expression>(Array(std::move(op), std::move(expr_vector), std::move(allocated_size)));
-		}
-
-		do
-		{
-			expr_vector.emplace_back(ParseArrayLiteral());
-		} while (Match(Token::Type::COMMA));
-
-		Consume(Token::Type::RIGHT_BRACKET, "Expected ']' for array expression.");
-
-		return std::make_unique<Expression>(Array(std::move(op), std::move(expr_vector), std::nullopt));
-	}
-
-	return ParseTernary();
-}
-
 std::unique_ptr<Expression> Parser::ParseCall()
 {
 	std::unique_ptr<Expression> expr = ParsePrimary();
@@ -262,7 +230,6 @@ std::unique_ptr<Expression> Parser::ParsePrimary()
 				// local
 				else if (m_function_depth == 0 || scope_it == m_scopes.rbegin())
 				{
-					//int local_index = m_function_contexts.empty() ? find_result->second : find_result->second - m_function_contexts.back().m_captured_count;
 					return std::make_unique<Expression>(Variable(std::move(Previous()), VariableSemantic::Local(find_result->second.m_relative_index)));
 				}
 				// cell
@@ -340,6 +307,31 @@ std::unique_ptr<Expression> Parser::ParsePrimary()
 	else if (Match(Token::Type::STRING))
 	{
 		return std::make_unique<Expression>(String(std::move(Previous())));
+	}
+	else if (Match(Token::Type::LEFT_BRACKET))
+	{
+		Token& op = Previous();
+		std::vector<std::unique_ptr<Expression>> expr_vector;
+
+		if (Match(Token::Type::RIGHT_BRACKET))
+		{
+			return std::make_unique<Expression>(Array(std::move(op), std::move(expr_vector), std::nullopt));
+		}
+		else if (Match(Token::Type::AT))
+		{
+			std::unique_ptr<Expression> allocated_size = ParseTernary();
+			Consume(Token::Type::RIGHT_BRACKET, "Expected ']' for array expression.");
+			return std::make_unique<Expression>(Array(std::move(op), std::move(expr_vector), std::move(allocated_size)));
+		}
+
+		do
+		{
+			expr_vector.emplace_back(ParseExpression());
+		} while (Match(Token::Type::COMMA));
+
+		Consume(Token::Type::RIGHT_BRACKET, "Expected ']' for array expression.");
+
+		return std::make_unique<Expression>(Array(std::move(op), std::move(expr_vector), std::nullopt));
 	}
 	else
 	{

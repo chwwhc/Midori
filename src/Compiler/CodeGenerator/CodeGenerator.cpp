@@ -193,8 +193,11 @@ void CodeGenerator::operator()(Binary& binary)
 
 	switch (binary.m_op.m_type)
 	{
-	case Token::Type::PLUS:
+	case Token::Type::SINGLE_PLUS:
 		EmitByte(OpCode::ADD, binary.m_op.m_line);
+		break;
+	case Token::Type::DOUBLE_PLUS:
+		EmitByte(OpCode::CONCAT, binary.m_op.m_line);
 		break;
 	case Token::Type::MINUS:
 		EmitByte(OpCode::SUBTRACT, binary.m_op.m_line);

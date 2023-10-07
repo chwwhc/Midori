@@ -172,7 +172,22 @@ private:
 		}
 	}
 
-	inline static bool AreNumerical(const Value& left, const Value& right){return left.IsNumber() && right.IsNumber();}
+	inline static bool AreSameType(const Value& left, const Value& right) { return Value::AreSameType(left, right); }
+
+	inline static bool AreNumerical(const Value& left, const Value& right){ return left.IsNumber() && right.IsNumber(); }
+
+	inline static bool AreConcatenatable(const Value& left, const Value& right) 
+	{ 
+		if (!left.IsObjectPointer() || !right.IsObjectPointer())
+		{
+			return false;
+		}
+
+		Object* left_value = left.GetObjectPointer();
+		Object* right_value = right.GetObjectPointer();
+
+		return (left_value->IsString() && right_value->IsString()) || (left_value->IsArray() && right_value->IsArray());
+	}
 
 	inline static bool Are32BitIntegers(const Value& left, const Value &right) 
 	{ 
@@ -187,8 +202,6 @@ private:
 		return left_value >= INT_MIN && left_value <= INT_MAX &&
 			right_value >= INT_MIN && right_value <= INT_MAX;
 	}
-
-	inline static bool AreSameType(const Value& left, const Value& right) { return Value::AreSameType(left, right); }
 
 	void BinaryOperation(std::function<Value(const Value&, const Value&)>&& op, bool (*type_checker)(const Value&, const Value&));
 

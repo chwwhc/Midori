@@ -223,7 +223,14 @@ Token Lexer::LexOneToken()
     case ';':
         return MakeToken(Token::Type::SINGLE_SEMICOLON);
     case '+':
-        return MakeToken(Token::Type::PLUS);
+        if (MatchNext('+'))
+        {
+            return MakeToken(Token::Type::DOUBLE_PLUS);
+        }
+        else
+        {
+            return MakeToken(Token::Type::SINGLE_PLUS);
+        }
     case '-':
         return MakeToken(Token::Type::MINUS);
     case '?':

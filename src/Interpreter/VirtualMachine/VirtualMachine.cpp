@@ -273,6 +273,36 @@ void VirtualMachine::Execute()
 				AreNumerical);
 			break;
 		}
+		case OpCode::CONCAT:
+		{
+			BinaryOperation([](const Value& left, const Value& right)
+				{ 
+					Object* left_value = left.GetObjectPointer();
+					Object* right_value = right.GetObjectPointer();
+
+					if (left_value->IsArray()) {
+						const std::vector<Value>& left_value_vector_ref = left_value->GetArray();
+						const std::vector<Value>& right_value_vector_ref = right_value->GetArray();
+
+						std::vector<Value> new_value_vector(left_value_vector_ref);
+						new_value_vector.insert(new_value_vector.end(),
+							right_value_vector_ref.begin(),
+							right_value_vector_ref.end());
+
+						return new Object(std::move(new_value_vector));
+					}
+					else {
+						const std::string& left_value_string_ref = left_value->GetString();
+						const std::string& right_value_string_ref = right_value->GetString();
+
+						std::string new_value_string = left_value_string_ref + right_value_string_ref;
+
+						return new Object(std::move(new_value_string));
+					}
+				},
+				AreConcatenatable);
+			break;
+		}
 		case OpCode::SUBTRACT:
 		{
 			BinaryOperation([](const Value& left, const Value& right)
