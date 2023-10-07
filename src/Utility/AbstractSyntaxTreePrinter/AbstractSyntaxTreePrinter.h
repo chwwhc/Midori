@@ -10,7 +10,7 @@ struct PrintAbstractSyntaxTree
 	{
 		for (int i = 0; i < depth; i += 1)
 		{
-			std::cout << "\t";
+			std::cout << "  ";
 		}
 
 		std::cout << text << std::endl;
@@ -225,6 +225,21 @@ struct PrintAbstractSyntaxTree
 	{
 		PrintWithIndentation(depth, "Variable {");
 		PrintWithIndentation(depth + 1, "Name: " + variable.m_name.m_lexeme);
+		PrintWithIndentation(depth + 1, "Semantic: ");
+		std::visit([depth, this]([[maybe_unused]] auto&& arg)
+			{
+				using T = std::decay_t<decltype(arg)>;
+
+				if constexpr (std::is_same_v<T, VariableSemantic::Local> || std::is_same_v<T, VariableSemantic::Cell>)
+				{
+					PrintWithIndentation(depth + 2, "Local");
+					PrintWithIndentation(depth + 2, "Index: " + std::to_string(arg.m_index));
+				}
+				else if constexpr (std::is_same_v<T, VariableSemantic::Global>)
+				{
+					PrintWithIndentation(depth + 2, "Global");
+				}
+			}, variable.m_type);
 		PrintWithIndentation(depth, "}");
 	}
 
@@ -234,6 +249,21 @@ struct PrintAbstractSyntaxTree
 		PrintWithIndentation(depth + 1, "Name: " + assign.m_name.m_lexeme);
 		PrintWithIndentation(depth + 1, "Value: ");
 		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *assign.m_value);
+		PrintWithIndentation(depth + 1, "Semantic: ");
+		std::visit([depth, this]([[maybe_unused]] auto&& arg)
+			{
+				using T = std::decay_t<decltype(arg)>;
+
+				if constexpr (std::is_same_v<T, VariableSemantic::Local> || std::is_same_v<T, VariableSemantic::Cell>)
+				{
+					PrintWithIndentation(depth + 2, "Local");
+					PrintWithIndentation(depth + 2, "Index: " + std::to_string(arg.m_index));
+				}
+				else if constexpr (std::is_same_v<T, VariableSemantic::Global>)
+				{
+					PrintWithIndentation(depth + 2, "Global");
+				}
+			}, assign.m_type);
 		PrintWithIndentation(depth, "}");
 	}
 

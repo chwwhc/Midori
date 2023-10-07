@@ -49,6 +49,20 @@ using ProgramTree = std::vector<std::unique_ptr<Statement>>;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
+namespace VariableSemantic
+{
+	struct Local
+	{
+		int m_index;
+	};
+	struct Cell
+	{
+		int m_index;
+	};
+	struct Global {};
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct Binary
 {
@@ -106,13 +120,13 @@ struct Assign
 {
 	Token m_name;
 	std::unique_ptr<Expression> m_value;
-	std::optional<int> m_stack_offset;
+	std::variant<VariableSemantic::Local, VariableSemantic::Global, VariableSemantic::Cell> m_type;
 };
 
 struct Variable
 {
 	Token m_name;
-	std::optional<int> m_stack_offset;
+	std::variant<VariableSemantic::Local, VariableSemantic::Global, VariableSemantic::Cell> m_type;
 };
 
 struct Call
@@ -185,6 +199,7 @@ struct Block
 
 struct Simple
 {
+	Token m_semicolon;
 	std::unique_ptr<Expression> m_expr;
 };
 

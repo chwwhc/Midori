@@ -18,22 +18,39 @@ public:
 	};
 
 private:
-	std::vector<std::unordered_map<std::string, int>> m_scopes = { std::unordered_map<std::string, int>()};
+	struct VariableContext
+	{
+		int m_relative_index = 0;
+		int m_absolute_index = 0;
+	};
+
+	using Scope = std::unordered_map<std::string, VariableContext>;
+
 	TokenStream m_tokens;
+	std::vector<Scope> m_scopes = { Scope() };
+	int m_function_depth = 0;
 	int m_current = 0;
 	int m_total_locals = 0;
+	int m_total_variables = 0;
 	bool m_error = false;
-	bool m_in_function = false;
 
 public:
-	explicit Parser(TokenStream&& tokens) : m_tokens(std::move(tokens)) 
+	explicit Parser(TokenStream&& tokens) : m_tokens(std::move(tokens))
 	{
-	m_scopes.back()["Print"] = 0;
+		m_scopes.back()["Print"] = { 0, 0 };
 	}
 
 	ParserResult Parse();
 
 private:
+
+	nullptr_t inline ParserError(const char* message, const Token& token)
+	{
+		CompilerError::PrintError(CompilerError::Type::PARSER, message, token);
+		m_error = true;
+		Synchronize();
+		return nullptr;
+	}
 
 	inline bool IsAtEnd() { return Peek(0).m_type == Token::Type::END_OF_FILE; }
 
@@ -84,30 +101,28 @@ private:
 		return lower_expr;
 	}
 
-	inline void BeginScope() { m_scopes.emplace_back(std::unordered_map<std::string, int>()); }
+	inline void BeginScope() { m_scopes.emplace_back(Scope()); }
 
 	inline int EndScope()
 	{
 		int block_local_count = static_cast<int>(m_scopes.back().size());
 		m_total_locals -= block_local_count;
+		m_total_variables -= block_local_count;
 		m_scopes.pop_back();
 		return block_local_count;
 	}
 
-	inline std::optional<Token> DefineName()
+	inline std::optional<Token> DefineName(const Token& name)
 	{
-		Token name = Consume(Token::Type::IDENTIFIER, "Expected name.");
-		std::unordered_map<std::string, int>::const_iterator it = m_scopes.back().find(name.m_lexeme);
+		Scope::const_iterator it = m_scopes.back().find(name.m_lexeme);
 		if (it != m_scopes.back().end())
 		{
-			CompilerError::PrintError(CompilerError::Type::PARSER, "Name already declared in this scope.", name);
-			m_error = true;
-			Synchronize();
+			ParserError("Name already declared in this scope.", name);
 			return std::nullopt;
 		}
 		else
 		{
-			m_scopes.back()[name.m_lexeme] = -1;
+			m_scopes.back()[name.m_lexeme] = { -1, -1 };
 		}
 
 		return name;
@@ -119,8 +134,8 @@ private:
 		std::optional<int> local_index = std::nullopt;
 		if (!is_global)
 		{
-			m_scopes.back()[name] = m_total_locals++;
-			local_index.emplace(m_scopes.back()[name]);
+			m_scopes.back()[name] = { m_total_locals++, m_total_variables++ };
+			local_index.emplace(m_scopes.back()[name].m_relative_index);
 		}
 
 		return local_index;
@@ -175,8 +190,6 @@ private:
 	std::unique_ptr<Statement> ParseLetStatement();
 
 	std::unique_ptr<Statement> ParseNamespaceDeclaration();
-
-	std::unique_ptr<Statement> ParseFunctionStatement();
 
 	std::unique_ptr<Statement> ParseIfStatement();
 

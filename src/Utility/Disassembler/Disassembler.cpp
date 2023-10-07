@@ -140,17 +140,17 @@ namespace Disassembler
 		case OpCode::FALSE:
 			SimpleInstruction("FALSE", offset);
 			break;
-		case OpCode::ARRAY_CREATE:
-			ArrayCreateInstruction("ARRAY_CREATE", stream, offset);
+		case OpCode::CREATE_ARRAY:
+			ArrayCreateInstruction("CREATE_ARRAY", stream, offset);
 			break;
-		case OpCode::ARRAY_GET:
-			ArrayInstruction("ARRAY_GET", stream, offset);
+		case OpCode::GET_ARRAY:
+			ArrayInstruction("GET_ARRAY", stream, offset);
 			break;
-		case OpCode::ARRAY_SET:
-			ArrayInstruction("ARRAY_SET", stream, offset);
+		case OpCode::SET_ARRAY:
+			ArrayInstruction("SET_ARRAY", stream, offset);
 			break;
-		case OpCode::ARRAY_RESERVE:
-			SimpleInstruction("ARRAY_RESERVE", offset);
+		case OpCode::RESERVE_ARRAY:
+			SimpleInstruction("RESERVE_ARRAY", offset);
 			break;
 		case OpCode::LEFT_SHIFT:
 			SimpleInstruction("LEFT_SHIFT", offset);
@@ -224,6 +224,9 @@ namespace Disassembler
 		case OpCode::DEFINE_GLOBAL:
 			GlobalVariableInstruction("DEFINE_GLOBAL", stream, offset);
 			break;
+		case OpCode::CREATE_CLOSURE:
+			SimpleInstruction("CREATE_CLOSURE", offset);
+			break;
 		case OpCode::GET_GLOBAL:
 			GlobalVariableInstruction("GET_GLOBAL", stream, offset);
 			break;
@@ -236,6 +239,12 @@ namespace Disassembler
 		case OpCode::SET_LOCAL:
 			LocalVariableInstruction("SET_LOCAL", stream, offset);
 			break;
+		case OpCode::GET_CELL:
+			LocalVariableInstruction("GET_CELL", stream, offset);
+			break;
+		case OpCode::SET_CELL:
+			LocalVariableInstruction("SET_CELL", stream, offset);
+			break;
 		case OpCode::POP:
 			SimpleInstruction("POP", offset);
 			break;
@@ -244,6 +253,9 @@ namespace Disassembler
 			break;
 		case OpCode::RETURN:
 			SimpleInstruction("RETURN", offset);
+			break;
+		case OpCode::HALT:
+			SimpleInstruction("HALT", offset);
 			break;
 		default:
 			break;

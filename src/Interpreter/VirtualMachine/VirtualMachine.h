@@ -26,14 +26,15 @@ private:
 	{
 		ExecutableModule* m_return_module = nullptr;
 		StackPointer<Value, VALUE_STACK_MAX>  m_return_bp;
+		StackPointer<Value, VALUE_STACK_MAX>  m_return_sp;
 		InstructionPointer m_return_ip;
-		int m_arg_count = 0;
 	};
 
 	ExecutableModule m_module;
-	ExecutableModule* m_current_module;
 	std::array<Value, VALUE_STACK_MAX> m_value_stack;
 	std::array<CallFrame, FRAME_STACK_MAX> m_call_stack;
+	std::vector<Object::Closure*> m_closure_stack;
+	ExecutableModule* m_current_module = nullptr;
 	StackPointer<Value, VALUE_STACK_MAX> m_base_pointer = m_value_stack.begin();
 	StackPointer<Value, VALUE_STACK_MAX> m_value_stack_pointer = m_value_stack.begin();
 	StackPointer<CallFrame, FRAME_STACK_MAX> m_call_stack_pointer = m_call_stack.begin();

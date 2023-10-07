@@ -11,7 +11,13 @@ CodeGenerator::CodeGeneratorResult CodeGenerator::GenerateCode(ProgramTree&& pro
 		std::visit([this](auto&& arg) { (*this)(arg); }, *statement);
 	}
 
+	//EmitByte(OpCode::HALT, -1);
+
+#ifdef DEBUG
 	return CodeGenerator::CodeGeneratorResult(std::move(m_module), std::move(m_sub_modules), m_error);
+#else
+	return CodeGenerator::CodeGeneratorResult(std::move(m_module), m_error);
+#endif
 }
 
 void CodeGenerator::operator()(Block& block)
@@ -33,6 +39,7 @@ void CodeGenerator::operator()(Block& block)
 void CodeGenerator::operator()(Simple& simple)
 {
 	std::visit([this](auto&& arg) { (*this)(arg); }, *simple.m_expr);
+	EmitByte(OpCode::POP, simple.m_semicolon.m_line);
 }
 
 void CodeGenerator::operator()(Let& let)
@@ -328,29 +335,58 @@ void CodeGenerator::operator()(Set& set)
 
 void CodeGenerator::operator()(Variable& variable)
 {
-	if (variable.m_stack_offset.has_value())
-	{
-		EmitVariable(variable.m_stack_offset.value(), OpCode::GET_LOCAL, variable.m_name.m_line);
-	}
-	else
-	{
-		EmitVariable(m_global_variables[variable.m_name.m_lexeme], OpCode::GET_GLOBAL, variable.m_name.m_line);
-	}
+	std::visit([&variable, this](auto&& arg) 
+		{ 
+			using T = std::decay_t<decltype(arg)>;
+
+			if constexpr (std::is_same_v<T, VariableSemantic::Local>)
+			{
+				EmitVariable(arg.m_index, OpCode::GET_LOCAL, variable.m_name.m_line);
+			}
+			else if constexpr (std::is_same_v<T, VariableSemantic::Global>)
+			{
+				EmitVariable(m_global_variables[variable.m_name.m_lexeme], OpCode::GET_GLOBAL, variable.m_name.m_line);
+			}
+			else if constexpr (std::is_same_v<T, VariableSemantic::Cell>)
+			{
+				EmitVariable(arg.m_index, OpCode::GET_CELL, variable.m_name.m_line);
+			}
+			else
+			{
+				CompilerError::PrintError("Bad Variable Expression.", variable.m_name.m_line);
+				m_error = true;
+				return;
+			}
+		}, variable.m_type);
 }
 
 void CodeGenerator::operator()(Assign& assign)
 {
 	std::visit([this](auto&& arg) { (*this)(arg); }, *assign.m_value);
 
-	if (assign.m_stack_offset.has_value())
-	{
-		EmitVariable(assign.m_stack_offset.value(), OpCode::SET_LOCAL, assign.m_name.m_line);
-	}
-	else
-	{
-		EmitVariable(m_global_variables[assign.m_name.m_lexeme], OpCode::SET_GLOBAL, assign.m_name.m_line);
-	}
-	EmitByte(OpCode::POP, assign.m_name.m_line);
+	std::visit([&assign, this](auto&& arg)
+		{
+			using T = std::decay_t<decltype(arg)>;
+
+			if constexpr (std::is_same_v<T, VariableSemantic::Local>)
+			{
+				EmitVariable(arg.m_index, OpCode::SET_LOCAL, assign.m_name.m_line);
+			}
+			else if constexpr (std::is_same_v<T, VariableSemantic::Global>)
+			{
+				EmitVariable(m_global_variables[assign.m_name.m_lexeme], OpCode::SET_GLOBAL, assign.m_name.m_line);
+			}
+			else if constexpr (std::is_same_v<T, VariableSemantic::Cell>)
+			{
+				EmitVariable(arg.m_index, OpCode::SET_CELL, assign.m_name.m_line);
+			}
+			else
+			{
+				CompilerError::PrintError("Bad Assign Expression.", assign.m_name.m_line);
+				m_error = true;
+				return;
+			}
+		}, assign.m_type);
 }
 
 void CodeGenerator::operator()(String& string)
@@ -389,12 +425,15 @@ void CodeGenerator::operator()(Function& function)
 
 	std::visit([this](auto&& arg) {(*this)(arg); }, *function.m_body);
 
-	std::shared_ptr<ExecutableModule> sub_module = std::make_shared<ExecutableModule>(std::move(m_module));
-	m_sub_modules.emplace_back(sub_module);
-	Object* defined_function_object = new Object(Object::DefinedFunction(std::move(sub_module), std::move(arity)));
+	std::unique_ptr<ExecutableModule> sub_module = std::make_unique<ExecutableModule>(std::move(m_module));
+#ifdef DEBUG
+	m_sub_modules.emplace_back(sub_module.get());
+#endif
+	Object* defined_function_object = new Object(Object::DefinedFunction(std::move(sub_module), std::vector<std::shared_ptr<Value>>(), std::move(arity)));
 
 	m_module = std::move(prev_module);
 	EmitConstant(std::move(defined_function_object), line);
+	EmitByte(OpCode::CREATE_CLOSURE, line);
 }
 
 void CodeGenerator::operator()(Array& array)
@@ -404,7 +443,7 @@ void CodeGenerator::operator()(Array& array)
 	if (array.m_allocated_size.has_value())
 	{
 		std::visit([this](auto&& arg) {(*this)(arg); }, *array.m_allocated_size.value());
-		EmitByte(OpCode::ARRAY_RESERVE, line);
+		EmitByte(OpCode::RESERVE_ARRAY, line);
 	}
 	else
 	{
@@ -421,7 +460,7 @@ void CodeGenerator::operator()(Array& array)
 		{
 			std::visit([this](auto&& arg) {(*this)(arg); }, *elem);
 		}
-		EmitByte(OpCode::ARRAY_CREATE, line);
+		EmitByte(OpCode::CREATE_ARRAY, line);
 		EmitThreeBytes(length, length >> 8, length >> 16, line);
 	}
 }
@@ -444,7 +483,7 @@ void CodeGenerator::operator()(ArrayGet& array_get)
 		std::visit([this](auto&& arg) {(*this)(arg); }, *index);
 	}
 
-	EmitByte(OpCode::ARRAY_GET, line);
+	EmitByte(OpCode::GET_ARRAY, line);
 	EmitByte(static_cast<OpCode>(array_get.m_indices.size()), line);
 }
 
@@ -468,7 +507,7 @@ void CodeGenerator::operator()(ArraySet& array_set)
 
 	std::visit([this](auto&& arg) {(*this)(arg); }, *array_set.m_value);
 
-	EmitByte(OpCode::ARRAY_SET, line);
+	EmitByte(OpCode::SET_ARRAY, line);
 	EmitByte(static_cast<OpCode>(array_set.m_indices.size()), line);
 }
 

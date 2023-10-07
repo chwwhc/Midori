@@ -32,7 +32,7 @@ int main()
 	std::cout << std::endl;
 	std::cout << "\033[0m";  // Reset the text color to default
 
-	const char* filename = "E:\\Projects\\Midori\\test\\test.mdr";
+	const char* filename = "E:\\Projects\\Midori\\test\\test2.mdr";
 
 	std::optional<std::string> script = ReadFile(filename);
 	if (!script.has_value())

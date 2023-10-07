@@ -6,6 +6,8 @@
 #include <vector>
 #include <memory>
 
+#define THREE_BYTE_MAX 16777215
+
 class ExecutableModule;
 class Object;
 
@@ -102,6 +104,8 @@ public:
 class Object
 {
 public:
+	using Closure = std::vector<std::shared_ptr<Value>>;
+
 	struct NativeFunction
 	{
 		std::function<void()> m_cpp_function;
@@ -111,7 +115,8 @@ public:
 
 	struct DefinedFunction
 	{
-		std::shared_ptr<ExecutableModule> m_module;
+		std::unique_ptr<ExecutableModule> m_module;
+		Closure m_closure;
 		int m_arity;
 	};
 
@@ -151,7 +156,7 @@ public:
 				using T = std::decay_t<decltype(arg)>;
 				if constexpr (std::is_same_v<T, std::string>)
 				{
-					return '"' + arg + '"';
+					return arg;
 				}
 				else if constexpr (std::is_same_v<T, std::vector<Value>>)
 				{

@@ -5,8 +5,6 @@
 
 #include "Common/Value/Value.h"
 
-#define THREE_BYTE_MAX 16777215
-
 enum class OpCode : uint8_t
 {
     // Constants and Literals
@@ -18,10 +16,10 @@ enum class OpCode : uint8_t
     FALSE,
 
     // Array Operations
-    ARRAY_CREATE,
-    ARRAY_GET,
-    ARRAY_SET,
-    ARRAY_RESERVE,
+    CREATE_ARRAY,
+    GET_ARRAY,
+    SET_ARRAY,
+    RESERVE_ARRAY,
 
     // Bit Operations
     LEFT_SHIFT,
@@ -62,10 +60,13 @@ enum class OpCode : uint8_t
 
     // Variable Operations
     DEFINE_GLOBAL,
+    CREATE_CLOSURE,
     GET_GLOBAL,
     SET_GLOBAL,
     GET_LOCAL,
     SET_LOCAL,
+    GET_CELL,
+    SET_CELL,
 
     // Stack Operations
     POP,
@@ -76,6 +77,7 @@ enum class OpCode : uint8_t
 
     // Return
     RETURN,
+    HALT,
 };
 
 

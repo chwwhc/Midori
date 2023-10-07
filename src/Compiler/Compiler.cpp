@@ -43,9 +43,9 @@ namespace Compiler
 
 #ifdef DEBUG
 					Disassembler::DisassembleBytecodeStream(bytecode.m_module, "main");
-					for (const std::shared_ptr<ExecutableModule>& m : bytecode.m_sub_modules)
+					for (const ExecutableModule* m : bytecode.m_sub_modules)
 					{
-						std::string function_name = std::string("Function at: ") + std::to_string(reinterpret_cast<uintptr_t>(m.get()));
+						std::string function_name = std::string("Function at: ") + std::to_string(reinterpret_cast<uintptr_t>(m));
 						Disassembler::DisassembleBytecodeStream(*m, function_name.data());
 					}
 #endif

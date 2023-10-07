@@ -12,15 +12,23 @@ public:
 	struct CodeGeneratorResult
 	{
 		ExecutableModule m_module;
-		std::vector<std::shared_ptr<ExecutableModule>> m_sub_modules;
+#ifdef DEBUG
+		std::vector<const ExecutableModule*> m_sub_modules;
+#endif
 		bool m_error;
 		
-		CodeGeneratorResult(ExecutableModule&& module, std::vector<std::shared_ptr<ExecutableModule>>&& modules, bool error) : m_module(std::move(module)), m_sub_modules(std::move(modules)), m_error(error) {}
+#ifdef DEBUG
+		CodeGeneratorResult(ExecutableModule&& module, std::vector<const ExecutableModule*>&& modules, bool error) : m_module(std::move(module)), m_sub_modules(std::move(modules)), m_error(error) {}
+#else
+		CodeGeneratorResult(ExecutableModule&& module, bool error) : m_module(std::move(module)), m_error(error) {}
+#endif
 	};
 
 private:
 	ExecutableModule m_module;
-	std::vector<std::shared_ptr<ExecutableModule>> m_sub_modules;
+#ifdef DEBUG
+	std::vector<const ExecutableModule*> m_sub_modules;
+#endif
 	std::unordered_map<std::string, int> m_global_variables;
 	bool m_error = false;
 
