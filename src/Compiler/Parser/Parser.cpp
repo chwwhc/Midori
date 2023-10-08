@@ -228,7 +228,7 @@ std::unique_ptr<Expression> Parser::ParsePrimary()
 					return std::make_unique<Expression>(Variable(std::move(Previous()), VariableSemantic::Global()));
 				}
 				// local
-				else if (m_function_depth == 0 || scope_it == m_scopes.rbegin())
+				else if (m_function_depth <= 1 || scope_it == m_scopes.rbegin())
 				{
 					return std::make_unique<Expression>(Variable(std::move(Previous()), VariableSemantic::Local(find_result->second.m_relative_index)));
 				}

@@ -11,12 +11,10 @@ CodeGenerator::CodeGeneratorResult CodeGenerator::GenerateCode(ProgramTree&& pro
 		std::visit([this](auto&& arg) { (*this)(arg); }, *statement);
 	}
 
-	//EmitByte(OpCode::HALT, -1);
-
 #ifdef DEBUG
-	return CodeGenerator::CodeGeneratorResult(std::move(m_module), std::move(m_sub_modules), m_error);
+	return CodeGenerator::CodeGeneratorResult(std::move(m_module), std::move(m_traceable_constants), std::move(m_sub_modules), std::move(m_static_data), std::move(m_global_table), m_error);
 #else
-	return CodeGenerator::CodeGeneratorResult(std::move(m_module), m_error);
+	return CodeGenerator::CodeGeneratorResult(std::move(m_module), std::move(m_traceable_constants), std::move(m_static_data), std::move(m_global_table), m_error);
 #endif
 }
 
@@ -49,7 +47,7 @@ void CodeGenerator::operator()(Let& let)
 	if (is_global)
 	{
 		std::string variable_name = let.m_name.m_lexeme;
-		index.emplace(m_module.AddGlobalVariable(std::move(variable_name)));
+		index.emplace(m_global_table.AddGlobalVariable(std::move(variable_name)));
 		m_global_variables[let.m_name.m_lexeme] = index.value();
 	}
 
@@ -394,7 +392,7 @@ void CodeGenerator::operator()(Assign& assign)
 
 void CodeGenerator::operator()(String& string)
 {
-	EmitConstant(new Object(std::move(string.m_token.m_lexeme)), string.m_token.m_line);
+	EmitConstant(Object::AllocateObject(std::move(string.m_token.m_lexeme)), string.m_token.m_line);
 }
 
 void CodeGenerator::operator()(Bool& bool_expr)
@@ -423,19 +421,18 @@ void CodeGenerator::operator()(Function& function)
 		return;
 	}
 
-	ExecutableModule prev_module = std::move(m_module);
-	m_module = ExecutableModule();
+	BytecodeStream prev_module = std::move(m_module);
+	m_module = BytecodeStream();
 
 	std::visit([this](auto&& arg) {(*this)(arg); }, *function.m_body);
 
-	std::unique_ptr<ExecutableModule> sub_module = std::make_unique<ExecutableModule>(std::move(m_module));
+	BytecodeStream bytecode(std::move(m_module));
+	Object* function_ptr = Object::AllocateObject(Object::DefinedFunction(std::move(bytecode), Object::Closure(), std::move(arity)));
 #ifdef DEBUG
-	m_sub_modules.emplace_back(sub_module.get());
+	m_sub_modules.emplace_back(&function_ptr->GetDefinedFunction());
 #endif
-	Object* defined_function_object = new Object(Object::DefinedFunction(std::move(sub_module), std::vector<std::shared_ptr<Value>>(), std::move(arity)));
-
 	m_module = std::move(prev_module);
-	EmitConstant(std::move(defined_function_object), line);
+	EmitConstant(function_ptr, line);
 	EmitByte(OpCode::CREATE_CLOSURE, line);
 }
 
@@ -531,6 +528,6 @@ void CodeGenerator::operator()(Ternary& ternary)
 void CodeGenerator::SetUpGlobalVariables()
 {
 	std::string variable_name = "Print";
-	int index = m_module.AddGlobalVariable(std::move(variable_name));
+	int index = m_global_table.AddGlobalVariable(std::move(variable_name));
 	m_global_variables["Print"] = index;
 }

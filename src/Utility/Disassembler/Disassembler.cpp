@@ -1,5 +1,7 @@
 #include "Disassembler.h"
-#include "Common/ExecutableModule/ExecutableModule.h"
+#include "Common/BytecodeStream/BytecodeStream.h"
+#include "Common/Value/GlobalVariableTable.h"
+#include "Common/Value/StaticData.h"
 
 #include <iostream>
 #include <iomanip>
@@ -12,14 +14,14 @@ namespace
 		offset += 1;
 	}
 
-	void PopMultipleInstruction(const char* name, const ExecutableModule& stream, int& offset)
+	void PopMultipleInstruction(const char* name, const BytecodeStream& stream, int& offset)
 	{
 		int count = static_cast<int>(stream.ReadByteCode(offset + 1));
 		offset += 2;
 		std::cout << name << " " << count << std::endl;
 	}
 
-	void ConstantInstruction(const char* name, const ExecutableModule& stream, int& offset)
+	void ConstantInstruction(const char* name, const BytecodeStream& stream, const StaticData& static_data, int& offset)
 	{
 		int index;
 		if (std::strcmp(name, "CONSTANT_LONG_LONG") == 0)
@@ -41,10 +43,10 @@ namespace
 			offset += 2;
 		}
 
-		std::cout << name << " " << index << " {{ " << stream.GetConstant(index).ToString() << " }}" << std::endl;
+		std::cout << name << " " << index << " {{ " << static_data.GetConstant(index).ToString() << " }}" << std::endl;
 	}
 
-	void JumpInstruction(const char* name, int sign, const ExecutableModule& stream, int& offset)
+	void JumpInstruction(const char* name, int sign, const BytecodeStream& stream, int& offset)
 	{
 		int index = static_cast<int>(stream.ReadByteCode(offset + 1)) |
 			(static_cast<int>(stream.ReadByteCode(offset + 2)) << 8);
@@ -53,15 +55,15 @@ namespace
 		std::cout << name << " (# destination " << std::setfill('0') << std::setw(4) << std::hex << offset + sign * index << " #)" << std::endl;
 	}
 
-	void GlobalVariableInstruction(const char* name, const ExecutableModule& stream, int& offset)
+	void GlobalVariableInstruction(const char* name, const BytecodeStream& stream, const GlobalVariableTable& global_table, int& offset)
 	{
 		int index = static_cast<int>(stream.ReadByteCode(offset + 1));
 		offset += 2;
 
-		std::cout << name << " " << index << " {{ variable: " << stream.GetGlobalVariable(index) << " }}" << std::endl;
+		std::cout << name << " " << index << " {{ variable: " << global_table.GetGlobalVariable(index) << " }}" << std::endl;
 	}
 
-	void ArrayInstruction(const char* name, const ExecutableModule& stream, int& offset)
+	void ArrayInstruction(const char* name, const BytecodeStream& stream, int& offset)
 	{
 		int index = static_cast<int>(stream.ReadByteCode(offset + 1));
 		offset += 2;
@@ -69,7 +71,7 @@ namespace
 		std::cout << name << " (- num of indices: " << index << " -)" << std::endl;
 	}
 
-	void ArrayCreateInstruction(const char* name, const ExecutableModule& stream, int& offset)
+	void ArrayCreateInstruction(const char* name, const BytecodeStream& stream, int& offset)
 	{
 		int length = static_cast<int>(stream.ReadByteCode(offset + 1)) |
 			(static_cast<int>(stream.ReadByteCode(offset + 2)) << 8) |
@@ -78,7 +80,7 @@ namespace
 		std::cout << name << " (- num of elements: " << length << " -)" << std::endl;
 	}
 
-	void LocalVariableInstruction(const char* name, const ExecutableModule& stream, int& offset)
+	void LocalVariableInstruction(const char* name, const BytecodeStream& stream, int& offset)
 	{
 		int index = static_cast<int>(stream.ReadByteCode(offset + 1));
 		offset += 2;
@@ -86,7 +88,7 @@ namespace
 		std::cout << name << " (* offset: " << index << " *)" << std::endl;
 	}
 
-	void CallInstruction(const char* name, const ExecutableModule& stream, int& offset)
+	void CallInstruction(const char* name, const BytecodeStream& stream, int& offset)
 	{
 		int index = static_cast<int>(stream.ReadByteCode(offset + 1));
 		offset += 2;
@@ -96,18 +98,18 @@ namespace
 
 namespace Disassembler
 {
-	void DisassembleBytecodeStream(const ExecutableModule& stream, const char* name)
+	void DisassembleBytecodeStream(const BytecodeStream& stream, const StaticData& static_data, const GlobalVariableTable& global_table, const char* name)
 	{
 		std::cout << "--------------- " << name << " ---------------" << std::endl;
 
 		int offset = 0;
 		while (offset < stream.GetByteCodeSize())
 		{
-			DisassembleInstruction(stream, offset);
+			DisassembleInstruction(stream, static_data, global_table, offset);
 		}
 	}
 
-	void DisassembleInstruction(const ExecutableModule& stream, int& offset)
+	void DisassembleInstruction(const BytecodeStream& stream, const StaticData& static_data, const GlobalVariableTable& global_table, int& offset)
 	{
 		std::cout << std::setfill('0') << std::setw(4) << std::hex << offset << ' ';
 
@@ -123,13 +125,13 @@ namespace Disassembler
 		OpCode instruction = stream.ReadByteCode(offset);
 		switch (instruction) {
 		case OpCode::CONSTANT:
-			ConstantInstruction("CONSTANT", stream, offset);
+			ConstantInstruction("CONSTANT", stream, static_data, offset);
 			break;
 		case OpCode::CONSTANT_LONG:
-			ConstantInstruction("CONSTANT_LONG", stream, offset);
+			ConstantInstruction("CONSTANT_LONG", stream, static_data, offset);
 			break;
 		case OpCode::CONSTANT_LONG_LONG:
-			ConstantInstruction("CONSTANT_LONG_LONG", stream, offset);
+			ConstantInstruction("CONSTANT_LONG_LONG", stream, static_data, offset);
 			break;
 		case OpCode::NIL:
 			SimpleInstruction("NIL", offset);
@@ -225,16 +227,16 @@ namespace Disassembler
 			CallInstruction("CALL", stream, offset);
 			break;
 		case OpCode::DEFINE_GLOBAL:
-			GlobalVariableInstruction("DEFINE_GLOBAL", stream, offset);
+			GlobalVariableInstruction("DEFINE_GLOBAL", stream, global_table, offset);
 			break;
 		case OpCode::CREATE_CLOSURE:
 			SimpleInstruction("CREATE_CLOSURE", offset);
 			break;
 		case OpCode::GET_GLOBAL:
-			GlobalVariableInstruction("GET_GLOBAL", stream, offset);
+			GlobalVariableInstruction("GET_GLOBAL", stream, global_table, offset);
 			break;
 		case OpCode::SET_GLOBAL:
-			GlobalVariableInstruction("SET_GLOBAL", stream, offset);
+			GlobalVariableInstruction("SET_GLOBAL", stream, global_table, offset);
 			break;
 		case OpCode::GET_LOCAL:
 			LocalVariableInstruction("GET_LOCAL", stream, offset);

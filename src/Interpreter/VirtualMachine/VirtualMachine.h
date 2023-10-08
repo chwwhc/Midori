@@ -1,45 +1,57 @@
 #pragma once
 
 #include "Common/Value/Value.h"
-#include "Common/ExecutableModule/ExecutableModule.h"
+#include "Common/BytecodeStream/BytecodeStream.h"
+#include "Common/Value/StaticData.h"
+#include "Common/Value/GlobalVariableTable.h"
+#include "Interpreter/GarbageCollector/GarbageCollector.h"
 
 #include <array>
 #include <functional>
 #include <unordered_map>
+#include <utility>
 #include <iostream>
 
 #define VALUE_STACK_MAX 512
 #define FRAME_STACK_MAX 256
+#define GARBAGE_COLLECTION_THRESHOLD 1024
 
 class VirtualMachine
 {
 
 public:
-	VirtualMachine(ExecutableModule&& module) : m_module(std::move(module)), m_current_module(&m_module), m_instruction_pointer(m_current_module->cbegin()) {}
+
+	VirtualMachine(BytecodeStream&& bytecode, Traceable::GarbageCollectionRoots&& constant_roots, StaticData&& static_data, GlobalVariableTable&& global_table) : m_module(std::move(bytecode)), m_garbage_collector(GarbageCollector(std::move(constant_roots))), m_static_data(std::move(static_data)), m_global_table(std::move(global_table)), m_current_bytecode(&m_module), m_instruction_pointer(m_current_bytecode->cbegin()) {}
+
+	~VirtualMachine() { Traceable::CleanUp(); }
 
 private:
 	template <typename T, int Size>
 	using StackPointer = std::array<T, Size>::iterator;
-	using InstructionPointer = ExecutableModule::const_iterator;
+	using InstructionPointer = BytecodeStream::const_iterator;
+	using GlobalVariables = std::unordered_map<std::string, Value>;
 
 	struct CallFrame
 	{
-		ExecutableModule* m_return_module = nullptr;
+		BytecodeStream* m_return_module = nullptr;
 		StackPointer<Value, VALUE_STACK_MAX>  m_return_bp;
 		StackPointer<Value, VALUE_STACK_MAX>  m_return_sp;
 		InstructionPointer m_return_ip;
 	};
 
-	ExecutableModule m_module;
 	std::array<Value, VALUE_STACK_MAX> m_value_stack;
 	std::array<CallFrame, FRAME_STACK_MAX> m_call_stack;
-	std::vector<Object::Closure*> m_closure_stack;
-	ExecutableModule* m_current_module = nullptr;
+	BytecodeStream m_module;
+	StaticData m_static_data;
+	GlobalVariables m_global_vars;
+	GlobalVariableTable m_global_table;
+	GarbageCollector m_garbage_collector;
+	Object::Closure* m_current_closure = nullptr;
+	BytecodeStream* m_current_bytecode = nullptr;
 	StackPointer<Value, VALUE_STACK_MAX> m_base_pointer = m_value_stack.begin();
 	StackPointer<Value, VALUE_STACK_MAX> m_value_stack_pointer = m_value_stack.begin();
 	StackPointer<CallFrame, FRAME_STACK_MAX> m_call_stack_pointer = m_call_stack.begin();
 	InstructionPointer m_instruction_pointer;
-	std::unordered_map<std::string, Value> m_global_vars;
 	bool m_error = false;
 
 public:
@@ -85,13 +97,13 @@ private:
 				(static_cast<int>(ReadByte()) << 16);
 		}
 
-		return m_module.GetConstant(index);
+		return m_static_data.GetConstant(index);
 	}
 	
 	inline const std::string& ReadGlobalVariable()
 	{
 		int index = static_cast<int>(ReadByte());
-		return m_module.GetGlobalVariable(index);
+		return m_global_table.GetGlobalVariable(index);
 	}
 
 	inline void Push(Value&& value)
@@ -201,6 +213,21 @@ private:
 		
 		return left_value >= INT_MIN && left_value <= INT_MAX &&
 			right_value >= INT_MIN && right_value <= INT_MAX;
+	}
+
+	Traceable::GarbageCollectionRoots GetValueStackGarbageCollectionRoots();
+
+	Traceable::GarbageCollectionRoots GetGlobalGarbageCollectionRoots();
+
+	Traceable::GarbageCollectionRoots GetGarbageCollectionRoots();
+
+	void CollectGarbage();
+
+	template<typename T>
+	Object* RuntimeAllocateObject(T&& value)
+	{
+		CollectGarbage();
+		return Object::AllocateObject(std::forward<T>(value));
 	}
 
 	void BinaryOperation(std::function<Value(const Value&, const Value&)>&& op, bool (*type_checker)(const Value&, const Value&));

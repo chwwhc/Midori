@@ -1,15 +1,70 @@
 #pragma once
 
 #include <functional>
+#include <list>
 #include <string>
 #include <variant>
 #include <vector>
-#include <memory>
+#include <iostream>
+#include <unordered_set>
+
+#include "Common/BytecodeStream/BytecodeStream.h"
 
 #define THREE_BYTE_MAX 16777215
 
-class ExecutableModule;
 class Object;
+
+class Traceable {
+
+public:
+	using GarbageCollectionRoots = std::unordered_set<Traceable*>;
+
+	bool m_is_marked;
+	size_t m_size;
+	static inline size_t s_bytes_allocated;
+	static inline std::list<Traceable*> s_objects;
+
+public:
+
+	static inline void* operator new(size_t size) 
+	{
+		void* object = ::operator new(size);
+		Traceable* traceable = static_cast<Traceable*>(object);
+
+		traceable->m_size = size;
+		s_bytes_allocated += size;
+		s_objects.emplace_back(traceable);
+
+		return static_cast<void*>(traceable);
+	}
+
+	static inline void operator delete(void* object, size_t size) noexcept 
+	{
+		Traceable* traceable = static_cast<Traceable*>(object);
+		s_bytes_allocated -= traceable->m_size;
+
+		::operator delete(object, size);
+	}
+
+	static inline void CleanUp() 
+	{
+		for (Traceable* object : s_objects) 
+		{
+			delete object;
+		}
+		s_objects.clear();
+	}
+
+	static void PrintMemoryTelemetry() 
+	{
+		std::cout << "\n------------------------------\n";
+		std::cout << "Memory telemetry:\n";
+		std::cout << "Heap objects allocated: " << std::dec << s_objects.size() << '\n';
+		std::cout << "Bytes allocated: " << std::dec << s_bytes_allocated;
+		std::cout << "\n------------------------------\n";
+	}
+};
+
 
 class Value
 {
@@ -39,33 +94,33 @@ private:
 
 public:
 
-	constexpr Value() : m_value(std::monostate()) {}
+	Value() : m_value(std::monostate()) {}
 
-	constexpr Value(double d) : m_value(d) {}
+	Value(double d) : m_value(d) {}
 
-	constexpr Value(bool b) : m_value(b) {}
+	Value(bool b) : m_value(b) {}
 
-	constexpr Value(Object* o) : m_value(o) {}
+	Value(Object* o) : m_value(o) {}
 
-	constexpr inline double GetNumber() const { return std::get<double>(m_value); }
+	inline double GetNumber() const { return std::get<double>(m_value); }
 
-	constexpr inline bool IsNumber() const { return std::holds_alternative<double>(m_value); }
+	inline bool IsNumber() const { return std::holds_alternative<double>(m_value); }
 
-	constexpr inline std::monostate GetNull() const { return std::get<std::monostate>(m_value); }
+	inline std::monostate GetNull() const { return std::get<std::monostate>(m_value); }
 
-	constexpr inline bool IsNull() const { return std::holds_alternative<std::monostate>(m_value); }
+	inline bool IsNull() const { return std::holds_alternative<std::monostate>(m_value); }
 
-	constexpr inline bool GetBool() const { return std::get<bool>(m_value); }
+	inline bool GetBool() const { return std::get<bool>(m_value); }
 
-	constexpr inline bool IsBool() const { return std::holds_alternative<bool>(m_value); }
+	inline bool IsBool() const { return std::holds_alternative<bool>(m_value); }
 
-	constexpr inline Object* GetObjectPointer() const { return std::get<Object*>(m_value); }
+	inline Object* GetObjectPointer() const { return std::get<Object*>(m_value); }
 
-	constexpr inline bool IsObjectPointer() const { return std::holds_alternative<Object*>(m_value); }
+	inline bool IsObjectPointer() const { return std::holds_alternative<Object*>(m_value); }
 
-	constexpr inline static bool AreSameType(const Value& lhs, const Value& rhs) { return lhs.m_value.index() == rhs.m_value.index(); }
+	inline static bool AreSameType(const Value& lhs, const Value& rhs) { return lhs.m_value.index() == rhs.m_value.index(); }
 
-	constexpr inline std::string ToString() const
+	inline std::string ToString() const
 	{
 		return std::visit([](auto&& arg) -> std::string
 			{
@@ -101,10 +156,10 @@ public:
 	}
 };
 
-class Object
+class Object : public Traceable
 {
 public:
-	using Closure = std::vector<std::shared_ptr<Value>>;
+	using Closure = std::vector<Value>;
 
 	struct NativeFunction
 	{
@@ -115,7 +170,7 @@ public:
 
 	struct DefinedFunction
 	{
-		std::unique_ptr<ExecutableModule> m_module;
+		BytecodeStream m_bytecode;
 		Closure m_closure;
 		int m_arity;
 	};
@@ -125,31 +180,26 @@ private:
 
 public:
 
-	constexpr Object(std::string&& str) : m_value(std::move(str)) {}
+	template<typename T>
+	static Object* AllocateObject(T&& value) { return new Object(std::forward<T>(value)); }
 
-	constexpr Object(std::vector<Value>&& array) : m_value(std::move(array)) {}
+	inline std::string& GetString() const { return const_cast<std::string&>(std::get<std::string>(m_value)); }
 
-	constexpr Object(NativeFunction&& native_function) : m_value(std::move(native_function)) {}
+	inline bool IsString() const { return std::holds_alternative<std::string>(m_value); }
 
-	constexpr Object(DefinedFunction&& defined_function) : m_value(std::move(defined_function)) {}
+	inline std::vector<Value>& GetArray() const { return const_cast<std::vector<Value>&>(std::get<std::vector<Value>>(m_value)); }
 
-	constexpr inline std::string& GetString() const { return const_cast<std::string&>(std::get<std::string>(m_value)); }
+	inline bool IsArray() const { return std::holds_alternative<std::vector<Value>>(m_value); }
 
-	constexpr inline bool IsString() const { return std::holds_alternative<std::string>(m_value); }
+	inline NativeFunction& GetNativeFunction() const { return const_cast<NativeFunction&>(std::get<NativeFunction>(m_value)); }
 
-	constexpr inline std::vector<Value>& GetArray() const { return const_cast<std::vector<Value>&>(std::get<std::vector<Value>>(m_value)); }
+	inline bool IsNativeFunction() const { return std::holds_alternative<NativeFunction>(m_value); }
 
-	constexpr inline bool IsArray() const { return std::holds_alternative<std::vector<Value>>(m_value); }
+	inline DefinedFunction& GetDefinedFunction() const { return const_cast<DefinedFunction&>(std::get<DefinedFunction>(m_value)); }
 
-	constexpr inline NativeFunction& GetNativeFunction() const { return const_cast<NativeFunction&>(std::get<NativeFunction>(m_value)); }
+	inline bool IsDefinedFunction() const { return std::holds_alternative<DefinedFunction>(m_value); }
 
-	constexpr inline bool IsNativeFunction() const { return std::holds_alternative<NativeFunction>(m_value); }
-
-	constexpr inline DefinedFunction& GetDefinedFunction() const { return const_cast<DefinedFunction&>(std::get<DefinedFunction>(m_value)); }
-
-	constexpr inline bool IsDefinedFunction() const { return std::holds_alternative<DefinedFunction>(m_value); }
-
-	constexpr inline std::string ToString() const
+	inline std::string ToString() const
 	{
 		return std::visit([](auto&& arg) -> std::string
 			{
@@ -176,12 +226,27 @@ public:
 				}
 				else if constexpr (std::is_same_v<T, DefinedFunction>)
 				{
-					return "<defined function at: "  + std::to_string(reinterpret_cast<uintptr_t>(arg.m_module.get())) + ">";
+					return "<defined function at: "  + std::to_string(reinterpret_cast<uintptr_t>(&arg.m_bytecode)) + ">";
 				}
 				else
 				{
-					return "Unknown Object";	// Should never happen
+					return "Unknown Object";	
 				}
 			}, m_value);
 	}
+
+private:
+	Object() = default;
+
+	Object(const Object& other) = default;
+
+	Object(Object&& other) noexcept = default;
+
+	Object(std::string&& str) : m_value(std::move(str)) {}
+
+	Object(std::vector<Value>&& array) : m_value(std::move(array)) {}
+
+	Object(NativeFunction&& native_function) : m_value(std::move(native_function)) {}
+
+	Object(DefinedFunction&& defined_function) : m_value(std::move(defined_function)) {}
 };

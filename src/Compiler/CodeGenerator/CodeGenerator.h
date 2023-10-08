@@ -2,7 +2,9 @@
 
 #include "Compiler/AbstractSyntaxTree/AbstractSyntaxTree.h"
 #include "Compiler/Error/Error.h"
-#include "Common/ExecutableModule/ExecutableModule.h"
+#include "Common/BytecodeStream/BytecodeStream.h"
+#include "Common/Value/StaticData.h"
+#include "Common/Value/GlobalVariableTable.h"
 
 #include <unordered_map>
 
@@ -11,25 +13,31 @@ class CodeGenerator
 public:
 	struct CodeGeneratorResult
 	{
-		ExecutableModule m_module;
+		BytecodeStream m_module;
+		Traceable::GarbageCollectionRoots m_constant_roots;
+		StaticData m_static_data;
+		GlobalVariableTable m_global_table;
 #ifdef DEBUG
-		std::vector<const ExecutableModule*> m_sub_modules;
+		std::vector<const Object::DefinedFunction*> m_sub_modules;
 #endif
 		bool m_error;
 		
 #ifdef DEBUG
-		CodeGeneratorResult(ExecutableModule&& module, std::vector<const ExecutableModule*>&& modules, bool error) : m_module(std::move(module)), m_sub_modules(std::move(modules)), m_error(error) {}
+		CodeGeneratorResult(BytecodeStream&& bytecode, Traceable::GarbageCollectionRoots&& roots, std::vector<const Object::DefinedFunction*>&& modules, StaticData&& static_data, GlobalVariableTable&& global_table, bool error) : m_module(std::move(bytecode)), m_constant_roots(std::move(roots)), m_sub_modules(std::move(modules)), m_static_data(std::move(static_data)), m_global_table(std::move(global_table)), m_error(error) {}
 #else
-		CodeGeneratorResult(ExecutableModule&& module, bool error) : m_module(std::move(module)), m_error(error) {}
+		CodeGeneratorResult(BytecodeStream&& bytecode, Traceable::GarbageCollectionRoots&& roots, StaticData&& static_data, GlobalVariableTable&& global_table, bool error) : m_module(std::move(bytecode)), m_constant_roots(std::move(roots)), m_static_data(std::move(static_data)), m_global_table(std::move(global_table)), m_error(error) {}
 #endif
 	};
 
 private:
-	ExecutableModule m_module;
-#ifdef DEBUG
-	std::vector<const ExecutableModule*> m_sub_modules;
-#endif
+	BytecodeStream m_module;
 	std::unordered_map<std::string, int> m_global_variables;
+#ifdef DEBUG
+	std::vector<const Object::DefinedFunction*> m_sub_modules;
+#endif
+	StaticData m_static_data;
+	GlobalVariableTable m_global_table;
+	Traceable::GarbageCollectionRoots m_traceable_constants;
 	bool m_error = false;
 
 public:
@@ -55,7 +63,12 @@ private:
 
 	inline void EmitConstant(Value&& value, int line)
 	{
-		int index = m_module.AddConstant(std::move(value));
+		if (value.IsObjectPointer())
+		{
+			m_traceable_constants.emplace(value.GetObjectPointer());
+		}
+
+		int index = m_static_data.AddConstant(std::move(value));
 
 		if (index <= UINT8_MAX) // 1 byte
 		{

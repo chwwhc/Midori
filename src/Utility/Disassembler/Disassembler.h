@@ -1,11 +1,13 @@
 #pragma once
 
-class ExecutableModule;
+class BytecodeStream;
+class GlobalVariableTable;
+class StaticData;
 
 namespace Disassembler
 {
-    void DisassembleBytecodeStream(const ExecutableModule& stream, const char* name);
+    void DisassembleBytecodeStream(const BytecodeStream& stream, const StaticData& static_data, const GlobalVariableTable& global_table, const char* name);
 
-    void DisassembleInstruction(const ExecutableModule& stream, int& offset);
-    //static void PrintValue(const Value& value);
+    void DisassembleInstruction(const BytecodeStream& stream, const StaticData& static_data, const GlobalVariableTable& global_table, int& offset);
+  
 };

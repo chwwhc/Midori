@@ -41,12 +41,22 @@ int main()
 		std::exit(60);
 	}
 
-	std::optional<ExecutableModule> module = Compiler::Compile(std::move(script.value()));
-	if (module.has_value())
+	std::optional<Compiler::ExecutableModule> compilation_result = Compiler::Compile(std::move(script.value()));
+	if (compilation_result.has_value())
 	{
-		VirtualMachine vm(std::move(module.value()));
+		Compiler::ExecutableModule& compilation_result_value = compilation_result.value();
+#ifdef DEBUG
+		Traceable::PrintMemoryTelemetry();
+#endif
+		VirtualMachine vm(std::move(compilation_result_value.m_bytecode), std::move(compilation_result_value.m_constant_roots), std::move(compilation_result_value.m_static_data), std::move(compilation_result_value.m_global_table));
 		vm.Execute();
+#ifdef DEBUG
+		Traceable::PrintMemoryTelemetry();
+#endif
 	}
+#ifdef DEBUG
+	Traceable::PrintMemoryTelemetry();
+#endif
 
 	return 0;
 }

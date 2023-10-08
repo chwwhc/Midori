@@ -37,19 +37,19 @@ namespace Compiler
 				}
 #endif
 				CodeGenerator code_generator;
-				CodeGenerator::CodeGeneratorResult bytecode = code_generator.GenerateCode(std::move(program));
-				if (!bytecode.m_error)
+				CodeGenerator::CodeGeneratorResult compilation_result = code_generator.GenerateCode(std::move(program));
+				if (!compilation_result.m_error)
 				{
 
 #ifdef DEBUG
-					Disassembler::DisassembleBytecodeStream(bytecode.m_module, "main");
-					for (const ExecutableModule* m : bytecode.m_sub_modules)
+					Disassembler::DisassembleBytecodeStream(compilation_result.m_module, compilation_result.m_static_data, compilation_result.m_global_table, "main");
+					for (const Object::DefinedFunction* m : compilation_result.m_sub_modules)
 					{
 						std::string function_name = std::string("Function at: ") + std::to_string(reinterpret_cast<uintptr_t>(m));
-						Disassembler::DisassembleBytecodeStream(*m, function_name.data());
+						Disassembler::DisassembleBytecodeStream(m->m_bytecode, compilation_result.m_static_data, compilation_result.m_global_table, function_name.data());
 					}
 #endif
-					return std::move(bytecode.m_module);
+					return { { std::move(compilation_result.m_module), std::move(compilation_result.m_constant_roots), std::move(compilation_result.m_static_data), std::move(compilation_result.m_global_table)}};
 				}
 				else
 				{

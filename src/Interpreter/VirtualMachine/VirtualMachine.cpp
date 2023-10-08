@@ -5,7 +5,7 @@
 
 void VirtualMachine::InitializeNativeFunctions()
 {
-	Object* print = new Object(Object::NativeFunction([this]()
+	Object* print = Object::AllocateObject(Object::NativeFunction([this]()
 		{
 			std::cout << Peek(0).ToString() << std::endl;
 		}, "Print", 1));
@@ -30,11 +30,73 @@ void VirtualMachine::BinaryOperation(std::function<Value(const Value&, const Val
 	Push(op(left, right));
 }
 
+Traceable::GarbageCollectionRoots VirtualMachine::GetValueStackGarbageCollectionRoots()
+{
+	Traceable::GarbageCollectionRoots roots;
+	for (StackPointer<Value, VALUE_STACK_MAX> it = m_value_stack.begin(); it < m_value_stack_pointer; ++it)
+	{
+		if (it->IsObjectPointer())
+		{
+			roots.emplace(static_cast<Traceable*>(it->GetObjectPointer()));
+		}
+	}
+
+	return roots;
+}
+
+Traceable::GarbageCollectionRoots VirtualMachine::GetGlobalGarbageCollectionRoots()
+{
+	Traceable::GarbageCollectionRoots roots;
+	for (GlobalVariables::const_iterator it = m_global_vars.cbegin(); it != m_global_vars.cend(); ++it)
+	{
+		const Value& value = it->second;
+		if (value.IsObjectPointer())
+		{
+			roots.emplace(static_cast<Traceable*>(value.GetObjectPointer()));
+		}
+	}
+
+	return roots;
+}
+
+Traceable::GarbageCollectionRoots VirtualMachine::GetGarbageCollectionRoots()
+{
+	Traceable::GarbageCollectionRoots stack_value_roots = GetValueStackGarbageCollectionRoots();
+	Traceable::GarbageCollectionRoots global_roots = GetGlobalGarbageCollectionRoots();
+	
+	stack_value_roots.insert(global_roots.begin(), global_roots.end());
+	return stack_value_roots;
+}
+
+void VirtualMachine::CollectGarbage()
+{
+	if (Traceable::s_bytes_allocated < GARBAGE_COLLECTION_THRESHOLD)
+	{
+		return;
+	}
+
+	Traceable::GarbageCollectionRoots roots = GetGarbageCollectionRoots();
+	if (roots.empty())
+	{
+		return;
+	}
+
+#ifdef DEBUG
+	std::cout << "Before GarbageCollection";
+	Traceable::PrintMemoryTelemetry();
+#endif
+	m_garbage_collector.ReclaimMemory(std::move(roots));
+#ifdef DEBUG
+	std::cout << "After GarbageCollection";
+	Traceable::PrintMemoryTelemetry();
+#endif
+}
+
 void VirtualMachine::Execute()
 {
 	InitializeNativeFunctions();
 
-	while (m_instruction_pointer != m_current_module->cend())
+	while (m_instruction_pointer != m_current_bytecode->cend())
 	{
 #ifdef DEBUG
 		std::cout << "          ";
@@ -43,8 +105,8 @@ void VirtualMachine::Execute()
 			std::cout << "[ " << it->ToString() << " ]";
 		}
 		std::cout << std::endl;
-		int dbg_instruction_pointer = static_cast<int>(std::distance(m_current_module->cbegin(), m_instruction_pointer));
-		Disassembler::DisassembleInstruction(*m_current_module, dbg_instruction_pointer);
+		int dbg_instruction_pointer = static_cast<int>(std::distance(m_current_bytecode->cbegin(), m_instruction_pointer));
+		Disassembler::DisassembleInstruction(*m_current_bytecode, m_static_data, m_global_table, dbg_instruction_pointer);
 #endif
 		OpCode instruction = ReadByte();
 
@@ -83,7 +145,7 @@ void VirtualMachine::Execute()
 				arr.emplace_back(Pop());
 			}
 			std::reverse(arr.begin(), arr.end());
-			Object* arr_object = new Object(std::move(arr));
+			Object* arr_object = RuntimeAllocateObject(std::move(arr));
 			Push(arr_object);
 			break;
 		}
@@ -227,7 +289,7 @@ void VirtualMachine::Execute()
 			}
 
 			size_t size = static_cast<size_t>(value_as_double);
-			Object* arr_object = new Object(std::vector<Value>(size));
+			Object* arr_object = RuntimeAllocateObject(std::vector<Value>(size));
 			Push(arr_object);
 			break;
 		}
@@ -275,8 +337,8 @@ void VirtualMachine::Execute()
 		}
 		case OpCode::CONCAT:
 		{
-			BinaryOperation([](const Value& left, const Value& right)
-				{ 
+			BinaryOperation([this](const Value& left, const Value& right)
+				{
 					Object* left_value = left.GetObjectPointer();
 					Object* right_value = right.GetObjectPointer();
 
@@ -289,7 +351,7 @@ void VirtualMachine::Execute()
 							right_value_vector_ref.begin(),
 							right_value_vector_ref.end());
 
-						return new Object(std::move(new_value_vector));
+						return RuntimeAllocateObject(std::move(new_value_vector));
 					}
 					else {
 						const std::string& left_value_string_ref = left_value->GetString();
@@ -297,7 +359,7 @@ void VirtualMachine::Execute()
 
 						std::string new_value_string = left_value_string_ref + right_value_string_ref;
 
-						return new Object(std::move(new_value_string));
+						return RuntimeAllocateObject(std::move(new_value_string));
 					}
 				},
 				AreConcatenatable);
@@ -481,11 +543,13 @@ void VirtualMachine::Execute()
 					return;
 				}
 
-				// Return address := pop all the arguments and the callee
-				*m_call_stack_pointer++ = { m_current_module , m_base_pointer, m_value_stack_pointer - arity - 1, m_instruction_pointer };
+				m_current_closure = &defined_function.m_closure;
 
-				m_current_module = defined_function.m_module.get();
-				m_instruction_pointer = m_current_module->cbegin();
+				// Return address := pop all the arguments and the callee
+				*m_call_stack_pointer++ = { m_current_bytecode , m_base_pointer, m_value_stack_pointer - arity - 1, m_instruction_pointer };
+
+				m_current_bytecode = &defined_function.m_bytecode;
+				m_instruction_pointer = m_current_bytecode->cbegin();
 				m_base_pointer = m_value_stack_pointer - arity;
 			}
 
@@ -502,34 +566,18 @@ void VirtualMachine::Execute()
 			Object::DefinedFunction& function = Peek(0).GetObjectPointer()->GetDefinedFunction();
 			Object::Closure new_closure;
 
-			if (m_closure_stack.empty())
+			for (StackPointer<Value, VALUE_STACK_MAX> it = m_value_stack.begin(); it < m_value_stack_pointer; ++it)
 			{
-				for (StackPointer<Value, VALUE_STACK_MAX> it = m_base_pointer; it < m_value_stack_pointer; ++it)
-				{
-					new_closure.emplace_back(std::make_shared<Value>(*it));
-				}
-			}
-			else
-			{
-				Object::Closure* parent_closure = m_closure_stack.back();
-				for (std::shared_ptr<Value> captured_val : *parent_closure)
-				{
-					new_closure.emplace_back(std::move(captured_val));
-				}
-				for (StackPointer<Value, VALUE_STACK_MAX> it = m_base_pointer; it < m_value_stack_pointer; ++it)
-				{
-					new_closure.emplace_back(std::make_shared<Value>(*it));
-				}
+				new_closure.emplace_back(*it);
 			}
 
 			function.m_closure = std::move(new_closure);
-			m_closure_stack.emplace_back(&function.m_closure);
 			break;
 		}
 		case OpCode::GET_GLOBAL:
 		{
 			const std::string& name = ReadGlobalVariable();
-			std::unordered_map<std::string, Value>::iterator it = m_global_vars.find(name);
+			GlobalVariables::iterator it = m_global_vars.find(name);
 			if (it == m_global_vars.end())
 			{
 				std::cerr << "Undefined variable '" << name << "'.";
@@ -542,7 +590,7 @@ void VirtualMachine::Execute()
 		case OpCode::SET_GLOBAL:
 		{
 			const std::string& name = ReadGlobalVariable();
-			std::unordered_map<std::string, Value>::iterator it = m_global_vars.find(name);
+			GlobalVariables::iterator it = m_global_vars.find(name);
 			if (it == m_global_vars.end())
 			{
 				std::cerr << "Undefined variable '" << name << "'.";
@@ -568,14 +616,14 @@ void VirtualMachine::Execute()
 		case OpCode::GET_CELL:
 		{
 			int offset = static_cast<int>(ReadByte());
-			Value value_copy = *(*m_closure_stack.back())[offset];
+			Value value_copy = (*m_current_closure)[offset];
 			Push(std::move(value_copy));
 			break;
 		}
 		case OpCode::SET_CELL:
 		{
 			int offset = static_cast<int>(ReadByte());
-			(*m_closure_stack.back())[offset] = std::make_shared<Value>(Peek(0));
+			(*m_current_closure)[offset] = Peek(0);
 			break;
 		}
 		case OpCode::POP:
@@ -592,11 +640,11 @@ void VirtualMachine::Execute()
 		case OpCode::RETURN:
 		{
 			CallFrame& top_frame = *(--m_call_stack_pointer);
-			m_closure_stack.pop_back();
+			m_current_closure = nullptr;
 
 			Value return_val = Pop();
 
-			m_current_module = top_frame.m_return_module;
+			m_current_bytecode = top_frame.m_return_module;
 			m_base_pointer = top_frame.m_return_bp;
 			m_instruction_pointer = top_frame.m_return_ip;
 			m_value_stack_pointer = top_frame.m_return_sp;

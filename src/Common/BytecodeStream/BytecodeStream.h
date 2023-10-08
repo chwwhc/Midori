@@ -3,8 +3,6 @@
 #include <cinttypes>
 #include <vector>
 
-#include "Common/Value/Value.h"
-
 enum class OpCode : uint8_t
 {
     // Constants and Literals
@@ -82,7 +80,7 @@ enum class OpCode : uint8_t
 };
 
 
-class ExecutableModule
+class BytecodeStream
 {
 public:
     using iterator = std::vector<OpCode>::iterator;
@@ -98,8 +96,6 @@ public:
 private:
 	std::vector<OpCode> m_bytecode;
 	std::vector<std::pair<int, int>> m_line_info; // Pair of line number and count of consecutive instructions
-    inline static std::vector<Value> s_constants = {};
-    inline static std::vector<std::string> s_globals = {};
 
 public:
 
@@ -121,25 +117,9 @@ public:
 		}
 	}
 
-	inline int AddConstant(Value&& value)
-	{
-        s_constants.emplace_back(std::move(value));
-        return static_cast<int>(s_constants.size()) - 1;
-	}
-
-    inline int AddGlobalVariable(std::string&& name)
-    {
-		s_globals.emplace_back(std::move(name));
-		return static_cast<int>(s_globals.size()) - 1;
-	}
-
 	inline int GetByteCodeSize() const { return static_cast<int>(m_bytecode.size()); }
 
 	inline bool IsByteCodeEmpty() const { return m_bytecode.empty(); }
-
-	inline const Value& GetConstant(int index) const { return s_constants[static_cast<size_t>(index)]; }
-
-    inline const std::string& GetGlobalVariable(int index) const { return s_globals[static_cast<size_t>(index)]; }
 
     inline int GetLine(int index) const
     {
