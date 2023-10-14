@@ -3,15 +3,6 @@
 
 #include <cmath>
 
-void VirtualMachine::InitializeNativeFunctions()
-{
-	Object* print = Object::AllocateObject(Object::NativeFunction([this]()
-		{
-			std::cout << Peek(0).ToString() << std::endl;
-		}, "Print", 1));
-	m_global_vars[std::string("Print")] = print;
-}
-
 void VirtualMachine::BinaryOperation(std::function<Value(const Value&, const Value&)>&& op, bool (*type_checker)(const Value&, const Value&))
 {
 	const Value& right_peek = Peek(0);
@@ -70,7 +61,7 @@ Traceable::GarbageCollectionRoots VirtualMachine::GetGarbageCollectionRoots()
 
 void VirtualMachine::CollectGarbage()
 {
-	if (Traceable::s_bytes_allocated < GARBAGE_COLLECTION_THRESHOLD)
+	if (Traceable::s_total_bytes_allocated - Traceable::s_static_bytes_allocated < GARBAGE_COLLECTION_THRESHOLD)
 	{
 		return;
 	}
@@ -82,19 +73,19 @@ void VirtualMachine::CollectGarbage()
 	}
 
 #ifdef DEBUG
-	std::cout << "Before GarbageCollection";
+	std::cout << "\nBefore garbage collection:";
 	Traceable::PrintMemoryTelemetry();
 #endif
 	m_garbage_collector.ReclaimMemory(std::move(roots));
 #ifdef DEBUG
-	std::cout << "After GarbageCollection";
+	std::cout << "\nAfter garbage collection:";
 	Traceable::PrintMemoryTelemetry();
 #endif
 }
 
 void VirtualMachine::Execute()
 {
-	InitializeNativeFunctions();
+	NativeFunction::InitializeNativeFunctions(*this);
 
 	while (m_instruction_pointer != m_current_bytecode->cend())
 	{

@@ -1,57 +1,96 @@
 #pragma once
 
+#include "Compiler/AbstractSyntaxTree/AbstractSyntaxTree.h"
 #include "Compiler/Token/Token.h"
-#include <iostream>
-#include <sstream>
+#include "Common/BytecodeStream/BytecodeStream.h"
+#include "Common/Value/StaticData.h"
+#include "Common/Value/GlobalVariableTable.h"
+#include "Common/Value/Value.h"
+
+#include <expected>
+
+namespace Result
+{
+	struct GeneratedBytecodeBundle
+	{
+		BytecodeStream m_module;
+		Traceable::GarbageCollectionRoots m_constant_roots;
+		StaticData m_static_data;
+		GlobalVariableTable m_global_table;
+#ifdef DEBUG
+		std::vector<const Object::DefinedFunction*> m_sub_modules;
+#endif
+
+#ifdef DEBUG
+		GeneratedBytecodeBundle(BytecodeStream&& bytecode, Traceable::GarbageCollectionRoots&& roots, std::vector<const Object::DefinedFunction*>&& modules, StaticData&& static_data, GlobalVariableTable&& global_table) : m_module(std::move(bytecode)), m_constant_roots(std::move(roots)), m_sub_modules(std::move(modules)), m_static_data(std::move(static_data)), m_global_table(std::move(global_table)) {}
+#else
+		GeneratedBytecodeBundle(BytecodeStream&& bytecode, Traceable::GarbageCollectionRoots&& roots, StaticData&& static_data, GlobalVariableTable&& global_table) : m_module(std::move(bytecode)), m_constant_roots(std::move(roots)), m_static_data(std::move(static_data)), m_global_table(std::move(global_table)) {}
+#endif
+	};
+
+	struct ExecutableModule
+	{
+		BytecodeStream m_bytecode;
+		Traceable::GarbageCollectionRoots m_constant_roots;
+		StaticData m_static_data;
+		GlobalVariableTable m_global_table;
+	};
+
+	using TokenResult = std::expected<Token, std::string>;
+	using LexerResult = std::expected<TokenStream, std::vector<std::string>>;
+	using ExpressionResult = std::expected<std::unique_ptr<Expression>, std::string>;
+	using StatementResult = std::expected<std::unique_ptr<Statement>, std::string>;
+	using ParserResult = std::expected<ProgramTree, std::vector<std::string>>;
+	using CodeGeneratorResult = std::expected<GeneratedBytecodeBundle, std::vector<std::string>>;
+	using CompilerResult = std::expected<ExecutableModule, std::vector<std::string>>;
+}
 
 class CompilerError
 {
-public:
-	enum class Type
-	{
-		LEXER,
-		PARSER,
-		CODE_GENERATOR,
-	};
-
 private:
-	static inline void PrintBaseError(Type type, const char* message, int line, const Token* token = nullptr)
+	static inline std::string GenerateBaseError(const char* message, int line, const Token* token = nullptr)
 	{
-		std::stringstream ss;
+		std::string generated_message;
 
 		if (token != nullptr)
 		{
-			ss << "[line " << line << "] '" << token->m_lexeme << "' ";
+			generated_message.append("[line ");
+			generated_message.append(std::to_string(line));
+			generated_message.append("] '");
+			generated_message.append(token->m_lexeme);
+			generated_message.append("' ");
 		}
 		else
 		{
-			ss << "[line " << line << "] ";
+			generated_message.append("[line ");
+			generated_message.append(std::to_string(line));
+			generated_message.append("] ");
 		}
 
-		switch (type)
-		{
-		case Type::LEXER: ss << "Lexer Error: "; break;
-		case Type::PARSER: ss << "Parser Error: "; break;
-		case Type::CODE_GENERATOR: ss << "Code Generator Error: "; break;
-		}
+		generated_message.append(message);
 
-		ss << message;
-		std::cerr << ss.str() << std::endl;
+		return generated_message;
 	}
 
 public:
-	static inline void PrintError(const char* message, int line)
+	static inline std::string GenerateCodeGeneratorError(const char* message, int line)
 	{
-		PrintBaseError(Type::CODE_GENERATOR, message, line);
+		std::string generated_message = "Code Generator Error: ";
+		generated_message.append(GenerateBaseError(message, line).data());
+		return generated_message;
 	}
 
-	static inline void PrintError(Type type, const char* message, int line)
+	static inline std::string GenerateLexerError(const char* message, int line)
 	{
-		PrintBaseError(type, message, line);
+		std::string generated_message = "Lexer Error: ";
+		generated_message.append(GenerateBaseError(message, line).data());
+		return generated_message;
 	}
 
-	static inline void PrintError(Type type, const char* message, const Token& token)
+	static inline std::string GenerateParserError(const char* message, const Token& token)
 	{
-		PrintBaseError(type, message, token.m_line, &token);
+		std::string generated_message = "Parser Error: ";
+		generated_message.append(GenerateBaseError(message, token.m_line, &token).data());
+		return generated_message;
 	}
 };

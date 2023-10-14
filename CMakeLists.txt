@@ -9,13 +9,13 @@ endif()
 # Project name
 project("Midori")
 
-# Enforce C++20
-set(CMAKE_CXX_STANDARD 20)
+# Enforce C++23
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Compiler flags
 if (MSVC)
-    add_compile_options(/W4 /WX)
+    add_compile_options(/WX)
 else()
     add_compile_options(-Wall -Wextra -pedantic -Werror)
 endif()

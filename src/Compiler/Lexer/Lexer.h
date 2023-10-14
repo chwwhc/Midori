@@ -1,36 +1,27 @@
 #pragma once
 
+#include "Compiler/Error/Error.h"
+
 #include <string>
 #include <vector>
 #include <unordered_map>
 
-#include "Compiler/Error/Error.h"
-#include "Compiler/Token/Token.h"
-
 class Lexer
 {
 public:
-    struct LexerResult
-    {
-		TokenStream m_tokens;
-        bool m_error;
-
-        LexerResult(TokenStream&& tokens, bool error) : m_tokens(std::move(tokens)), m_error(error) {}
-	};
 
 private:
     std::string m_source_code;
     int m_line = 1;
     int m_begin = 0;
     int m_current = 0;
-    bool m_error = false;
     static const std::unordered_map<std::string, Token::Type> s_keywords;
 
 public:
 
     explicit Lexer(std::string&& source_code) noexcept : m_source_code(std::move(source_code)) {}
 
-    LexerResult Lex();
+    Result::LexerResult Lex();
 
 private:
 
@@ -52,11 +43,11 @@ private:
 
     inline Token MakeToken(Token::Type type, std::string&& lexeme) { return Token(type, std::move(lexeme), m_line); }
 
-    Token LexOneToken();
+    Result::TokenResult LexOneToken();
 
-    void SkipWhitespaceAndComments();
+    std::optional<std::string> SkipWhitespaceAndComments();
 
-    Token MatchString();
+    Result::TokenResult MatchString();
 
     Token MatchNumber();
 

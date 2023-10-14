@@ -34,7 +34,6 @@ struct Token
 		BANG_EQUAL,
 		SINGLE_EQUAL,
 		DOUBLE_EQUAL,
-		PIPE,
 		GREATER,
 		GREATER_EQUAL,
 		LESS,
@@ -66,20 +65,14 @@ struct Token
 		PRINT,
 		IMPORT,
 		NAMESPACE,
-		HALT,
+		AS,
 
 		END_OF_FILE,
-		ERROR,
 	};
 
 	Type m_type;
 	std::string m_lexeme;
-	int m_line;
-
-	Token(Type type, std::string&& lexeme, int line)
-		: m_type(type), m_lexeme(std::move(lexeme)), m_line(line)
-	{
-	}
+	int m_line = 0;
 };
 
 class TokenStream

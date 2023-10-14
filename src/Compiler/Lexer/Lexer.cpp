@@ -1,6 +1,7 @@
 #include "Lexer.h"
 
-const std::unordered_map<std::string, Token::Type> Lexer::s_keywords = {
+const std::unordered_map<std::string, Token::Type> Lexer::s_keywords = 
+{
     {"else", Token::Type::ELSE},
     {"false", Token::Type::FALSE},
     {"for", Token::Type::FOR},
@@ -15,10 +16,10 @@ const std::unordered_map<std::string, Token::Type> Lexer::s_keywords = {
     {"break", Token::Type::BREAK},
     {"continue", Token::Type::CONTINUE},
     {"import", Token::Type::IMPORT},
-    {"namespace", Token::Type::NAMESPACE},
-    {"halt", Token::Type::HALT}, };
+    {"namespace", Token::Type::NAMESPACE}, 
+};
 
-void Lexer::SkipWhitespaceAndComments()
+std::optional<std::string> Lexer::SkipWhitespaceAndComments()
 {
     while (true)
     {
@@ -61,9 +62,7 @@ void Lexer::SkipWhitespaceAndComments()
 
                 if (IsAtEnd(0))
                 {
-                    CompilerError::PrintError(CompilerError::Type::LEXER, "Unterminated block comment.", m_line);
-                    m_error = true;
-                    return;
+                    return CompilerError::GenerateLexerError("Unterminated block comment.", m_line);
                 }
 
                 // The closing "*/".
@@ -72,16 +71,16 @@ void Lexer::SkipWhitespaceAndComments()
             }
             else
             {
-                return;
+                return std::nullopt;
             }
             break;
         default:
-            return;
+            return std::nullopt;
         }
     }
 }
 
-Token Lexer::MatchString()
+Result::TokenResult Lexer::MatchString()
 {
     std::string result;
 
@@ -128,8 +127,7 @@ Token Lexer::MatchString()
 
     if (IsAtEnd(0))
     {
-        CompilerError::PrintError(CompilerError::Type::LEXER, "Unterminated string.", m_line);
-        m_error = true;
+        return std::unexpected(CompilerError::GenerateLexerError("Unterminated string.", m_line));
     }
     else
     {
@@ -182,9 +180,13 @@ Token Lexer::MatchIdentifierOrReserved()
     }
 }
 
-Token Lexer::LexOneToken()
+Result::TokenResult Lexer::LexOneToken()
 {
-    SkipWhitespaceAndComments();
+    if (SkipWhitespaceAndComments().has_value())
+    {
+        return std::unexpected(SkipWhitespaceAndComments().value());
+    }
+
     if (IsAtEnd(0))
     {
 		return MakeToken(Token::Type::END_OF_FILE);
@@ -242,26 +244,11 @@ Token Lexer::LexOneToken()
     case '*':
         return MakeToken(Token::Type::STAR);
     case '/':
-        if (MatchNext('/'))
-        {
-            while (!IsAtEnd(0) && !MatchNext('\n'))
-            {
-                Advance();
-            }
-            m_line += 1;
-        }
-        else
-        {
-            return MakeToken(Token::Type::SLASH);
-        }
+        return MakeToken(Token::Type::SLASH);
     case '|':
         if (MatchNext('|'))
         {
             return MakeToken(Token::Type::DOUBLE_BAR);
-        }
-        else if (MatchNext('>'))
-        {
-            return MakeToken(Token::Type::PIPE);
         }
         else
         {
@@ -343,26 +330,38 @@ Token Lexer::LexOneToken()
         }
         else
         {
-            CompilerError::PrintError(CompilerError::Type::LEXER, "Invalid character.", m_line);
-            m_error = true;
-            return Token(Token::Type::ERROR, "", m_line);
+            return std::unexpected(CompilerError::GenerateLexerError("Invalid character.", m_line));
         }
     }
 }
 
-Lexer::LexerResult Lexer::Lex()
+Result::LexerResult Lexer::Lex()
 {
-    TokenStream result;
+    TokenStream token_stream;
+    std::vector<std::string> errors;
 
     while (!IsAtEnd(0))
     {
-        result.AddToken(LexOneToken());
+        std::expected<Token, std::string> result = LexOneToken();
+        if (result.has_value())
+        {
+			token_stream.AddToken(std::move(result.value()));
+		}
+        else
+        {
+			errors.emplace_back(result.error());
+		}
     }
 
-    if (std::prev(result.cend())->m_type != Token::Type::END_OF_FILE)
+    if (!errors.empty())
     {
-        result.AddToken(MakeToken(Token::Type::END_OF_FILE));
+        return std::unexpected(errors);
+    }
+
+    if (std::prev(token_stream.cend())->m_type != Token::Type::END_OF_FILE)
+    {
+        token_stream.AddToken(MakeToken(Token::Type::END_OF_FILE));
     }
     
-    return LexerResult(std::move(result), m_error);
+    return token_stream;
 }

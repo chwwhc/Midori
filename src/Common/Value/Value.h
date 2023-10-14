@@ -21,7 +21,8 @@ public:
 
 	bool m_is_marked;
 	size_t m_size;
-	static inline size_t s_bytes_allocated;
+	static inline size_t s_total_bytes_allocated;
+	static inline size_t s_static_bytes_allocated;
 	static inline std::list<Traceable*> s_objects;
 
 public:
@@ -32,7 +33,7 @@ public:
 		Traceable* traceable = static_cast<Traceable*>(object);
 
 		traceable->m_size = size;
-		s_bytes_allocated += size;
+		s_total_bytes_allocated += size;
 		s_objects.emplace_back(traceable);
 
 		return static_cast<void*>(traceable);
@@ -41,13 +42,14 @@ public:
 	static inline void operator delete(void* object, size_t size) noexcept 
 	{
 		Traceable* traceable = static_cast<Traceable*>(object);
-		s_bytes_allocated -= traceable->m_size;
+		s_total_bytes_allocated -= traceable->m_size;
 
 		::operator delete(object, size);
 	}
 
 	static inline void CleanUp() 
 	{
+		s_static_bytes_allocated = 0u;
 		for (Traceable* object : s_objects) 
 		{
 			delete object;
@@ -60,7 +62,9 @@ public:
 		std::cout << "\n------------------------------\n";
 		std::cout << "Memory telemetry:\n";
 		std::cout << "Heap objects allocated: " << std::dec << s_objects.size() << '\n';
-		std::cout << "Bytes allocated: " << std::dec << s_bytes_allocated;
+		std::cout << "Total Bytes allocated: " << std::dec << s_total_bytes_allocated << '\n';
+		std::cout << "Static Bytes allocated: " << std::dec << s_static_bytes_allocated << '\n';
+		std::cout << "Dynamic Bytes allocated: " << std::dec << s_total_bytes_allocated - s_static_bytes_allocated;
 		std::cout << "\n------------------------------\n";
 	}
 };

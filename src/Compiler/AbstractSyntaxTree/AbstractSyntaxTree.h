@@ -8,7 +8,6 @@
 #include "Compiler/Token/Token.h"
 
 struct Binary;
-struct Pipe;
 struct Logical;
 struct Group;
 struct String;
@@ -27,7 +26,7 @@ struct Array;
 struct ArrayGet;
 struct ArraySet;
 
-using Expression = std::variant < Binary, Pipe, Logical, Group, String, Bool, Number, Nil, Unary, Assign, Variable, Call, Function, Ternary, Get, Set, Array, ArrayGet, ArraySet>;
+using Expression = std::variant < Binary, Logical, Group, String, Bool, Number, Nil, Unary, Assign, Variable, Call, Function, Ternary, Get, Set, Array, ArrayGet, ArraySet>;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -42,9 +41,8 @@ struct Continue;
 struct Return;
 struct Import;
 struct Namespace;
-struct Halt;
 
-using Statement = std::variant<Block, Simple, Let, If, While, For, Break, Continue, Return, Import, Namespace, Halt>;
+using Statement = std::variant<Block, Simple, Let, If, While, For, Break, Continue, Return, Import, Namespace>;
 using ProgramTree = std::vector<std::unique_ptr<Statement>>;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -53,11 +51,11 @@ namespace VariableSemantic
 {
 	struct Local
 	{
-		int m_index;
+		int m_index = 0;
 	};
 	struct Cell
 	{
-		int m_index;
+		int m_index = 0;
 	};
 	struct Global {};
 }
@@ -65,13 +63,6 @@ namespace VariableSemantic
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct Binary
-{
-	Token m_op;
-	std::unique_ptr<Expression> m_left;
-	std::unique_ptr<Expression> m_right;
-};
-
-struct Pipe
 {
 	Token m_op;
 	std::unique_ptr<Expression> m_left;
@@ -194,7 +185,7 @@ struct Block
 {
 	Token m_right_brace;
 	std::vector<std::unique_ptr<Statement>> m_stmts;
-	int m_local_count;
+	int m_local_count = 0;
 };
 
 struct Simple
@@ -214,9 +205,9 @@ struct If
 {
 	Token m_if_keyword;
 	std::optional<Token> m_else_keyword;
+	std::optional<std::unique_ptr<Statement>> m_else_branch;
 	std::unique_ptr<Expression> m_condition;
 	std::unique_ptr<Statement> m_true_branch;
-	std::optional<std::unique_ptr<Statement>> m_else_branch;
 };
 
 struct While
@@ -229,11 +220,11 @@ struct While
 struct For
 {
 	Token m_for_keyword;
-	std::unique_ptr<Statement> m_condition_intializer;
 	std::optional<std::unique_ptr<Expression>> m_condition;
 	std::optional<std::unique_ptr<Statement>> m_condition_incrementer;
+	std::unique_ptr<Statement> m_condition_intializer;
 	std::unique_ptr<Statement> m_body;
-	int m_control_block_local_count;
+	int m_control_block_local_count = 0;
 };
 
 struct Break
@@ -262,10 +253,4 @@ struct Namespace
 {
 	Token m_name;
 	std::unique_ptr<Statement> m_stmts;
-};
-
-struct Halt
-{
-	Token m_keyword;
-	std::unique_ptr<Expression> m_message;
 };

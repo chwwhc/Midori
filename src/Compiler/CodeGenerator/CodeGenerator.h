@@ -1,36 +1,16 @@
 #pragma once
 
-#include "Compiler/AbstractSyntaxTree/AbstractSyntaxTree.h"
 #include "Compiler/Error/Error.h"
-#include "Common/BytecodeStream/BytecodeStream.h"
-#include "Common/Value/StaticData.h"
-#include "Common/Value/GlobalVariableTable.h"
 
 #include <unordered_map>
 
 class CodeGenerator
 {
 public:
-	struct CodeGeneratorResult
-	{
-		BytecodeStream m_module;
-		Traceable::GarbageCollectionRoots m_constant_roots;
-		StaticData m_static_data;
-		GlobalVariableTable m_global_table;
-#ifdef DEBUG
-		std::vector<const Object::DefinedFunction*> m_sub_modules;
-#endif
-		bool m_error;
-		
-#ifdef DEBUG
-		CodeGeneratorResult(BytecodeStream&& bytecode, Traceable::GarbageCollectionRoots&& roots, std::vector<const Object::DefinedFunction*>&& modules, StaticData&& static_data, GlobalVariableTable&& global_table, bool error) : m_module(std::move(bytecode)), m_constant_roots(std::move(roots)), m_sub_modules(std::move(modules)), m_static_data(std::move(static_data)), m_global_table(std::move(global_table)), m_error(error) {}
-#else
-		CodeGeneratorResult(BytecodeStream&& bytecode, Traceable::GarbageCollectionRoots&& roots, StaticData&& static_data, GlobalVariableTable&& global_table, bool error) : m_module(std::move(bytecode)), m_constant_roots(std::move(roots)), m_static_data(std::move(static_data)), m_global_table(std::move(global_table)), m_error(error) {}
-#endif
-	};
 
 private:
 	BytecodeStream m_module;
+	std::vector<std::string> m_errors;
 	std::unordered_map<std::string, int> m_global_variables;
 #ifdef DEBUG
 	std::vector<const Object::DefinedFunction*> m_sub_modules;
@@ -38,11 +18,10 @@ private:
 	StaticData m_static_data;
 	GlobalVariableTable m_global_table;
 	Traceable::GarbageCollectionRoots m_traceable_constants;
-	bool m_error = false;
 
 public:
 
-	CodeGeneratorResult GenerateCode(ProgramTree&& program_tree);
+	Result::CodeGeneratorResult GenerateCode(ProgramTree&& program_tree);
 
 private:
 
@@ -65,7 +44,9 @@ private:
 	{
 		if (value.IsObjectPointer())
 		{
-			m_traceable_constants.emplace(value.GetObjectPointer());
+			Traceable* traceable = static_cast<Traceable*>(value.GetObjectPointer());
+			m_traceable_constants.emplace(traceable);
+			Traceable::s_static_bytes_allocated += traceable->m_size;
 		}
 
 		int index = m_static_data.AddConstant(std::move(value));
@@ -90,8 +71,7 @@ private:
 		}
 		else
 		{
-			CompilerError::PrintError("Too many constants (max 16777215).", line);
-			m_error = true;
+			m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Too many constants (max 16777215).", line));
 		}
 	}
 
@@ -99,9 +79,7 @@ private:
 	{
 		if (variable_index > UINT8_MAX)
 		{
-			CompilerError::PrintError("Too many variables (max 255).", line);
-			m_error = true;
-			return;
+			m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Too many variables (max 255).", line));
 		}
 
 		EmitByte(op, line);
@@ -121,24 +99,21 @@ private:
 		int jump = m_module.GetByteCodeSize() - offset - 2;
 		if (jump > UINT16_MAX)
 		{
-			CompilerError::PrintError("Too much code to jump over (max 65535).", line);
-			m_error = true;
+			m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Too much code to jump over (max 65535).", line));
 		}
 
 		m_module.SetByteCode(offset, static_cast<OpCode>(jump & 0xff));
 		m_module.SetByteCode(offset + 1, static_cast<OpCode>((jump >> 8) & 0xff));
 	}
 
-	inline void EmitLoop(int loop_start, int line) 
+	inline void EmitLoop(int loop_start, int line)
 	{
 		EmitByte(OpCode::JUMP_BACK, line);
 
 		int offset = m_module.GetByteCodeSize() - loop_start + 2;
 		if (offset > UINT16_MAX)
 		{ 
-			CompilerError::PrintError("Loop body too large (max 65535).", line);
-			m_error = true;
-			return;
+			m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Loop body too large (max 65535).", line));
 		}
 
 		EmitByte(static_cast<OpCode>(offset & 0xff), line);
@@ -167,11 +142,7 @@ private:
 
 	void operator()(Namespace& namespace_stmt);
 
-	void operator()(Halt&);
-
 	void operator()(Binary& binary);
-
-	void operator()(Pipe& pipe);
 
 	void operator()(Logical& logical);
 

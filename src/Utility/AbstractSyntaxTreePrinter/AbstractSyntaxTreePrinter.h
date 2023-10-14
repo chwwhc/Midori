@@ -135,11 +135,6 @@ struct PrintAbstractSyntaxTree
 		PrintWithIndentation(depth, "}");
 	}
 
-	void operator()(const Halt&, int depth = 0) const
-	{
-		PrintWithIndentation(depth, "Halt");
-	}
-
 	void operator()(const Binary& binary, int depth = 0) const
 	{
 		PrintWithIndentation(depth, "Binary {");
@@ -148,16 +143,6 @@ struct PrintAbstractSyntaxTree
 		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *binary.m_left);
 		PrintWithIndentation(depth + 1, "Right: ");
 		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *binary.m_right);
-		PrintWithIndentation(depth, "}");
-	}
-
-	void operator()(const Pipe& pipe, int depth = 0) const
-	{
-		PrintWithIndentation(depth, "Pipe {");
-		PrintWithIndentation(depth + 1, "Left: ");
-		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *pipe.m_left);
-		PrintWithIndentation(depth + 1, "Right: ");
-		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *pipe.m_right);
 		PrintWithIndentation(depth, "}");
 	}
 

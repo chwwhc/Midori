@@ -2,58 +2,66 @@
 
 #include <iostream>
 
-std::unique_ptr<Expression> Parser::ParseFactor()
+Result::ExpressionResult Parser::ParseFactor()
 {
 	return ParseBinary(&Parser::ParseUnary, Token::Type::STAR, Token::Type::SLASH, Token::Type::PERCENT);
 }
 
-std::unique_ptr<Expression> Parser::ParseShift()
+Result::ExpressionResult Parser::ParseShift()
 {
 	return ParseBinary(&Parser::ParseTerm, Token::Type::LEFT_SHIFT, Token::Type::RIGHT_SHIFT);
 }
 
-std::unique_ptr<Expression> Parser::ParseTerm()
+Result::ExpressionResult Parser::ParseTerm()
 {
 	return ParseBinary(&Parser::ParseFactor, Token::Type::SINGLE_PLUS, Token::Type::DOUBLE_PLUS, Token::Type::MINUS);
 }
 
-std::unique_ptr<Expression> Parser::ParseComparison()
+Result::ExpressionResult Parser::ParseComparison()
 {
 	return ParseBinary(&Parser::ParseShift, Token::Type::LESS, Token::Type::LESS_EQUAL, Token::Type::GREATER, Token::Type::GREATER_EQUAL);
 }
 
-std::unique_ptr<Expression> Parser::ParseEquality()
+Result::ExpressionResult Parser::ParseEquality()
 {
 	return ParseBinary(&Parser::ParseComparison, Token::Type::BANG_EQUAL, Token::Type::DOUBLE_EQUAL);
 }
 
-std::unique_ptr<Expression> Parser::ParseBitwiseAnd()
+Result::ExpressionResult Parser::ParseBitwiseAnd()
 {
 	return ParseBinary(&Parser::ParseEquality, Token::Type::SINGLE_AMPERSAND);
 }
 
-std::unique_ptr<Expression> Parser::ParseBitwiseXor()
+Result::ExpressionResult Parser::ParseBitwiseXor()
 {
 	return ParseBinary(&Parser::ParseBitwiseAnd, Token::Type::CARET);
 }
 
-std::unique_ptr<Expression> Parser::ParseBitwiseOr()
+Result::ExpressionResult Parser::ParseBitwiseOr()
 {
 	return ParseBinary(&Parser::ParseBitwiseXor, Token::Type::SINGLE_BAR);
 }
 
-std::unique_ptr<Expression> Parser::ParseAssignment()
+Result::ExpressionResult Parser::ParseAssignment()
 {
-	std::unique_ptr<Expression> expr = ParseTernary();
+	Result::ExpressionResult expr = ParseTernary();
+	if (!expr.has_value())
+	{
+		return std::unexpected(std::move(expr.error()));
+	}
 
 	if (Match(Token::Type::SINGLE_EQUAL))
 	{
 		Token& equal = Previous();
-		std::unique_ptr<Expression> value = ParseAssignment();
-
-		if (std::holds_alternative<Variable>(*expr))
+		Result::ExpressionResult value = ParseAssignment();
+		if (!value.has_value())
 		{
-			Variable& variable_expr = std::get<Variable>(*expr);
+			return std::unexpected(std::move(value.error()));
+		}
+
+		if (std::holds_alternative<Variable>(*expr.value()))
+		{
+			Variable& variable_expr = std::get<Variable>(*expr.value());
 
 			for (std::vector<Scope>::reverse_iterator scope_it = m_scopes.rbegin(); scope_it != m_scopes.rend(); ++scope_it)
 			{
@@ -63,122 +71,158 @@ std::unique_ptr<Expression> Parser::ParseAssignment()
 					// global
 					if (scope_it == std::prev(m_scopes.rend()))
 					{
-						return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value), VariableSemantic::Global()));
+						return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Global()));
 					}
 					// local
 					else if (m_function_depth == 0 || scope_it == m_scopes.rbegin())
 					{
-						return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value), VariableSemantic::Local(find_result->second.m_relative_index)));
+						return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Local(find_result->second.m_relative_index)));
 					}
 					// cell
 					else
 					{
-						return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value), VariableSemantic::Cell(find_result->second.m_absolute_index)));
+						return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Cell(find_result->second.m_absolute_index)));
 					}
 				}
 			}
 
-			return ParserError("Undefined Variable.", variable_expr.m_name);
+			return std::unexpected(GenerateParserError("Undefined Variable.", variable_expr.m_name));
 		}
-		else if (std::holds_alternative<Get>(*expr))
+		else if (std::holds_alternative<Get>(*expr.value()))
 		{
-			Get& get_expr = std::get<Get>(*expr);
-			return std::make_unique<Expression>(Set(std::move(get_expr.m_name), std::move(get_expr.m_object), std::move(value)));
+			Get& get_expr = std::get<Get>(*expr.value());
+			return std::make_unique<Expression>(Set(std::move(get_expr.m_name), std::move(get_expr.m_object), std::move(value.value())));
 		}
-		else if (std::holds_alternative<ArrayGet>(*expr))
+		else if (std::holds_alternative<ArrayGet>(*expr.value()))
 		{
-			ArrayGet& access_expr = std::get<ArrayGet>(*expr);
-			return std::make_unique<Expression>(ArraySet(std::move(access_expr.m_op), std::move(access_expr.m_arr_var), std::move(access_expr.m_indices), std::move(value)));
+			ArrayGet& access_expr = std::get<ArrayGet>(*expr.value());
+			return std::make_unique<Expression>(ArraySet(std::move(access_expr.m_op), std::move(access_expr.m_arr_var), std::move(access_expr.m_indices), std::move(value.value())));
 		}
 
-		return ParserError("Invalid assignment target.", equal);
+		return std::unexpected(GenerateParserError("Invalid assignment target.", equal));
 	}
 
 	return expr;
 }
 
-std::unique_ptr<Expression> Parser::ParseUnary()
+Result::ExpressionResult Parser::ParseUnary() 
 {
 	if (Match(Token::Type::BANG, Token::Type::MINUS))
 	{
 		Token& op = Previous();
-		std::unique_ptr<Expression> right = ParseUnary();
-		return std::make_unique<Expression>(Unary(std::move(op), std::move(right)));
+		Result::ExpressionResult right = ParseUnary();
+		if (!right.has_value())
+		{
+			return std::unexpected(std::move(right.error()));
+		}
+
+		return std::make_unique<Expression>(Unary(std::move(op), std::move(right.value())));
 	}
 
 	return ParseArrayAccess();
 }
 
-std::unique_ptr<Expression> Parser::ParseTernary()
+Result::ExpressionResult Parser::ParseTernary()
 {
-	std::unique_ptr<Expression> condition = ParseLogicalOr();
+	Result::ExpressionResult condition = ParseLogicalOr();
+	if (!condition.has_value())
+	{
+		return std::unexpected(std::move(condition.error()));
+	}
 
 	if (Match(Token::Type::QUESTION))
 	{
 		Token& question = Previous();
-		std::unique_ptr<Expression> true_branch = ParseTernary();
+		Result::ExpressionResult true_branch = ParseTernary();
+		if (!true_branch.has_value())
+		{
+			return std::unexpected(std::move(true_branch.error()));
+		}
+
 		if (Match(Token::Type::SINGLE_COLON))
 		{
 			Token& colon = Previous();
-			std::unique_ptr<Expression> else_branch = ParseTernary();
-			return std::make_unique<Expression>(Ternary(std::move(question), std::move(colon), std::move(condition), std::move(true_branch), std::move(else_branch)));
+			Result::ExpressionResult else_branch = ParseTernary();
+			if (!else_branch.has_value())
+			{
+				return std::unexpected(std::move(else_branch.error()));
+			}
+
+			return std::make_unique<Expression>(Ternary(std::move(question), std::move(colon), std::move(condition.value()), std::move(true_branch.value()), std::move(else_branch.value())));
 		}
 		else
 		{
-			CompilerError::PrintError(CompilerError::Type::PARSER, "Expected ':' for ternary expression.", question);
-			m_error = true;
-			Synchronize();
+			return std::unexpected(GenerateParserError("Expected ':' for ternary expression.", question));
 		}
 	}
 
 	return condition;
 }
 
-std::unique_ptr<Expression> Parser::ParseExpression()
+Result::ExpressionResult Parser::ParseExpression()
 {
 	return ParseAssignment();
 }
 
-std::unique_ptr<Expression> Parser::ParseArrayAccessHelper(std::unique_ptr<Expression>&& arr_var)
+Result::ExpressionResult Parser::ParseArrayAccessHelper(std::unique_ptr<Expression>&& arr_var)
 {
 	Token& op = Previous();
 	std::vector<std::unique_ptr<Expression>> indices;
 
 	while (Match(Token::Type::LEFT_BRACKET))
 	{
-		indices.emplace_back(ParseAssignment());
+		Result::ExpressionResult assignment = ParseAssignment();
+		if (!assignment.has_value())
+		{
+			return std::unexpected(std::move(assignment.error()));
+		}
+
+		indices.emplace_back(std::move(assignment.value()));
 		Consume(Token::Type::RIGHT_BRACKET, "Expected ']' after index.");
 	}
 
 	return std::make_unique<Expression>(ArrayGet(std::move(op), std::move(arr_var), std::move(indices)));
 }
 
-std::unique_ptr<Expression> Parser::ParseArrayAccess()
+Result::ExpressionResult Parser::ParseArrayAccess()
 {
-	std::unique_ptr<Expression> arr_var = ParseCall();
+	Result::ExpressionResult arr_var = ParseCall();
+	if (!arr_var.has_value())
+	{
+		return std::unexpected(std::move(arr_var.error()));
+	}
 
 	if (Check(Token::Type::LEFT_BRACKET, 0))
 	{
-		return ParseArrayAccessHelper(std::move(arr_var));
+		return ParseArrayAccessHelper(std::move(arr_var.value()));
 	}
 
 	return arr_var;
 }
 
-std::unique_ptr<Expression> Parser::ParseCall()
+Result::ExpressionResult Parser::ParseCall()
 {
-	std::unique_ptr<Expression> expr = ParsePrimary();
+	Result::ExpressionResult expr = ParsePrimary();
+	if (!expr.has_value())
+	{
+		return std::unexpected(std::move(expr.error()));
+	}
 
 	while (true)
 	{
 		if (Match(Token::Type::LEFT_PAREN))
 		{
-			expr = FinishCall(std::move(expr));
+			expr = FinishCall(std::move(expr.value()));
 		}
 		else if (Match(Token::Type::DOT))
 		{
-			Token name = Consume(Token::Type::IDENTIFIER, "Expected identifier after '.'.");
-			expr = std::make_unique<Expression>(Get(std::move(name), std::move(expr)));
+			Result::TokenResult name = Consume(Token::Type::IDENTIFIER, "Expected identifier after '.'.");
+			if (!name.has_value())
+			{
+				return std::unexpected(std::move(name.error()));
+			}
+
+			expr = std::make_unique<Expression>(Get(std::move(name.value()), std::move(expr.value())));
 		}
 		else
 		{
@@ -189,33 +233,48 @@ std::unique_ptr<Expression> Parser::ParseCall()
 	return expr;
 }
 
-std::unique_ptr<Expression> Parser::FinishCall(std::unique_ptr<Expression>&& callee)
+Result::ExpressionResult Parser::FinishCall(std::unique_ptr<Expression>&& callee)
 {
 	std::vector<std::unique_ptr<Expression>> arguments;
 	if (!Check(Token::Type::RIGHT_PAREN, 0))
 	{
 		do
 		{
-			arguments.emplace_back(ParseExpression());
+			Result::ExpressionResult expr = ParseExpression();
+			if (!expr.has_value())
+			{
+				return std::unexpected(std::move(expr.error()));
+			}
+
+			arguments.emplace_back(std::move(expr.value()));
 		} while (Match(Token::Type::COMMA));
 	}
 
-	Token paren = Consume(Token::Type::RIGHT_PAREN, "Expected ')' after arguments.");
-
-	return std::make_unique<Expression>(Call(std::move(paren), std::move(callee), std::move(arguments)));
+	std::expected<Token, std::string> paren = Consume(Token::Type::RIGHT_PAREN, "Expected ')' after arguments.");
+	return paren.has_value() ? Result::ExpressionResult(std::make_unique<Expression>(Call(std::move(paren.value()), std::move(callee), std::move(arguments)))) : std::unexpected(paren.error());
 }
 
-std::unique_ptr<Expression> Parser::ParsePrimary()
+Result::ExpressionResult Parser::ParsePrimary()
 {
 	if (Match(Token::Type::LEFT_PAREN))
 	{
-		std::unique_ptr<Expression> expr_in = ParseExpression();
-		Consume(Token::Type::RIGHT_PAREN, "Expected right parentheses.");
-		return std::make_unique<Expression>(Group(std::move(expr_in)));
+		Result::ExpressionResult expr_in = ParseExpression();
+		if (!expr_in.has_value())
+		{
+			return std::unexpected(std::move(expr_in.error()));
+		}
+
+		Result::TokenResult paren = Consume(Token::Type::RIGHT_PAREN, "Expected right parentheses.");
+		if (!paren.has_value())
+		{
+			return std::unexpected(std::move(paren.error()));
+		}
+		
+		return std::make_unique<Expression>(Group(std::move(expr_in.value())));
 	}
 	else if (Match(Token::Type::IDENTIFIER))
 	{
-		Token variable = Previous();
+		Token& variable = Previous();
 
 		for (std::vector<Scope>::reverse_iterator scope_it = m_scopes.rbegin(); scope_it != m_scopes.rend(); ++scope_it)
 		{
@@ -240,7 +299,7 @@ std::unique_ptr<Expression> Parser::ParsePrimary()
 			}
 		}
 
-		return ParserError("Undefined Variable.", variable);
+		return std::unexpected(GenerateParserError("Undefined Variable.", variable));
 	}
 	else if (Match(Token::Type::FUN))
 	{
@@ -260,8 +319,13 @@ std::unique_ptr<Expression> Parser::ParsePrimary()
 		{
 			do
 			{
-				Token name = Consume(Token::Type::IDENTIFIER, "Expected parameter name.");
-				std::optional<Token> param_name = DefineName(name);
+				Result::TokenResult name = Consume(Token::Type::IDENTIFIER, "Expected parameter name.");
+				if (!name.has_value())
+				{
+					return std::unexpected(std::move(name.error()));
+				}
+
+				Result::TokenResult param_name = DefineName(name.value());
 				if (param_name.has_value())
 				{
 					params.emplace_back(param_name.value());
@@ -269,20 +333,39 @@ std::unique_ptr<Expression> Parser::ParsePrimary()
 				}
 				else
 				{
-					return nullptr;
+					return std::unexpected(std::move(param_name.error()));
 				}
 			} while (Match(Token::Type::COMMA));
-			Consume(Token::Type::RIGHT_PAREN, "Expected ')' before function parameters.");
+			Result::TokenResult paren = Consume(Token::Type::RIGHT_PAREN, "Expected ')' before function parameters.");
+			if (!paren.has_value())
+			{
+				return std::unexpected(std::move(paren.error()));
+			}
 		}
-		Consume(Token::Type::LEFT_BRACE, "Expected '{' before function expression body.");
+		Result::TokenResult brace = Consume(Token::Type::LEFT_BRACE, "Expected '{' before function expression body.");
+		if (!brace.has_value())
+		{
+			return std::unexpected(std::move(brace.error()));
+		}
 
 		while (!IsAtEnd() && !Check(Token::Type::RIGHT_BRACE, 0))
 		{
-			statements.emplace_back(ParseDeclaration());
+			Result::StatementResult decl = ParseDeclaration();
+			if (!decl.has_value())
+			{
+				return std::unexpected(std::move(decl.error()));
+			}
+
+			statements.emplace_back(std::move(decl.value()));
 		}
 
-		Consume(Token::Type::RIGHT_BRACE, "Expected '}' function expression body.");
-		Token right_brace = Previous();
+		brace = Consume(Token::Type::RIGHT_BRACE, "Expected '}' function expression body.");
+		if (!brace.has_value())
+		{
+			return std::unexpected(std::move(brace.error()));
+		}
+		
+		Token& right_brace = Previous();
 		int block_local_count = EndScope();
 
 		std::unique_ptr<Statement> function_body = std::make_unique<Statement>(Block(std::move(right_brace), std::move(statements), std::move(block_local_count)));
@@ -319,69 +402,93 @@ std::unique_ptr<Expression> Parser::ParsePrimary()
 		}
 		else if (Match(Token::Type::AT))
 		{
-			std::unique_ptr<Expression> allocated_size = ParseTernary();
-			Consume(Token::Type::RIGHT_BRACKET, "Expected ']' for array expression.");
-			return std::make_unique<Expression>(Array(std::move(op), std::move(expr_vector), std::move(allocated_size)));
+			Result::ExpressionResult allocated_size = ParseTernary();
+			if (!allocated_size.has_value())
+			{
+				return std::unexpected(std::move(allocated_size.error()));
+			}
+
+			Result::TokenResult bracket = Consume(Token::Type::RIGHT_BRACKET, "Expected ']' for array expression.");
+			if (!bracket.has_value())
+			{
+				return std::unexpected(std::move(bracket.error()));
+			}
+
+			return std::make_unique<Expression>(Array(std::move(op), std::move(expr_vector), std::move(allocated_size.value())));
 		}
 
 		do
 		{
-			expr_vector.emplace_back(ParseExpression());
+			Result::ExpressionResult expr = ParseExpression();
+			if (!expr.has_value())
+			{
+				return std::unexpected(std::move(expr.error()));
+			}
+
+			expr_vector.emplace_back(std::move(expr.value()));
 		} while (Match(Token::Type::COMMA));
 
-		Consume(Token::Type::RIGHT_BRACKET, "Expected ']' for array expression.");
+		Result::TokenResult bracket = Consume(Token::Type::RIGHT_BRACKET, "Expected ']' for array expression.");
+		if (!bracket.has_value())
+		{
+			return std::unexpected(std::move(bracket.error()));
+		}
 
 		return std::make_unique<Expression>(Array(std::move(op), std::move(expr_vector), std::nullopt));
 	}
 	else
 	{
-		return ParserError("Expected expression.", Previous());
+		return std::unexpected(GenerateParserError("Expected expression.", Previous()));
 	}
 }
 
-std::unique_ptr<Expression> Parser::ParseLogicalAnd()
+Result::ExpressionResult Parser::ParseLogicalAnd()
 {
-	std::unique_ptr<Expression> expr = ParsePipe();
+	Result::ExpressionResult expr = ParseBitwiseOr();
+	if (!expr.has_value())
+	{
+		return std::unexpected(std::move(expr.error()));
+	}
 
 	while (Match(Token::Type::DOUBLE_AMPERSAND))
 	{
 		Token& op = Previous();
-		std::unique_ptr<Expression> right = ParsePipe();
-		expr = std::make_unique<Expression>(Logical(std::move(op), std::move(expr), std::move(right)));
+		Result::ExpressionResult right = ParseBitwiseOr();
+		if (!right.has_value())
+		{
+			return std::unexpected(std::move(right.error()));
+		}
+
+		expr = Result::ExpressionResult(std::make_unique<Expression>(Logical(std::move(op), std::move(expr.value()), std::move(right.value()))));
 	}
 
 	return expr;
 }
 
-std::unique_ptr<Expression> Parser::ParseLogicalOr()
+Result::ExpressionResult Parser::ParseLogicalOr()
 {
-	std::unique_ptr<Expression> expr = ParseLogicalAnd();
+	Result::ExpressionResult expr = ParseLogicalAnd();
+	if (!expr.has_value())
+	{
+		return std::unexpected(std::move(expr.error()));
+	}
 
 	while (Match(Token::Type::DOUBLE_BAR))
 	{
 		Token& op = Previous();
-		std::unique_ptr<Expression> right = ParseLogicalAnd();
-		expr = std::make_unique<Expression>(Logical(std::move(op), std::move(expr), std::move(right)));
+		Result::ExpressionResult right = ParseLogicalAnd();
+		if (!right.has_value())
+		{
+			return std::unexpected(std::move(right.error()));
+		}
+
+		expr = Result::ExpressionResult(std::make_unique<Expression>(Logical(std::move(op), std::move(expr.value()), std::move(right.value()))));
 	}
 
 	return expr;
 }
 
-std::unique_ptr<Expression> Parser::ParsePipe()
-{
-	std::unique_ptr<Expression> expr = ParseBitwiseOr();
-
-	while (Match(Token::Type::PIPE))
-	{
-		Token& op = Previous();
-		std::unique_ptr<Expression> right = ParseBitwiseOr();
-		expr = std::make_unique<Expression>(Pipe(std::move(op), std::move(expr), std::move(right)));
-	}
-
-	return expr;
-}
-
-std::unique_ptr<Statement> Parser::ParseDeclaration()
+Result::StatementResult Parser::ParseDeclaration()
 {
 	if (Match(Token::Type::LET))
 	{
@@ -394,33 +501,50 @@ std::unique_ptr<Statement> Parser::ParseDeclaration()
 	return ParseStatement();
 }
 
-std::unique_ptr<Statement> Parser::ParseBlockStatement()
+Result::StatementResult Parser::ParseBlockStatement()
 {
 	std::vector<std::unique_ptr<Statement>> statements;
 	BeginScope();
 
 	while (!IsAtEnd() && !Check(Token::Type::RIGHT_BRACE, 0))
 	{
-		statements.emplace_back(ParseDeclaration());
+		Result::StatementResult decl = ParseDeclaration();
+		if (!decl.has_value())
+		{
+			return std::unexpected(std::move(decl.error()));
+		}
+		else
+		{
+			statements.emplace_back(std::move(decl.value()));
+		}
 	}
 
-	Consume(Token::Type::RIGHT_BRACE, "Expected '}' after block.");
-	Token right_brace = Previous();
+	Result::TokenResult brace = Consume(Token::Type::RIGHT_BRACE, "Expected '}' after block.");
+	if (!brace.has_value())
+	{
+		return std::unexpected(std::move(brace.error()));
+	}
+
+	Token& right_brace = Previous();
 	int block_local_count = EndScope();
 
 	return std::make_unique<Statement>(Block(std::move(right_brace), std::move(statements), std::move(block_local_count)));
 }
 
-std::unique_ptr<Statement> Parser::ParseLetStatement()
+Result::StatementResult Parser::ParseLetStatement()
 {
-	Token var_name = Consume(Token::Type::IDENTIFIER, "Expected variable name.");
-
-	std::optional<Token> name_opt = DefineName(var_name);
-	if (!name_opt.has_value())
+	Result::TokenResult var_name = Consume(Token::Type::IDENTIFIER, "Expected variable name.");
+	if (!var_name.has_value())
 	{
-		return nullptr;
+		return std::unexpected(std::move(var_name.error()));
 	}
-	Token name = name_opt.value();
+
+	Result::TokenResult define_name_result = DefineName(var_name.value());
+	if (!define_name_result.has_value())
+	{
+		return std::unexpected(std::move(define_name_result.error()));
+	}
+	Token& name = define_name_result.value();
 
 	std::optional<int> local_index = GetLocalVariableIndex(name.m_lexeme);
 
@@ -428,156 +552,315 @@ std::unique_ptr<Statement> Parser::ParseLetStatement()
 
 	if (Match(Token::Type::SINGLE_EQUAL))
 	{
-		initializer = ParseExpression();
-		Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after variable declaration.");
+		Result::ExpressionResult expr = ParseExpression();
+		if (!expr.has_value())
+		{
+			return std::unexpected(std::move(expr.error()));
+		}
+		else
+		{
+			Result::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after variable declaration.");
+			if (!semi_colon.has_value())
+			{
+				return std::unexpected(std::move(semi_colon.error()));
+			}
+			else
+			{
+				initializer = std::move(expr.value());
+			}
+		}
 	}
 	else
 	{
-		Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after variable declaration.");
+		Result::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after variable declaration.");
+		if (!semi_colon.has_value())
+		{
+			return std::unexpected(std::move(semi_colon.error()));
+		}
 	}
 
 	return std::make_unique<Statement>(Let(std::move(name), std::move(initializer), std::move(local_index)));
 }
 
-std::unique_ptr<Statement> Parser::ParseNamespaceDeclaration()
+Result::StatementResult Parser::ParseNamespaceDeclaration()
 {
-	Token name = Consume(Token::Type::IDENTIFIER, "Expected module name.");
-	Consume(Token::Type::LEFT_BRACE, "Expected '{' before module body.");
-	return std::make_unique<Statement>(Namespace(std::move(name), ParseBlockStatement()));
+	Result::TokenResult name = Consume(Token::Type::IDENTIFIER, "Expected module name.");
+	if (!name.has_value())
+	{
+		return std::unexpected(std::move(name.error()));
+	}
+
+	Result::TokenResult brace = Consume(Token::Type::LEFT_BRACE, "Expected '{' before module body.");
+	if (!brace.has_value())
+	{
+		return std::unexpected(std::move(brace.error()));
+	}
+
+	Result::StatementResult block = ParseBlockStatement();
+	if (!block.has_value())
+	{
+		return std::unexpected(std::move(block.error()));
+	}
+	return std::make_unique<Statement>(Namespace(std::move(name.value()), std::move(block.value())));
 }
 
-std::unique_ptr<Statement> Parser::ParseIfStatement()
+Result::StatementResult Parser::ParseIfStatement()
 {
-	Token if_token = Previous();
-	Consume(Token::Type::LEFT_PAREN, "Expected '(' after \"if\".");
-	std::unique_ptr<Expression> condition = ParseExpression();
-	Consume(Token::Type::RIGHT_PAREN, "Expected ')' after if condition.");
+	Token& if_token = Previous();
 
-	std::unique_ptr<Statement> then_branch = ParseStatement();
+	Result::TokenResult paren = Consume(Token::Type::LEFT_PAREN, "Expected '(' after \"if\".");
+	if (!paren.has_value())
+	{
+		return std::unexpected(std::move(paren.error()));
+	}
+	
+	Result::ExpressionResult condition = ParseExpression();
+	if (!condition.has_value())
+	{
+		return std::unexpected(std::move(condition.error()));
+	}
+
+	paren = Consume(Token::Type::RIGHT_PAREN, "Expected ')' after if condition.");
+	if (!paren.has_value())
+	{
+		return std::unexpected(std::move(paren.error()));
+	}
+
+	Result::StatementResult then_branch = ParseStatement();
+	if (!then_branch.has_value())
+	{
+		return std::unexpected(std::move(then_branch.error()));
+	}
+
 	std::optional<std::unique_ptr<Statement>> else_branch = std::nullopt;
 	std::optional<Token> else_token = std::nullopt;
 	if (Match(Token::Type::ELSE))
 	{
 		else_token.emplace(Previous());
-		else_branch.emplace(ParseStatement());
+
+		Result::StatementResult else_branch_result = ParseStatement();
+		if (!else_branch_result.has_value())
+		{
+			return std::unexpected(std::move(else_branch_result.error()));
+		}
+		else_branch.emplace(std::move(else_branch_result.value()));
 	}
 
-	return std::make_unique<Statement>(If(std::move(if_token), std::move(else_token), std::move(condition), std::move(then_branch), std::move(else_branch)));
+	return std::make_unique<Statement>(If(std::move(if_token), std::move(else_token), std::move(else_branch), std::move(condition.value()), std::move(then_branch.value())));
 }
 
-std::unique_ptr<Statement> Parser::ParseWhileStatement()
+Result::StatementResult Parser::ParseWhileStatement()
 {
-	Token m_keyword = Previous();
+	Token& keyword = Previous();
 
-	Consume(Token::Type::LEFT_PAREN, "Expected '(' after \"while\".");
-	std::unique_ptr<Expression> condition = ParseExpression();
+	Result::TokenResult paren = Consume(Token::Type::LEFT_PAREN, "Expected '(' after \"while\".");
+	if (!paren.has_value())
+	{
+		return std::unexpected(std::move(paren.error()));
+	}
 
-	Consume(Token::Type::RIGHT_PAREN, "Expected ')' after condition.");
-	std::unique_ptr<Statement> body = ParseStatement();
+	Result::ExpressionResult condition = ParseExpression();
+	if (!condition.has_value())
+	{
+		return std::unexpected(std::move(condition.error()));
+	}
 
-	return std::make_unique<Statement>(While(std::move(m_keyword), std::move(condition), std::move(body)));
+	paren = Consume(Token::Type::RIGHT_PAREN, "Expected ')' after condition.");
+	if (!paren.has_value())
+	{
+		return std::unexpected(std::move(paren.error()));
+	}
+
+	Result::StatementResult body = ParseStatement();
+	if (!body.has_value())
+	{
+		return std::unexpected(std::move(body.error()));
+	}
+
+	return std::make_unique<Statement>(While(std::move(keyword), std::move(condition.value()), std::move(body.value())));
 }
 
-std::unique_ptr<Statement> Parser::ParseForStatement()
+Result::StatementResult Parser::ParseForStatement()
 {
-	Token m_keyword = Previous();
+	Token& keyword = Previous();
 
 	BeginScope();
 
-	Consume(Token::Type::LEFT_PAREN, "Expected '(' after \"for\".");
+	Result::TokenResult paren = Consume(Token::Type::LEFT_PAREN, "Expected '(' after \"for\".");
+	if (!paren.has_value())
+	{
+		return std::unexpected(std::move(paren.error()));
+	}
+
 	std::unique_ptr<Statement> initializer;
 	if (Match(Token::Type::LET))
 	{
-		initializer = ParseLetStatement();
+		Result::StatementResult init_result = ParseLetStatement();
+		if (!init_result.has_value())
+		{
+			return std::unexpected(std::move(init_result.error()));
+		}
+		else
+		{
+			initializer = std::move(init_result.value());
+		}
 	}
 	else if (!Match(Token::Type::SINGLE_SEMICOLON))
 	{
-		initializer = ParseSimpleStatement();
+		Result::StatementResult init_result = ParseSimpleStatement();
+		if (!init_result.has_value())
+		{
+			return std::unexpected(std::move(init_result.error()));
+		}
+		else
+		{
+			initializer = std::move(init_result.value());
+		}
 	}
 
 	std::optional<std::unique_ptr<Expression>> condition = std::nullopt;
 	if (!Check(Token::Type::SINGLE_SEMICOLON, 0))
 	{
-		condition.emplace(ParseExpression());
+		Result::ExpressionResult expr = ParseExpression();
+		if (!expr.has_value())
+		{
+			return std::unexpected(std::move(expr.error()));
+		}
+		else
+		{
+			condition.emplace(std::move(expr.value()));
+		}
 	}
-	Token semicolon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after \"for\" condition.");
+	Result::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after \"for\" condition.");
+	if (!semi_colon.has_value())
+	{
+		return std::unexpected(std::move(semi_colon.error()));
+	}
 
 	std::optional<std::unique_ptr<Statement>> increment = std::nullopt;
 	if (!Check(Token::Type::RIGHT_PAREN, 0))
 	{
-		increment.emplace(std::make_unique<Statement>(Simple(std::move(semicolon), ParseExpression())));
+		Result::ExpressionResult expr = ParseExpression();
+		if (!expr.has_value())
+		{
+			return std::unexpected(std::move(expr.error()));
+		}
+		else
+		{
+			increment.emplace(std::make_unique<Statement>(Simple(std::move(semi_colon.value()), std::move(expr.value()))));
+		}
 	}
-	Consume(Token::Type::RIGHT_PAREN, "Expected ')' after \"for\" clauses.");
+	paren = Consume(Token::Type::RIGHT_PAREN, "Expected ')' after \"for\" clauses.");
+	if (!paren.has_value())
+	{
+		return std::unexpected(std::move(paren.error()));
+	}
 
-	std::unique_ptr<Statement> body = ParseStatement();
+	Result::StatementResult body = ParseStatement();
+	if (!body.has_value())
+	{
+		return std::unexpected(std::move(body.error()));
+	}
 
 	int control_block_local_count = EndScope();
 
-	body = std::make_unique<Statement>(For(std::move(m_keyword), std::move(initializer), std::move(condition), std::move(increment), std::move(body), std::move(control_block_local_count)));
+	body = std::make_unique<Statement>(For(std::move(keyword), std::move(condition), std::move(increment), std::move(initializer), std::move(body.value()), control_block_local_count));
 
 	return body;
 }
 
-std::unique_ptr<Statement> Parser::ParseBreakStatement()
+Result::StatementResult Parser::ParseBreakStatement()
 {
 	Token& keyword = Previous();
-	Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after \"break\".");
+
+	Result::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after \"break\".");
+	if (!semi_colon.has_value())
+	{
+		return std::unexpected(std::move(semi_colon.error()));
+	}
+
 	return std::make_unique<Statement>(Break(std::move(keyword)));
 }
 
-std::unique_ptr<Statement> Parser::ParseContinueStatement()
+Result::StatementResult Parser::ParseContinueStatement()
 {
 	Token& keyword = Previous();
-	Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after \"continue\".");
+
+	Result::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after \"continue\".");
+	if (!semi_colon.has_value())
+	{
+		return std::unexpected(std::move(semi_colon.error()));
+	}
+
 	return std::make_unique<Statement>(Continue(std::move(keyword)));
 }
 
-std::unique_ptr<Statement> Parser::ParseSimpleStatement()
+Result::StatementResult Parser::ParseSimpleStatement()
 {
-	std::unique_ptr<Expression> expr = ParseExpression();
-	Token semicolon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after expression.");
-	return std::make_unique<Statement>(Simple(std::move(semicolon), std::move(expr)));
+	Result::ExpressionResult expr = ParseExpression();
+	if (!expr.has_value())
+	{
+		return std::unexpected(std::move(expr.error()));
+	}
+
+	Result::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after expression.");
+	if (!semi_colon.has_value())
+	{
+		return std::unexpected(std::move(semi_colon.error()));
+	}
+
+	return std::make_unique<Statement>(Simple(std::move(semi_colon.value()), std::move(expr.value())));
 }
 
-std::unique_ptr<Statement> Parser::ParseHaltStatement()
+Result::StatementResult Parser::ParseImportStatement()
 {
 	Token& keyword = Previous();
-	std::unique_ptr<Expression> message = ParseExpression();
+	Result::ExpressionResult path = ParseExpression();
+	if (!path.has_value())
+	{
+		return std::unexpected(std::move(path.error()));
+	}
 
-	Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after \"halt\".");
+	Result::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after script path.");
+	if (!semi_colon.has_value())
+	{
+		return std::unexpected(std::move(semi_colon.error()));
+	}
 
-	return std::make_unique<Statement>(Halt(std::move(keyword), std::move(message)));
+	return std::make_unique<Statement>(Import(std::move(keyword), std::move(path.value())));
 }
 
-std::unique_ptr<Statement> Parser::ParseImportStatement()
-{
-	Token& keyword = Previous();
-	std::unique_ptr<Expression> path = ParseExpression();
-	Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after script path.");
-	return std::make_unique<Statement>(Import(std::move(keyword), std::move(path)));
-}
-
-std::unique_ptr<Statement> Parser::ParseReturnStatement()
+Result::StatementResult Parser::ParseReturnStatement()
 {
 	Token& keyword = Previous();
 	if (m_function_depth == 0)
 	{
-		return ParserError("'return' must be used inside a function.", keyword);
+		return std::unexpected(GenerateParserError("'return' must be used inside a function.", keyword));
 	}
 
 	std::optional<std::unique_ptr<Expression>> value = std::nullopt;
 	if (!Check(Token::Type::SINGLE_SEMICOLON, 0))
 	{
-		value.emplace(ParseExpression());
+		Result::ExpressionResult expr = ParseExpression();
+		if (!expr.has_value())
+		{
+			return std::unexpected(std::move(expr.error()));
+		}
+
+		value.emplace(std::move(expr.value()));
 	}
 
-	Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after return value.");
+	Result::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after return value.");
+	if (!semi_colon.has_value())
+	{
+		return std::unexpected(std::move(semi_colon.error()));
+	}
 
 	return std::make_unique<Statement>(Return(std::move(keyword), std::move(value)));
 }
 
 
-std::unique_ptr<Statement> Parser::ParseStatement()
+Result::StatementResult Parser::ParseStatement()
 {
 	if (Match(Token::Type::LEFT_BRACE))
 	{
@@ -611,25 +894,38 @@ std::unique_ptr<Statement> Parser::ParseStatement()
 	{
 		return ParseImportStatement();
 	}
-	else if (Match(Token::Type::HALT))
-	{
-		return ParseHaltStatement();
-	}
 	else
 	{
 		return ParseSimpleStatement();
 	}
 }
 
-Parser::ParserResult Parser::Parse()
+Result::ParserResult Parser::Parse()
 {
-	ProgramTree program;
+	ProgramTree programTree;
+	std::vector<std::string> errors;
+
 	while (!IsAtEnd())
 	{
-		program.emplace_back(ParseDeclaration());
+		Result::StatementResult result = ParseDeclaration();
+		if (result.has_value()) 
+		{
+			programTree.emplace_back(std::move(result.value()));
+		}
+		else 
+		{
+			errors.emplace_back(result.error());
+		}
 	}
 
-	return ParserResult(std::move(program), m_error);
+	if (errors.empty())
+	{
+		return programTree;
+	}
+	else
+	{
+		return std::unexpected(std::move(errors));
+	}
 }
 
 void Parser::Synchronize()

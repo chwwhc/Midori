@@ -12,22 +12,30 @@
 
 namespace Compiler
 {
-	std::optional<ExecutableModule> Compile(std::string&& script)
+	Result::CompilerResult Compile(std::string&& script)
 	{
 		Lexer lexer(std::move(script));
-		Lexer::LexerResult lexer_result = lexer.Lex();
-		if (!lexer_result.m_error)
+		Result::LexerResult lexer_result = lexer.Lex();
+		if (!lexer_result.has_value())
 		{
-			TokenStream tokens = std::move(lexer_result.m_tokens);
+			return std::unexpected(std::move(lexer_result.error()));
+		}
+		else
+		{
+			TokenStream tokens = std::move(lexer_result.value());
 			Parser parser(std::move(tokens));
-			Parser::ParserResult parser_result = parser.Parse();
-			if (!parser_result.m_error)
+			Result::ParserResult parser_result = parser.Parse();
+			if (!parser_result.has_value())
 			{
-				ProgramTree program = std::move(parser_result.m_program);
+				return std::unexpected(std::move(parser_result.error()));
+			}
+			else
+			{
+				ProgramTree program = std::move(parser_result.value());
 				if (!StaticAnalyzer::AnalyzeProgram(program))
 				{
 					std::cerr << "Compilation failed due to static analysis error.\n";
-					return std::nullopt;
+					return std::unexpected(std::vector<std::string>());
 				}
 #ifdef DEBUG
 				PrintAbstractSyntaxTree ast_printer;
@@ -37,35 +45,24 @@ namespace Compiler
 				}
 #endif
 				CodeGenerator code_generator;
-				CodeGenerator::CodeGeneratorResult compilation_result = code_generator.GenerateCode(std::move(program));
-				if (!compilation_result.m_error)
+				Result::CodeGeneratorResult compilation_result = code_generator.GenerateCode(std::move(program));
+				if (!compilation_result.has_value())
 				{
-
-#ifdef DEBUG
-					Disassembler::DisassembleBytecodeStream(compilation_result.m_module, compilation_result.m_static_data, compilation_result.m_global_table, "main");
-					for (const Object::DefinedFunction* m : compilation_result.m_sub_modules)
-					{
-						std::string function_name = std::string("Function at: ") + std::to_string(reinterpret_cast<uintptr_t>(m));
-						Disassembler::DisassembleBytecodeStream(m->m_bytecode, compilation_result.m_static_data, compilation_result.m_global_table, function_name.data());
-					}
-#endif
-					return { { std::move(compilation_result.m_module), std::move(compilation_result.m_constant_roots), std::move(compilation_result.m_static_data), std::move(compilation_result.m_global_table)}};
+					return std::unexpected(std::move(compilation_result.error()));
 				}
 				else
 				{
-					std::cerr << "Compilation failed due to code generation error.\n";
+#ifdef DEBUG
+					Disassembler::DisassembleBytecodeStream(compilation_result.value().m_module, compilation_result.value().m_static_data, compilation_result.value().m_global_table, "main");
+					for (const Object::DefinedFunction* m : compilation_result.value().m_sub_modules)
+					{
+						std::string function_name = std::string("Function at: ") + std::to_string(reinterpret_cast<uintptr_t>(m));
+						Disassembler::DisassembleBytecodeStream(m->m_bytecode, compilation_result.value().m_static_data, compilation_result.value().m_global_table, function_name.data());
+					}
+#endif
+					return { { std::move(compilation_result.value().m_module), std::move(compilation_result.value().m_constant_roots), std::move(compilation_result.value().m_static_data), std::move(compilation_result.value().m_global_table)} };
 				}
 			}
-			else
-			{
-				std::cerr << "Compilation failed due to parser error.\n";
-			}
 		}
-		else
-		{
-			std::cerr << "Compilation failed due to lexer error.\n";
-		}
-
-		return std::nullopt;
 	}
-};
+}

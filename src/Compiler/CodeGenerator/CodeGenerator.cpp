@@ -2,7 +2,7 @@
 
 #include "CodeGenerator.h"
 
-CodeGenerator::CodeGeneratorResult CodeGenerator::GenerateCode(ProgramTree&& program_tree)
+Result::CodeGeneratorResult CodeGenerator::GenerateCode(ProgramTree&& program_tree)
 {
 	SetUpGlobalVariables();
 
@@ -11,10 +11,15 @@ CodeGenerator::CodeGeneratorResult CodeGenerator::GenerateCode(ProgramTree&& pro
 		std::visit([this](auto&& arg) { (*this)(arg); }, *statement);
 	}
 
+	if (!m_errors.empty())
+	{
+		return std::unexpected(std::move(m_errors));
+	}
+
 #ifdef DEBUG
-	return CodeGenerator::CodeGeneratorResult(std::move(m_module), std::move(m_traceable_constants), std::move(m_sub_modules), std::move(m_static_data), std::move(m_global_table), m_error);
+	return Result::GeneratedBytecodeBundle(std::move(m_module), std::move(m_traceable_constants), std::move(m_sub_modules), std::move(m_static_data), std::move(m_global_table));
 #else
-	return CodeGenerator::CodeGeneratorResult(std::move(m_module), std::move(m_traceable_constants), std::move(m_static_data), std::move(m_global_table), m_error);
+	return Result::GeneratedBytecodeBundle(std::move(m_module), std::move(m_traceable_constants), std::move(m_static_data), std::move(m_global_table));
 #endif
 }
 
@@ -179,11 +184,6 @@ void CodeGenerator::operator()(Namespace& namespace_stmt)
 	return;
 }
 
-void CodeGenerator::operator()(Halt&)
-{
-	return;
-}
-
 void CodeGenerator::operator()(Binary& binary)
 {
 	std::visit([this](auto&& arg) { (*this)(arg); }, *binary.m_left);
@@ -248,11 +248,6 @@ void CodeGenerator::operator()(Binary& binary)
 	return;
 }
 
-void CodeGenerator::operator()(Pipe& pipe)
-{
-	return;
-}
-
 void CodeGenerator::operator()(Logical& logical)
 {
 	int line = logical.m_op.m_line;
@@ -274,8 +269,7 @@ void CodeGenerator::operator()(Logical& logical)
 	}
 	else
 	{
-		CompilerError::PrintError("Unrecognized logical operator.", line);
-		m_error = true;
+		m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Unrecognized logical operator.", line));
 	}
 }
 
@@ -308,8 +302,7 @@ void CodeGenerator::operator()(Call& call)
 	int arity = static_cast<int>(call.m_arguments.size());
 	if (arity > UINT8_MAX)
 	{
-		CompilerError::PrintError("Too many function arguments (max 255).", call.m_paren.m_line);
-		m_error = true;
+		m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Too many function arguments (max 255).", call.m_paren.m_line));
 		return;
 	}
 
@@ -354,8 +347,7 @@ void CodeGenerator::operator()(Variable& variable)
 			}
 			else
 			{
-				CompilerError::PrintError("Bad Variable Expression.", variable.m_name.m_line);
-				m_error = true;
+				m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Bad Variable Expression.", variable.m_name.m_line));
 				return;
 			}
 		}, variable.m_type);
@@ -383,8 +375,7 @@ void CodeGenerator::operator()(Assign& assign)
 			}
 			else
 			{
-				CompilerError::PrintError("Bad Assign Expression.", assign.m_name.m_line);
-				m_error = true;
+				m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Bad Assign Expression.", assign.m_name.m_line));
 				return;
 			}
 		}, assign.m_type);
@@ -416,8 +407,7 @@ void CodeGenerator::operator()(Function& function)
 	int arity = static_cast<int>(function.m_params.size());
 	if (arity > UINT8_MAX)
 	{
-		CompilerError::PrintError("Too many function arguments (max 255).", line);
-		m_error = true;
+		m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Too many function arguments (max 255).", line));
 		return;
 	}
 
@@ -451,8 +441,7 @@ void CodeGenerator::operator()(Array& array)
 
 		if (length > THREE_BYTE_MAX)
 		{
-			CompilerError::PrintError("Too many array elements (max 16777215).", line);
-			m_error = true;
+			m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Too many array elements (max 16777215).", line));
 			return;
 		}
 
@@ -471,8 +460,7 @@ void CodeGenerator::operator()(ArrayGet& array_get)
 
 	if (array_get.m_indices.size() > UINT8_MAX)
 	{
-		CompilerError::PrintError("Too many array indices (max 255).", line);
-		m_error = true;
+		m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Too many array indices (max 255).", line));
 		return;
 	}
 
@@ -493,8 +481,7 @@ void CodeGenerator::operator()(ArraySet& array_set)
 
 	if (array_set.m_indices.size() > UINT8_MAX)
 	{
-		CompilerError::PrintError("Too many array indices (max 255).", line);
-		m_error = true;
+		m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Too many array indices (max 255).", line));
 		return;
 	}
 

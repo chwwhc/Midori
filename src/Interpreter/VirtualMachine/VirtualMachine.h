@@ -5,6 +5,7 @@
 #include "Common/Value/StaticData.h"
 #include "Common/Value/GlobalVariableTable.h"
 #include "Interpreter/GarbageCollector/GarbageCollector.h"
+#include "Interpreter/NativeFunction/NativeFunction.h"
 
 #include <array>
 #include <functional>
@@ -30,6 +31,7 @@ private:
 	using StackPointer = std::array<T, Size>::iterator;
 	using InstructionPointer = BytecodeStream::const_iterator;
 	using GlobalVariables = std::unordered_map<std::string, Value>;
+	friend class NativeFunction;
 
 	struct CallFrame
 	{
@@ -231,6 +233,4 @@ private:
 	}
 
 	void BinaryOperation(std::function<Value(const Value&, const Value&)>&& op, bool (*type_checker)(const Value&, const Value&));
-
-	void InitializeNativeFunctions();
 };

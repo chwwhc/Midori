@@ -1,21 +1,13 @@
 #pragma once
 
-#include "Compiler/Token/Token.h"
-#include "Compiler/AbstractSyntaxTree/AbstractSyntaxTree.h"
 #include "Compiler/Error/Error.h"
 
 #include <unordered_map>
+#include <expected>
 
 class Parser
 {
 public:
-	struct ParserResult
-	{
-		ProgramTree m_program;
-		bool m_error;
-
-		ParserResult(ProgramTree&& program, bool error) : m_program(std::move(program)), m_error(error) {}
-	};
 
 private:
 	struct VariableContext
@@ -40,16 +32,16 @@ public:
 		m_scopes.back()["Print"] = { 0, 0 };
 	}
 
-	ParserResult Parse();
+	Result::ParserResult Parse();
 
 private:
 
-	nullptr_t inline ParserError(const char* message, const Token& token)
+	void Synchronize();
+
+	inline std::string GenerateParserError(const char* message, const Token& token)
 	{
-		CompilerError::PrintError(CompilerError::Type::PARSER, message, token);
-		m_error = true;
 		Synchronize();
-		return nullptr;
+		return CompilerError::GenerateParserError(message, token);
 	}
 
 	inline bool IsAtEnd() { return Peek(0).m_type == Token::Type::END_OF_FILE; }
@@ -62,17 +54,14 @@ private:
 
 	inline Token& Advance() { if (!IsAtEnd()) { m_current += 1; } return Previous(); }
 
-	inline Token Consume(Token::Type type, const char* message)
+	inline Result::TokenResult Consume(Token::Type type, const char* message)
 	{
 		if (Check(type, 0))
 		{
-			return std::move(Advance());
+			return Advance();
 		}
 
-		CompilerError::PrintError(CompilerError::Type::PARSER, message, Peek(0));
-		m_error = true;
-		Synchronize();
-		return Token(Token::Type::ERROR, "", Peek(0).m_line);
+		return std::unexpected(CompilerError::GenerateParserError(message, Peek(0)));
 	}
 
 	template <typename... T>
@@ -87,15 +76,24 @@ private:
 	}
 
 	template <typename... T>
-	inline std::unique_ptr<Expression> ParseBinary(std::unique_ptr<Expression>(Parser::* operand)(), T... types)
+	inline Result::ExpressionResult ParseBinary(Result::ExpressionResult(Parser::* operand)(), T... types)
 	{
-		std::unique_ptr<Expression> lower_expr = (this->*operand)();
+		Result::ExpressionResult lower_expr = (this->*operand)();
+		if (!lower_expr.has_value())
+		{
+			return std::unexpected(std::move(lower_expr.error()));
+		}
 
 		while (Match(types...))
 		{
 			const Token& op = Previous();
-			std::unique_ptr<Expression> right = (this->*operand)();
-			lower_expr = std::make_unique<Expression>(Binary(std::move(op), std::move(lower_expr), std::move(right)));
+			Result::ExpressionResult right = (this->*operand)();
+			if (!right.has_value())
+			{
+				return std::unexpected(std::move(right.error()));
+			}
+
+			lower_expr = std::make_unique<Expression>(Binary(std::move(op), std::move(lower_expr.value()), std::move(right.value())));
 		}
 
 		return lower_expr;
@@ -112,13 +110,12 @@ private:
 		return block_local_count;
 	}
 
-	inline std::optional<Token> DefineName(const Token& name)
+	inline Result::TokenResult DefineName(const Token& name)
 	{
 		Scope::const_iterator it = m_scopes.back().find(name.m_lexeme);
 		if (it != m_scopes.back().end())
 		{
-			ParserError("Name already declared in this scope.", name);
-			return std::nullopt;
+			return std::unexpected(CompilerError::GenerateParserError("Name already declared in this scope.", name));
 		}
 		else
 		{
@@ -141,73 +138,67 @@ private:
 		return local_index;
 	}
 
-	std::unique_ptr<Expression> ParseExpression();
+	Result::ExpressionResult ParseExpression();
 
-	std::unique_ptr<Expression> ParseFactor();
+	Result::ExpressionResult ParseFactor();
 
-	std::unique_ptr<Expression> ParseShift();
+	Result::ExpressionResult ParseShift();
 
-	std::unique_ptr<Expression> ParseTerm();
+	Result::ExpressionResult ParseTerm();
 
-	std::unique_ptr<Expression> ParseComparison();
+	Result::ExpressionResult ParseComparison();
 
-	std::unique_ptr<Expression> ParseEquality();
+	Result::ExpressionResult ParseEquality();
 
-	std::unique_ptr<Expression> ParseBitwiseAnd();
+	Result::ExpressionResult ParseBitwiseAnd();
 
-	std::unique_ptr<Expression> ParseBitwiseXor();
+	Result::ExpressionResult ParseBitwiseXor();
 
-	std::unique_ptr<Expression> ParseBitwiseOr();
+	Result::ExpressionResult ParseBitwiseOr();
 
-	std::unique_ptr<Expression> ParseAssignment();
+	Result::ExpressionResult ParseAssignment();
 
-	std::unique_ptr<Expression> ParseUnary();
+	Result::ExpressionResult ParseUnary();
 
-	std::unique_ptr<Expression> ParseArrayAccessHelper(std::unique_ptr<Expression>&& arr_var);
+	Result::ExpressionResult ParseArrayAccessHelper(std::unique_ptr<Expression>&& arr_var);
 
-	std::unique_ptr<Expression> ParseArrayAccess();
+	Result::ExpressionResult ParseArrayAccess();
 
-	std::unique_ptr<Expression> ParseTernary();
+	Result::ExpressionResult ParseTernary();
 
-	std::unique_ptr<Expression> ParseCall();
+	Result::ExpressionResult ParseCall();
 
-	std::unique_ptr<Expression> FinishCall(std::unique_ptr<Expression>&& callee);
+	Result::ExpressionResult FinishCall(std::unique_ptr<Expression>&& callee);
 
-	std::unique_ptr<Expression> ParsePrimary();
+	Result::ExpressionResult ParsePrimary();
 
-	std::unique_ptr<Expression> ParseLogicalAnd();
+	Result::ExpressionResult ParseLogicalAnd();
 
-	std::unique_ptr<Expression> ParseLogicalOr();
+	Result::ExpressionResult ParseLogicalOr();
 
-	std::unique_ptr<Expression> ParsePipe();
+	Result::StatementResult ParseDeclaration();
 
-	std::unique_ptr<Statement> ParseDeclaration();
+	Result::StatementResult ParseBlockStatement();
 
-	std::unique_ptr<Statement> ParseBlockStatement();
+	Result::StatementResult ParseLetStatement();
 
-	std::unique_ptr<Statement> ParseLetStatement();
+	Result::StatementResult ParseNamespaceDeclaration();
 
-	std::unique_ptr<Statement> ParseNamespaceDeclaration();
+	Result::StatementResult ParseIfStatement();
 
-	std::unique_ptr<Statement> ParseIfStatement();
+	Result::StatementResult ParseWhileStatement();
 
-	std::unique_ptr<Statement> ParseWhileStatement();
+	Result::StatementResult ParseForStatement();
 
-	std::unique_ptr<Statement> ParseForStatement();
+	Result::StatementResult ParseBreakStatement();
 
-	std::unique_ptr<Statement> ParseBreakStatement();
+	Result::StatementResult ParseContinueStatement();
 
-	std::unique_ptr<Statement> ParseContinueStatement();
+	Result::StatementResult ParseSimpleStatement();
 
-	std::unique_ptr<Statement> ParseSimpleStatement();
+	Result::StatementResult ParseImportStatement();
 
-	std::unique_ptr<Statement> ParseHaltStatement();
+	Result::StatementResult ParseReturnStatement();
 
-	std::unique_ptr<Statement> ParseImportStatement();
-
-	std::unique_ptr<Statement> ParseReturnStatement();
-
-	std::unique_ptr<Statement> ParseStatement();
-
-	void Synchronize();
+	Result::StatementResult ParseStatement();
 };
