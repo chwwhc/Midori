@@ -44,9 +44,9 @@ private:
 		return CompilerError::GenerateParserError(message, token);
 	}
 
-	inline bool IsAtEnd() { return Peek(0).m_type == Token::Type::END_OF_FILE; }
+	inline bool IsAtEnd() { return Peek(0).m_token_type == Token::Type::END_OF_FILE; }
 
-	inline bool Check(Token::Type type, int offset) { return !IsAtEnd() && Peek(offset).m_type == type; }
+	inline bool Check(Token::Type type, int offset) { return !IsAtEnd() && Peek(offset).m_token_type == type; }
 
 	inline Token& Peek(int offset) { return m_current + offset < m_tokens.Size() ? m_tokens[m_current + offset] : m_tokens[m_tokens.Size() - 1]; }
 

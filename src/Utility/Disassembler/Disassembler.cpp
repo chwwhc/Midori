@@ -172,9 +172,6 @@ namespace Disassembler
 		case OpCode::ADD:
 			SimpleInstruction("ADD", offset);
 			break;
-		case OpCode::CONCAT:
-			SimpleInstruction("CONCAT", offset);
-			break;
 		case OpCode::SUBTRACT:
 			SimpleInstruction("SUBTRACT", offset);
 			break;
@@ -186,6 +183,9 @@ namespace Disassembler
 			break;
 		case OpCode::MODULO:
 			SimpleInstruction("MODULO", offset);
+			break;
+		case OpCode::CONCAT:
+			SimpleInstruction("CONCAT", offset);
 			break;
 		case OpCode::EQUAL:
 			SimpleInstruction("EQUAL", offset);

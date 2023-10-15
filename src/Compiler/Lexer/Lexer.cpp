@@ -2,11 +2,11 @@
 
 const std::unordered_map<std::string, Token::Type> Lexer::s_keywords = 
 {
+    // reserved keywords
     {"else", Token::Type::ELSE},
     {"false", Token::Type::FALSE},
     {"for", Token::Type::FOR},
     {"if", Token::Type::IF},
-    {"nil", Token::Type::NIL},
     {"return", Token::Type::RETURN},
     {"true", Token::Type::TRUE},
     {"let", Token::Type::LET},
@@ -209,6 +209,8 @@ Result::TokenResult Lexer::LexOneToken()
         return MakeToken(Token::Type::LEFT_BRACKET);
     case '@':
         return MakeToken(Token::Type::AT);
+    case '#':
+        return MakeToken(Token::Type::HASH);
     case ']':
         return MakeToken(Token::Type::RIGHT_BRACKET);
     case ',':
@@ -358,7 +360,7 @@ Result::LexerResult Lexer::Lex()
         return std::unexpected(errors);
     }
 
-    if (std::prev(token_stream.cend())->m_type != Token::Type::END_OF_FILE)
+    if (std::prev(token_stream.cend())->m_token_type != Token::Type::END_OF_FILE)
     {
         token_stream.AddToken(MakeToken(Token::Type::END_OF_FILE));
     }

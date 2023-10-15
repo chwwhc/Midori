@@ -41,6 +41,7 @@ namespace Result
 	using ExpressionResult = std::expected<std::unique_ptr<Expression>, std::string>;
 	using StatementResult = std::expected<std::unique_ptr<Statement>, std::string>;
 	using ParserResult = std::expected<ProgramTree, std::vector<std::string>>;
+	using StaticAnalyzerResult = std::optional<std::vector<std::string>>;
 	using CodeGeneratorResult = std::expected<GeneratedBytecodeBundle, std::vector<std::string>>;
 	using CompilerResult = std::expected<ExecutableModule, std::vector<std::string>>;
 }
@@ -90,6 +91,13 @@ public:
 	static inline std::string GenerateParserError(const char* message, const Token& token)
 	{
 		std::string generated_message = "Parser Error: ";
+		generated_message.append(GenerateBaseError(message, token.m_line, &token).data());
+		return generated_message;
+	}
+
+	static inline std::string GenerateStaticAnalyzerError(const char* message, const Token& token)
+	{
+		std::string generated_message = "Static Analyzer Error: ";
 		generated_message.append(GenerateBaseError(message, token.m_line, &token).data());
 		return generated_message;
 	}

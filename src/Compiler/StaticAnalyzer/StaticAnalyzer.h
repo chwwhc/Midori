@@ -1,15 +1,15 @@
 #pragma once
 
-#include "Compiler/AbstractSyntaxTree/AbstractSyntaxTree.h"
+#include "Compiler/Error/Error.h"
 
 class StaticAnalyzer
 {
 public:
-	static bool AnalyzeProgram(const ProgramTree& prog)
+	static Result::StaticAnalyzerResult AnalyzeProgram(const ProgramTree& prog)
 	{
 		return AnalyzeReturn(prog);
 	}
 
 private:
-	static bool AnalyzeReturn(const ProgramTree& prog);
+	static Result::StaticAnalyzerResult AnalyzeReturn(const ProgramTree& prog);
 };

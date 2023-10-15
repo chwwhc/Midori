@@ -42,6 +42,7 @@ struct Token
 		SINGLE_COLON,
 		DOUBLE_COLON,
 		AT,
+		HASH,
 
 		// Literal
 		IDENTIFIER,
@@ -54,7 +55,6 @@ struct Token
 		FUN,
 		FOR,
 		IF,
-		NIL,
 		RETURN,
 		TRUE,
 		LET,
@@ -70,7 +70,7 @@ struct Token
 		END_OF_FILE,
 	};
 
-	Type m_type;
+	Type m_token_type;
 	std::string m_lexeme;
 	int m_line = 0;
 };

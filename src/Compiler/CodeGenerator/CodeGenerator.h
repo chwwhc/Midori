@@ -166,7 +166,7 @@ private:
 
 	void operator()(Number& number);
 
-	void operator()(Nil& nil);
+	void operator()(Unit& nil);
 
 	void operator()(Function& function);
 

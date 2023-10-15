@@ -32,10 +32,10 @@ namespace Compiler
 			else
 			{
 				ProgramTree program = std::move(parser_result.value());
-				if (!StaticAnalyzer::AnalyzeProgram(program))
+				Result::StaticAnalyzerResult static_analyzer_result = StaticAnalyzer::AnalyzeProgram(program);
+				if (static_analyzer_result.has_value())
 				{
-					std::cerr << "Compilation failed due to static analysis error.\n";
-					return std::unexpected(std::vector<std::string>());
+					return std::unexpected(std::move(static_analyzer_result.value()));
 				}
 #ifdef DEBUG
 				PrintAbstractSyntaxTree ast_printer;

@@ -326,6 +326,34 @@ void VirtualMachine::Execute()
 				AreNumerical);
 			break;
 		}
+		case OpCode::SUBTRACT:
+		{
+			BinaryOperation([](const Value& left, const Value& right)
+				{ return Value(left.GetNumber() - right.GetNumber()); },
+				AreNumerical);
+			break;
+		}
+		case OpCode::MULTIPLY:
+		{
+			BinaryOperation([](const Value& left, const Value& right)
+				{ return Value(left.GetNumber() * right.GetNumber()); },
+				AreNumerical);
+			break;
+		}
+		case OpCode::DIVIDE:
+		{
+			BinaryOperation([](const Value& left, const Value& right)
+				{ return Value(left.GetNumber() / right.GetNumber()); },
+				AreNumerical);
+			break;
+		}
+		case OpCode::MODULO:
+		{
+			BinaryOperation([](const Value& left, const Value& right)
+				{ return Value(std::fmod(left.GetNumber(), right.GetNumber())); },
+				AreNumerical);
+			break;
+		}
 		case OpCode::CONCAT:
 		{
 			BinaryOperation([this](const Value& left, const Value& right)
@@ -354,34 +382,6 @@ void VirtualMachine::Execute()
 					}
 				},
 				AreConcatenatable);
-			break;
-		}
-		case OpCode::SUBTRACT:
-		{
-			BinaryOperation([](const Value& left, const Value& right)
-				{ return Value(left.GetNumber() - right.GetNumber()); },
-				AreNumerical);
-			break;
-		}
-		case OpCode::MULTIPLY:
-		{
-			BinaryOperation([](const Value& left, const Value& right)
-				{ return Value(left.GetNumber() * right.GetNumber()); },
-				AreNumerical);
-			break;
-		}
-		case OpCode::DIVIDE:
-		{
-			BinaryOperation([](const Value& left, const Value& right)
-				{ return Value(left.GetNumber() / right.GetNumber()); },
-				AreNumerical);
-			break;
-		}
-		case OpCode::MODULO:
-		{
-			BinaryOperation([](const Value& left, const Value& right)
-				{ return Value(std::fmod(left.GetNumber(), right.GetNumber())); },
-				AreNumerical);
 			break;
 		}
 		case OpCode::EQUAL:

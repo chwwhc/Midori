@@ -162,14 +162,7 @@ void CodeGenerator::operator()(Return& return_stmt)
 {
 	int line = return_stmt.m_keyword.m_line;
 
-	if (return_stmt.m_value.has_value())
-	{
-		std::visit([this](auto&& arg) {(*this)(arg); }, *return_stmt.m_value.value());
-	}
-	else
-	{
-		EmitByte(OpCode::NIL, line);
-	}
+	std::visit([this](auto&& arg) {(*this)(arg); }, *return_stmt.m_value);
 
 	EmitByte(OpCode::RETURN, line);
 }
@@ -189,7 +182,7 @@ void CodeGenerator::operator()(Binary& binary)
 	std::visit([this](auto&& arg) { (*this)(arg); }, *binary.m_left);
 	std::visit([this](auto&& arg) { (*this)(arg); }, *binary.m_right);
 
-	switch (binary.m_op.m_type)
+	switch (binary.m_op.m_token_type)
 	{
 	case Token::Type::SINGLE_PLUS:
 		EmitByte(OpCode::ADD, binary.m_op.m_line);
@@ -251,7 +244,7 @@ void CodeGenerator::operator()(Binary& binary)
 void CodeGenerator::operator()(Logical& logical)
 {
 	int line = logical.m_op.m_line;
-	if (logical.m_op.m_type == Token::Type::DOUBLE_BAR)
+	if (logical.m_op.m_token_type == Token::Type::DOUBLE_BAR)
 	{
 		std::visit([this](auto&& arg) {(*this)(arg); }, *logical.m_left);
 		int jump_if_true = EmitJump(OpCode::JUMP_IF_TRUE, line);
@@ -259,7 +252,7 @@ void CodeGenerator::operator()(Logical& logical)
 		std::visit([this](auto&& arg) {(*this)(arg); }, *logical.m_right);
 		PatchJump(jump_if_true, line);
 	}
-	else if (logical.m_op.m_type == Token::Type::DOUBLE_AMPERSAND)
+	else if (logical.m_op.m_token_type == Token::Type::DOUBLE_AMPERSAND)
 	{
 		std::visit([this](auto&& arg) {(*this)(arg); }, *logical.m_left);
 		int jump_if_false = EmitJump(OpCode::JUMP_IF_FALSE, line);
@@ -282,7 +275,7 @@ void CodeGenerator::operator()(Unary& unary)
 {
 	std::visit([this](auto&& arg) {(*this)(arg); }, *unary.m_right);
 
-	switch (unary.m_op.m_type)
+	switch (unary.m_op.m_token_type)
 	{
 	case Token::Type::MINUS:
 		EmitByte(OpCode::NEGATE, unary.m_op.m_line);
@@ -350,7 +343,7 @@ void CodeGenerator::operator()(Variable& variable)
 				m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Bad Variable Expression.", variable.m_name.m_line));
 				return;
 			}
-		}, variable.m_type);
+		}, variable.m_semantic);
 }
 
 void CodeGenerator::operator()(Assign& assign)
@@ -378,7 +371,7 @@ void CodeGenerator::operator()(Assign& assign)
 				m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Bad Assign Expression.", assign.m_name.m_line));
 				return;
 			}
-		}, assign.m_type);
+		}, assign.m_semantic);
 }
 
 void CodeGenerator::operator()(String& string)
@@ -396,7 +389,7 @@ void CodeGenerator::operator()(Number& number)
 	EmitConstant(std::stod(number.m_token.m_lexeme), number.m_token.m_line);
 }
 
-void CodeGenerator::operator()(Nil& nil)
+void CodeGenerator::operator()(Unit& nil)
 {
 	EmitByte(OpCode::NIL, nil.m_token.m_line);
 }

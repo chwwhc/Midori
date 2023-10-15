@@ -105,7 +105,7 @@ Result::ExpressionResult Parser::ParseAssignment()
 	return expr;
 }
 
-Result::ExpressionResult Parser::ParseUnary() 
+Result::ExpressionResult Parser::ParseUnary()
 {
 	if (Match(Token::Type::BANG, Token::Type::MINUS))
 	{
@@ -269,7 +269,7 @@ Result::ExpressionResult Parser::ParsePrimary()
 		{
 			return std::unexpected(std::move(paren.error()));
 		}
-		
+
 		return std::make_unique<Expression>(Group(std::move(expr_in.value())));
 	}
 	else if (Match(Token::Type::IDENTIFIER))
@@ -364,7 +364,7 @@ Result::ExpressionResult Parser::ParsePrimary()
 		{
 			return std::unexpected(std::move(brace.error()));
 		}
-		
+
 		Token& right_brace = Previous();
 		int block_local_count = EndScope();
 
@@ -379,9 +379,9 @@ Result::ExpressionResult Parser::ParsePrimary()
 	{
 		return std::make_unique<Expression>(Bool(std::move(Previous())));
 	}
-	else if (Match(Token::Type::NIL))
+	else if (Match(Token::Type::HASH))
 	{
-		return std::make_unique<Expression>(Nil(std::move(Previous())));
+		return std::make_unique<Expression>(Unit(std::move(Previous())));
 	}
 	else if (Match(Token::Type::NUMBER))
 	{
@@ -613,7 +613,7 @@ Result::StatementResult Parser::ParseIfStatement()
 	{
 		return std::unexpected(std::move(paren.error()));
 	}
-	
+
 	Result::ExpressionResult condition = ParseExpression();
 	if (!condition.has_value())
 	{
@@ -838,16 +838,10 @@ Result::StatementResult Parser::ParseReturnStatement()
 		return std::unexpected(GenerateParserError("'return' must be used inside a function.", keyword));
 	}
 
-	std::optional<std::unique_ptr<Expression>> value = std::nullopt;
-	if (!Check(Token::Type::SINGLE_SEMICOLON, 0))
+	Result::ExpressionResult expr = ParseExpression();
+	if (!expr.has_value())
 	{
-		Result::ExpressionResult expr = ParseExpression();
-		if (!expr.has_value())
-		{
-			return std::unexpected(std::move(expr.error()));
-		}
-
-		value.emplace(std::move(expr.value()));
+		return std::unexpected(std::move(expr.error()));
 	}
 
 	Result::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after return value.");
@@ -856,7 +850,7 @@ Result::StatementResult Parser::ParseReturnStatement()
 		return std::unexpected(std::move(semi_colon.error()));
 	}
 
-	return std::make_unique<Statement>(Return(std::move(keyword), std::move(value)));
+	return std::make_unique<Statement>(Return(std::move(keyword), std::move(expr.value())));
 }
 
 
@@ -908,11 +902,11 @@ Result::ParserResult Parser::Parse()
 	while (!IsAtEnd())
 	{
 		Result::StatementResult result = ParseDeclaration();
-		if (result.has_value()) 
+		if (result.has_value())
 		{
 			programTree.emplace_back(std::move(result.value()));
 		}
-		else 
+		else
 		{
 			errors.emplace_back(result.error());
 		}
@@ -934,11 +928,11 @@ void Parser::Synchronize()
 
 	while (!IsAtEnd())
 	{
-		if (Previous().m_type == Token::Type::SINGLE_SEMICOLON)
+		if (Previous().m_token_type == Token::Type::SINGLE_SEMICOLON)
 		{
 			return;
 		}
-		switch (Peek(0).m_type)
+		switch (Peek(0).m_token_type)
 		{
 		case Token::Type::NAMESPACE:
 		case Token::Type::FUN:

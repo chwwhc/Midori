@@ -28,11 +28,13 @@ enum class OpCode : uint8_t
 
     // Arithmetic Operations
     ADD,
-    CONCAT,
     SUBTRACT,
     MULTIPLY,
     DIVIDE,
     MODULO,
+
+    // Aggregate Operations
+    CONCAT,
 
     // Comparison Operations
     EQUAL,

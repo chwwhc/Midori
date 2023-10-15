@@ -1,8 +1,5 @@
 #include "StaticAnalyzer.h"
 
-#include <numeric>
-#include <iostream>
-
 namespace ReturnAnalyzer
 {
 	bool HasReturnStatement(const Statement& stmt)
@@ -57,92 +54,81 @@ namespace ReturnAnalyzer
 			}, stmt);
 	}
 
-	bool AnalyzeReturn(const Statement& stmt)
+	void AnalyzeReturn(const Statement& stmt, std::vector<std::string>& errors)
 	{
-		return std::visit([&](auto&& arg) -> bool
-				{
-					using ST = std::decay_t<decltype(arg)>;
-					if constexpr (std::is_same_v<ST, Let>) {
-						if (arg.m_value.has_value())
-						{
-							return std::visit([&arg](auto&& inner_arg) -> bool
+		return std::visit([&stmt, &errors](auto&& arg) -> void
+			{
+				using ST = std::decay_t<decltype(arg)>;
+				if constexpr (std::is_same_v<ST, Let>) {
+					if (arg.m_value.has_value())
+					{
+						return std::visit([&stmt, &errors, &arg](auto&& inner_arg) -> void
+							{
+								using ET = std::decay_t<decltype(inner_arg)>;
+								if constexpr (std::is_same_v<ET, Function>)
 								{
-									using ET = std::decay_t<decltype(inner_arg)>;
-									if constexpr (std::is_same_v<ET, Function>)
+									bool function_result = HasReturnStatement(*inner_arg.m_body);
+									if (!function_result)
 									{
-										bool function_result = HasReturnStatement(*inner_arg.m_body);
-										if (!function_result)
-										{
-											std::cerr << arg.m_name.m_lexeme << " does not return in all paths.\n";
-										}
-										
-										const Block& body = std::get<Block>(*inner_arg.m_body);
-										for (const std::unique_ptr<Statement>& function_body_stmt : body.m_stmts)
-										{
-											if (std::holds_alternative<Let>(*function_body_stmt))
-											{
-												function_result = function_result && AnalyzeReturn(*function_body_stmt);
-											}
-										}
-
-										return function_result;
+										errors.emplace_back(CompilerError::GenerateStaticAnalyzerError("does not return in all paths.", arg.m_name));
 									}
-									else
+
+									const Block& body = std::get<Block>(*inner_arg.m_body);
+									for (const std::unique_ptr<Statement>& function_body_stmt : body.m_stmts)
 									{
-										return true;
+										if (std::holds_alternative<Let>(*function_body_stmt))
+										{
+											AnalyzeReturn(*function_body_stmt, errors);
+										}
 									}
-								}, *arg.m_value.value());
-						}
-						else
-						{
-							return true;
-						}
+								}
+							}, *arg.m_value.value());
 					}
-					else if constexpr (std::is_same_v<ST, Block>)
+				}
+				else if constexpr (std::is_same_v<ST, Block>)
+				{
+					for (const std::unique_ptr<Statement>& stmt : arg.m_stmts)
 					{
-						return std::accumulate(arg.m_stmts.cbegin(), arg.m_stmts.cend(), true, [](bool acc, const std::unique_ptr<Statement>& stmt) -> bool
-							{
-								return acc && ReturnAnalyzer::AnalyzeReturn(*stmt);
-							});
+						ReturnAnalyzer::AnalyzeReturn(*stmt, errors);
 					}
-					else if constexpr (std::is_same_v<ST, If>)
-					{
-						bool true_branch_result = AnalyzeReturn(*arg.m_true_branch);
+				}
+				else if constexpr (std::is_same_v<ST, If>)
+				{
+					AnalyzeReturn(*arg.m_true_branch, errors);
 
-						if (!true_branch_result)
-						{
-							return false;
-						}
-						else
-						{
-							if (arg.m_else_branch.has_value())
-							{
-								return AnalyzeReturn(*arg.m_else_branch.value());
-							}
+					if (arg.m_else_branch.has_value())
+					{
+						AnalyzeReturn(*arg.m_else_branch.value(), errors);
+					}
 
-							return true;
-						}
-					}
-					else if constexpr (std::is_same_v <ST, While>)
-					{
-						return AnalyzeReturn(*arg.m_body);
-					}
-					else if constexpr (std::is_same_v<ST, For>)
-					{
-						return AnalyzeReturn(*arg.m_condition_intializer) && AnalyzeReturn(*arg.m_body);
-					}
-					else
-					{
-						return true;
-					}
-				}, stmt);
+				}
+				else if constexpr (std::is_same_v <ST, While>)
+				{
+					AnalyzeReturn(*arg.m_body, errors);
+				}
+				else if constexpr (std::is_same_v<ST, For>)
+				{
+					AnalyzeReturn(*arg.m_condition_intializer, errors);
+					AnalyzeReturn(*arg.m_body, errors);
+				}
+			}, stmt);
 	}
 }
 
-bool StaticAnalyzer::AnalyzeReturn(const ProgramTree& prog)
+Result::StaticAnalyzerResult StaticAnalyzer::AnalyzeReturn(const ProgramTree& prog)
 {
-	return std::accumulate(prog.cbegin(), prog.cend(), true, [](bool acc, const std::unique_ptr<Statement>& stmt) -> bool
-		{
-			return acc && ReturnAnalyzer::AnalyzeReturn(*stmt);
-		});
+	std::vector<std::string> errors;
+	for (const std::unique_ptr<Statement>& stmt : prog)
+	{
+		ReturnAnalyzer::AnalyzeReturn(*stmt, errors);
+	}
+	
+	if (errors.empty())
+	{
+		return std::nullopt;
+	}
+	else
+	{
+		return errors;
+	}
 }
