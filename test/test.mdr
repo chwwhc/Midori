@@ -1,0 +1,10 @@
+var arr = [@3];
+for (var i = 0; i < 3; i = i + 1) {
+  (function(i) {
+    arr[i] = function() { return i; };
+    return #;
+  })(i);
+}
+PrintLine(arr[0]());  // Prints 0
+PrintLine(arr[1]());  // Prints 1
+PrintLine(arr[2]());  // Prints 2

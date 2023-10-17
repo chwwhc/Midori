@@ -32,7 +32,7 @@ using Expression = std::variant < Binary, Logical, Group, String, Bool, Number, 
 
 struct Block;
 struct Simple;
-struct Let;
+struct Define;
 struct If;
 struct While;
 struct For;
@@ -42,7 +42,7 @@ struct Return;
 struct Import;
 struct Namespace;
 
-using Statement = std::variant<Block, Simple, Let, If, While, For, Break, Continue, Return, Import, Namespace>;
+using Statement = std::variant<Block, Simple, Define, If, While, For, Break, Continue, Return, Import, Namespace>;
 using ProgramTree = std::vector<std::unique_ptr<Statement>>;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -235,11 +235,12 @@ struct Simple
 	std::unique_ptr<Expression> m_expr;
 };
 
-struct Let
+struct Define
 {
 	Token m_name;
-	std::optional<std::unique_ptr<Expression>> m_value;
-	std::optional<int> m_local_index;
+	std::unique_ptr<Expression> m_value;
+	int m_local_index;
+	bool m_is_fixed;
 };
 
 struct If

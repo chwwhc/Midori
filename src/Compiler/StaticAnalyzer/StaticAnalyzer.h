@@ -7,9 +7,17 @@ class StaticAnalyzer
 public:
 	static Result::StaticAnalyzerResult AnalyzeProgram(const ProgramTree& prog)
 	{
-		return AnalyzeReturn(prog);
+		std::vector<std::string> result = AnalyzeReturn(prog);
+		if (result.empty())
+		{
+			return std::nullopt;
+		}
+		else
+		{
+			return result;
+		}
 	}
 
 private:
-	static Result::StaticAnalyzerResult AnalyzeReturn(const ProgramTree& prog);
+	static std::vector<std::string> AnalyzeReturn(const ProgramTree& prog);
 };

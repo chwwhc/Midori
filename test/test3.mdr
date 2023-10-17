@@ -1,0 +1,109 @@
+
+{
+    var c = 1;  // Local variable in the main body
+
+    var fun = function(param) // Function parameter
+    {
+        var x = 2; // Local variable in the closure
+        
+        var nestedFun = function() // Nested closure
+        {
+            PrintLine("Nested function:");
+            PrintLine(c);
+            PrintLine(x);
+            PrintLine(param);
+            return #;
+        };
+
+        PrintLine("Outer function:");
+        PrintLine(c);
+        PrintLine(x);
+        PrintLine(param);
+
+        nestedFun(); // Call nested function
+
+        return #;
+    };
+    
+    c = 2; // Modify the captured variable
+
+    fun(5); // Pass 5 as an argument
+}
+{
+    var outerFunction = function() {
+        var innerFunction = function() {
+            PrintLine("Inner function called");
+            return #;
+        };
+        PrintLine("Outer function called");
+        innerFunction();
+        return #;
+    };
+    outerFunction();
+}
+
+PrintLine(" ");
+
+{
+    var firstLevel = function() {
+        var secondLevel = function() {
+            var thirdLevel = function() {
+                PrintLine("Third level function called");
+                return #;
+            };
+            PrintLine("Second level function called");
+            thirdLevel();
+            return #;
+        };
+        PrintLine("First level function called");
+        secondLevel();
+        return #;
+    };
+    firstLevel();
+}
+
+PrintLine(" ");
+
+{
+    var outerFunction = function() {
+        var innerFunction1 = function() {
+            PrintLine("Inner function 1 called");
+            return #;
+        };
+        var innerFunction2 = function() {
+            PrintLine("Inner function 2 called");
+            return #;
+        };
+        innerFunction1();
+        innerFunction2();
+        return #;
+    };
+    outerFunction();
+}
+
+PrintLine(" ");
+
+{
+    var getFunction = function() {
+        var inner = function() {
+            PrintLine("Inner function");
+            return #;
+        };
+        return inner;
+    };
+    var newFunc = getFunction();
+    newFunc();
+}
+
+PrintLine(" ");
+
+var fib = function(x)
+{
+    return x < 2 ? x : fib(x - 1) + fib(x - 2);
+};
+
+PrintLine(fib(10));
+
+PrintLine("cao" ++ "ni" ++ "ma");
+
+PrintLine(["cao", ["ni"]][1]);

@@ -4,9 +4,9 @@
 
 void NativeFunction::InitializeNativeFunctions(VirtualMachine& vm)
 {
-	Object* print = Object::AllocateObject(Object::NativeFunction([&vm]()
+	Object* println = Object::AllocateObject(Object::NativeFunction([&vm]()
 		{
-			std::cout << vm.Peek(0).ToString();
-		}, "Print", 1));
-	vm.m_global_vars[std::string("Print")] = print;
+			std::cout << vm.Peek(0).m_value.ToString() << std::endl;
+		}, "PrintLine", 1));
+	vm.m_global_vars[std::string("PrintLine")] = println;
 }

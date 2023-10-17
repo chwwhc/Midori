@@ -62,19 +62,19 @@ Result::ExpressionResult Parser::ParseAssignment()
 		if (std::holds_alternative<Variable>(*expr.value()))
 		{
 			Variable& variable_expr = std::get<Variable>(*expr.value());
+			// global native
+			if (m_native_functions.find(variable_expr.m_name.m_lexeme) != m_native_functions.end())
+			{
+				return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Global()));
+			}
 
 			for (std::vector<Scope>::reverse_iterator scope_it = m_scopes.rbegin(); scope_it != m_scopes.rend(); ++scope_it)
 			{
 				Scope::const_iterator find_result = scope_it->find(variable_expr.m_name.m_lexeme);
 				if (find_result != scope_it->end())
 				{
-					// global
-					if (scope_it == std::prev(m_scopes.rend()))
-					{
-						return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Global()));
-					}
 					// local
-					else if (m_function_depth == 0 || scope_it == m_scopes.rbegin())
+					if (m_function_depth == 0 || scope_it == m_scopes.rbegin())
 					{
 						return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Local(find_result->second.m_relative_index)));
 					}
@@ -119,7 +119,7 @@ Result::ExpressionResult Parser::ParseUnary()
 		return std::make_unique<Expression>(Unary(std::move(op), std::move(right.value())));
 	}
 
-	return ParseArrayAccess();
+	return ParseCall();
 }
 
 Result::ExpressionResult Parser::ParseTernary()
@@ -186,7 +186,7 @@ Result::ExpressionResult Parser::ParseArrayAccessHelper(std::unique_ptr<Expressi
 
 Result::ExpressionResult Parser::ParseArrayAccess()
 {
-	Result::ExpressionResult arr_var = ParseCall();
+	Result::ExpressionResult arr_var = ParsePrimary();
 	if (!arr_var.has_value())
 	{
 		return std::unexpected(std::move(arr_var.error()));
@@ -202,7 +202,7 @@ Result::ExpressionResult Parser::ParseArrayAccess()
 
 Result::ExpressionResult Parser::ParseCall()
 {
-	Result::ExpressionResult expr = ParsePrimary();
+	Result::ExpressionResult expr = ParseArrayAccess();
 	if (!expr.has_value())
 	{
 		return std::unexpected(std::move(expr.error()));
@@ -213,6 +213,10 @@ Result::ExpressionResult Parser::ParseCall()
 		if (Match(Token::Type::LEFT_PAREN))
 		{
 			expr = FinishCall(std::move(expr.value()));
+			if (!expr.has_value())
+			{
+				return std::unexpected(std::move(expr.error()));
+			}
 		}
 		else if (Match(Token::Type::DOT))
 		{
@@ -275,19 +279,19 @@ Result::ExpressionResult Parser::ParsePrimary()
 	else if (Match(Token::Type::IDENTIFIER))
 	{
 		Token& variable = Previous();
+		// global native
+		if (m_native_functions.find(variable.m_lexeme) != m_native_functions.end())
+		{
+			return std::make_unique<Expression>(Variable(std::move(Previous()), VariableSemantic::Global()));
+		}
 
 		for (std::vector<Scope>::reverse_iterator scope_it = m_scopes.rbegin(); scope_it != m_scopes.rend(); ++scope_it)
 		{
 			Scope::const_iterator find_result = scope_it->find(variable.m_lexeme);
 			if (find_result != scope_it->end())
 			{
-				// global
-				if (scope_it == std::prev(m_scopes.rend()))
-				{
-					return std::make_unique<Expression>(Variable(std::move(Previous()), VariableSemantic::Global()));
-				}
 				// local
-				else if (m_function_depth <= 1 || scope_it == m_scopes.rbegin())
+				if (m_function_depth == 0 || scope_it == m_scopes.rbegin())
 				{
 					return std::make_unique<Expression>(Variable(std::move(Previous()), VariableSemantic::Local(find_result->second.m_relative_index)));
 				}
@@ -336,6 +340,7 @@ Result::ExpressionResult Parser::ParsePrimary()
 					return std::unexpected(std::move(param_name.error()));
 				}
 			} while (Match(Token::Type::COMMA));
+
 			Result::TokenResult paren = Consume(Token::Type::RIGHT_PAREN, "Expected ')' before function parameters.");
 			if (!paren.has_value())
 			{
@@ -368,7 +373,7 @@ Result::ExpressionResult Parser::ParsePrimary()
 		Token& right_brace = Previous();
 		int block_local_count = EndScope();
 
-		std::unique_ptr<Statement> function_body = std::make_unique<Statement>(Block(std::move(right_brace), std::move(statements), std::move(block_local_count)));
+		std::unique_ptr<Statement> function_body = std::make_unique<Statement>(Block(std::move(right_brace), std::move(statements), block_local_count));
 
 		m_function_depth -= 1;
 		m_total_locals = prev_total_locals;
@@ -490,9 +495,9 @@ Result::ExpressionResult Parser::ParseLogicalOr()
 
 Result::StatementResult Parser::ParseDeclaration()
 {
-	if (Match(Token::Type::LET))
+	if (Match(Token::Type::VAR, Token::Type::FIXED))
 	{
-		return ParseLetStatement();
+		return ParseDefineStatement();
 	}
 	else if (Match(Token::Type::NAMESPACE))
 	{
@@ -531,8 +536,9 @@ Result::StatementResult Parser::ParseBlockStatement()
 	return std::make_unique<Statement>(Block(std::move(right_brace), std::move(statements), std::move(block_local_count)));
 }
 
-Result::StatementResult Parser::ParseLetStatement()
+Result::StatementResult Parser::ParseDefineStatement()
 {
+	bool is_fixed = Previous().m_token_type == Token::Type::FIXED;
 	Result::TokenResult var_name = Consume(Token::Type::IDENTIFIER, "Expected variable name.");
 	if (!var_name.has_value())
 	{
@@ -546,9 +552,7 @@ Result::StatementResult Parser::ParseLetStatement()
 	}
 	Token& name = define_name_result.value();
 
-	std::optional<int> local_index = GetLocalVariableIndex(name.m_lexeme);
-
-	std::unique_ptr<Expression> initializer = nullptr;
+	int local_index = GetLocalVariableIndex(name.m_lexeme);
 
 	if (Match(Token::Type::SINGLE_EQUAL))
 	{
@@ -566,20 +570,14 @@ Result::StatementResult Parser::ParseLetStatement()
 			}
 			else
 			{
-				initializer = std::move(expr.value());
+				return std::make_unique<Statement>(Define(std::move(name), std::move(expr.value()), std::move(local_index), std::move(is_fixed)));
 			}
 		}
 	}
 	else
 	{
-		Result::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after variable declaration.");
-		if (!semi_colon.has_value())
-		{
-			return std::unexpected(std::move(semi_colon.error()));
-		}
+		return std::unexpected(GenerateParserError("Expected initializer.", Previous()));
 	}
-
-	return std::make_unique<Statement>(Let(std::move(name), std::move(initializer), std::move(local_index)));
 }
 
 Result::StatementResult Parser::ParseNamespaceDeclaration()
@@ -693,9 +691,9 @@ Result::StatementResult Parser::ParseForStatement()
 	}
 
 	std::unique_ptr<Statement> initializer;
-	if (Match(Token::Type::LET))
+	if (Match(Token::Type::VAR, Token::Type::FIXED))
 	{
-		Result::StatementResult init_result = ParseLetStatement();
+		Result::StatementResult init_result = ParseDefineStatement();
 		if (!init_result.has_value())
 		{
 			return std::unexpected(std::move(init_result.error()));
@@ -898,7 +896,8 @@ Result::ParserResult Parser::Parse()
 {
 	ProgramTree programTree;
 	std::vector<std::string> errors;
-
+	
+	BeginScope();
 	while (!IsAtEnd())
 	{
 		Result::StatementResult result = ParseDeclaration();
@@ -911,6 +910,7 @@ Result::ParserResult Parser::Parse()
 			errors.emplace_back(result.error());
 		}
 	}
+	EndScope();
 
 	if (errors.empty())
 	{
@@ -936,7 +936,8 @@ void Parser::Synchronize()
 		{
 		case Token::Type::NAMESPACE:
 		case Token::Type::FUN:
-		case Token::Type::LET:
+		case Token::Type::VAR:
+		case Token::Type::FIXED:
 		case Token::Type::FOR:
 		case Token::Type::IF:
 		case Token::Type::WHILE:

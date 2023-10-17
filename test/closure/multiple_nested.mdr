@@ -1,0 +1,9 @@
+var makeAdder = function(a) {
+  return function(b) {
+    return function(c) {
+      return a + b + c;
+    };
+  };
+};
+var adder = makeAdder(3)(4);
+PrintLine(adder(5));  // Should print 12

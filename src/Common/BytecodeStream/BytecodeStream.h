@@ -9,7 +9,7 @@ enum class OpCode : uint8_t
     CONSTANT,
     CONSTANT_LONG,
     CONSTANT_LONG_LONG,
-    NIL,
+    UNIT,
     TRUE,
     FALSE,
 
@@ -60,21 +60,17 @@ enum class OpCode : uint8_t
     CALL,
 
     // Variable Operations
-    DEFINE_GLOBAL,
     CREATE_CLOSURE,
-    GET_GLOBAL,
-    SET_GLOBAL,
+    GET_NATIVE,
     GET_LOCAL,
     SET_LOCAL,
     GET_CELL,
     SET_CELL,
+    DEFINE_NAME,
 
     // Stack Operations
     POP,
     POP_MULTIPLE,
-
-    // IO Operations
-    PRINT,
 
     // Return
     RETURN,

@@ -15,7 +15,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Compiler flags
 if (MSVC)
-    add_compile_options(/WX)
+    add_compile_options(/W3)
 else()
     add_compile_options(-Wall -Wextra -pedantic -Werror)
 endif()

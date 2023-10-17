@@ -1,0 +1,42 @@
+// Function that returns a sequence generator from 'start' to 'end' with 'step'
+var makeSequenceGenerator = function(start, end, step) {
+    var current = start;
+    return function() {
+        if (current <= end) {
+            var generator = function(factor) {
+                return current * factor;
+            };
+            var result = generator;
+            current = current + step;
+            return result;
+        } else {
+            return #;
+        }
+    };
+};
+
+// Create a sequence generator that generates 0, 2, 4, ..., 10
+var seqGen = makeSequenceGenerator(0, 10, 2);
+
+// Test the sequence generator
+var func1 = seqGen();  // func1 is now a function that takes a factor and multiplies it by 0
+PrintLine(func1(5));  // Should print 0
+
+var func2 = seqGen();  // func2 is now a function that takes a factor and multiplies it by 2
+PrintLine(func2(5));  // Should print 10
+
+var func3 = seqGen();  // func3 is now a function that takes a factor and multiplies it by 4
+PrintLine(func3(5));  // Should print 20
+
+// Change the sequence generator
+var seqGenNew = makeSequenceGenerator(1, 5, 1);
+
+// Test the new sequence generator
+var func4 = seqGenNew();  // func4 is now a function that takes a factor and multiplies it by 1
+PrintLine(func4(10));  // Should print 10
+
+var func5 = seqGenNew();  // func5 is now a function that takes a factor and multiplies it by 2
+PrintLine(func5(10));  // Should print 20
+
+var func6 = seqGenNew();  // func6 is now a function that takes a factor and multiplies it by 3
+PrintLine(func6(10));  // Should print 30

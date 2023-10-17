@@ -33,25 +33,31 @@ private:
 	using GlobalVariables = std::unordered_map<std::string, Value>;
 	friend class NativeFunction;
 
+	struct ValueSlot
+	{
+		Value m_value;
+		bool m_is_named = false;
+	};
+
 	struct CallFrame
 	{
 		BytecodeStream* m_return_module = nullptr;
-		StackPointer<Value, VALUE_STACK_MAX>  m_return_bp;
-		StackPointer<Value, VALUE_STACK_MAX>  m_return_sp;
+		StackPointer<ValueSlot, VALUE_STACK_MAX>  m_return_bp;
+		StackPointer<ValueSlot, VALUE_STACK_MAX>  m_return_sp;
 		InstructionPointer m_return_ip;
 	};
 
-	std::array<Value, VALUE_STACK_MAX> m_value_stack;
+	std::array<ValueSlot, VALUE_STACK_MAX> m_value_stack;
 	std::array<CallFrame, FRAME_STACK_MAX> m_call_stack;
 	BytecodeStream m_module;
 	StaticData m_static_data;
 	GlobalVariables m_global_vars;
 	GlobalVariableTable m_global_table;
 	GarbageCollector m_garbage_collector;
-	Object::Closure* m_current_closure = nullptr;
+	std::vector<Object::Closure*> m_closures;
 	BytecodeStream* m_current_bytecode = nullptr;
-	StackPointer<Value, VALUE_STACK_MAX> m_base_pointer = m_value_stack.begin();
-	StackPointer<Value, VALUE_STACK_MAX> m_value_stack_pointer = m_value_stack.begin();
+	StackPointer<ValueSlot, VALUE_STACK_MAX> m_base_pointer = m_value_stack.begin();
+	StackPointer<ValueSlot, VALUE_STACK_MAX> m_value_stack_pointer = m_value_stack.begin();
 	StackPointer<CallFrame, FRAME_STACK_MAX> m_call_stack_pointer = m_call_stack.begin();
 	InstructionPointer m_instruction_pointer;
 	bool m_error = false;
@@ -116,8 +122,8 @@ private:
 				std::cerr << "Value stack overflow." << std::endl;
 				m_error = true;
 			}
-
-			*m_value_stack_pointer++ = std::move(value);
+			m_value_stack_pointer->m_value = std::move(value);
+			++m_value_stack_pointer;
 		}
 	}
 
@@ -128,10 +134,10 @@ private:
 			std::cerr << "Value stack underflow." << std::endl;
 			m_error = true;
 		}
-		return std::move(*(--m_value_stack_pointer));
+		return (--m_value_stack_pointer)->m_value;
 	}
 
-	inline const Value& Peek(int distance)
+	inline ValueSlot& Peek(int distance)
 	{
 		if (m_value_stack_pointer - 1 - distance < m_base_pointer)
 		{
@@ -228,7 +234,7 @@ private:
 	template<typename T>
 	Object* RuntimeAllocateObject(T&& value)
 	{
-		CollectGarbage();
+		//CollectGarbage();
 		return Object::AllocateObject(std::forward<T>(value));
 	}
 

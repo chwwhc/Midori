@@ -133,8 +133,8 @@ namespace Disassembler
 		case OpCode::CONSTANT_LONG_LONG:
 			ConstantInstruction("CONSTANT_LONG_LONG", stream, static_data, offset);
 			break;
-		case OpCode::NIL:
-			SimpleInstruction("NIL", offset);
+		case OpCode::UNIT:
+			SimpleInstruction("UNIT", offset);
 			break;
 		case OpCode::TRUE:
 			SimpleInstruction("TRUE", offset);
@@ -226,17 +226,11 @@ namespace Disassembler
 		case OpCode::CALL:
 			CallInstruction("CALL", stream, offset);
 			break;
-		case OpCode::DEFINE_GLOBAL:
-			GlobalVariableInstruction("DEFINE_GLOBAL", stream, global_table, offset);
-			break;
 		case OpCode::CREATE_CLOSURE:
 			SimpleInstruction("CREATE_CLOSURE", offset);
 			break;
-		case OpCode::GET_GLOBAL:
-			GlobalVariableInstruction("GET_GLOBAL", stream, global_table, offset);
-			break;
-		case OpCode::SET_GLOBAL:
-			GlobalVariableInstruction("SET_GLOBAL", stream, global_table, offset);
+		case OpCode::GET_NATIVE:
+			GlobalVariableInstruction("GET_NATIVE", stream, global_table, offset);
 			break;
 		case OpCode::GET_LOCAL:
 			LocalVariableInstruction("GET_LOCAL", stream, offset);
@@ -249,6 +243,9 @@ namespace Disassembler
 			break;
 		case OpCode::SET_CELL:
 			LocalVariableInstruction("SET_CELL", stream, offset);
+			break;
+		case OpCode::DEFINE_NAME:
+			SimpleInstruction("DEFINE_NAME", offset);
 			break;
 		case OpCode::POP:
 			SimpleInstruction("POP", offset);

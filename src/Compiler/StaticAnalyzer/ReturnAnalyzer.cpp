@@ -59,31 +59,28 @@ namespace ReturnAnalyzer
 		return std::visit([&stmt, &errors](auto&& arg) -> void
 			{
 				using ST = std::decay_t<decltype(arg)>;
-				if constexpr (std::is_same_v<ST, Let>) {
-					if (arg.m_value.has_value())
-					{
-						return std::visit([&stmt, &errors, &arg](auto&& inner_arg) -> void
+				if constexpr (std::is_same_v<ST, Define>) {
+					return std::visit([&stmt, &errors, &arg](auto&& inner_arg) -> void
+						{
+							using ET = std::decay_t<decltype(inner_arg)>;
+							if constexpr (std::is_same_v<ET, Function>)
 							{
-								using ET = std::decay_t<decltype(inner_arg)>;
-								if constexpr (std::is_same_v<ET, Function>)
+								bool function_result = HasReturnStatement(*inner_arg.m_body);
+								if (!function_result)
 								{
-									bool function_result = HasReturnStatement(*inner_arg.m_body);
-									if (!function_result)
-									{
-										errors.emplace_back(CompilerError::GenerateStaticAnalyzerError("does not return in all paths.", arg.m_name));
-									}
+									errors.emplace_back(CompilerError::GenerateStaticAnalyzerError("Does not return in all paths.", arg.m_name));
+								}
 
-									const Block& body = std::get<Block>(*inner_arg.m_body);
-									for (const std::unique_ptr<Statement>& function_body_stmt : body.m_stmts)
+								const Block& body = std::get<Block>(*inner_arg.m_body);
+								for (const std::unique_ptr<Statement>& function_body_stmt : body.m_stmts)
+								{
+									if (std::holds_alternative<Define>(*function_body_stmt))
 									{
-										if (std::holds_alternative<Let>(*function_body_stmt))
-										{
-											AnalyzeReturn(*function_body_stmt, errors);
-										}
+										AnalyzeReturn(*function_body_stmt, errors);
 									}
 								}
-							}, *arg.m_value.value());
-					}
+							}
+						}, *arg.m_value);
 				}
 				else if constexpr (std::is_same_v<ST, Block>)
 				{
@@ -115,20 +112,13 @@ namespace ReturnAnalyzer
 	}
 }
 
-Result::StaticAnalyzerResult StaticAnalyzer::AnalyzeReturn(const ProgramTree& prog)
+std::vector<std::string> StaticAnalyzer::AnalyzeReturn(const ProgramTree& prog)
 {
 	std::vector<std::string> errors;
 	for (const std::unique_ptr<Statement>& stmt : prog)
 	{
 		ReturnAnalyzer::AnalyzeReturn(*stmt, errors);
 	}
-	
-	if (errors.empty())
-	{
-		return std::nullopt;
-	}
-	else
-	{
-		return errors;
-	}
+
+	return errors;
 }

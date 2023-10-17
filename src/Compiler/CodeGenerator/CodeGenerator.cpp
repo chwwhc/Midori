@@ -45,30 +45,10 @@ void CodeGenerator::operator()(Simple& simple)
 	EmitByte(OpCode::POP, simple.m_semicolon.m_line);
 }
 
-void CodeGenerator::operator()(Let& let)
+void CodeGenerator::operator()(Define& def)
 {
-	bool is_global = !let.m_local_index.has_value();
-	std::optional<int> index = std::nullopt;
-	if (is_global)
-	{
-		std::string variable_name = let.m_name.m_lexeme;
-		index.emplace(m_global_table.AddGlobalVariable(std::move(variable_name)));
-		m_global_variables[let.m_name.m_lexeme] = index.value();
-	}
-
-	if (let.m_value.has_value())
-	{
-		std::visit([this](auto&& arg) { (*this)(arg); }, *let.m_value.value());
-	}
-	else
-	{
-		EmitByte(OpCode::NIL, let.m_name.m_line);
-	}
-
-	if (is_global)
-	{
-		EmitVariable(index.value(), OpCode::DEFINE_GLOBAL, let.m_name.m_line);
-	}
+	EmitByte(OpCode::DEFINE_NAME, def.m_name.m_line);
+	std::visit([this](auto&& arg) { (*this)(arg); }, *def.m_value);
 }
 
 void CodeGenerator::operator()(If& if_stmt)
@@ -292,6 +272,7 @@ void CodeGenerator::operator()(Unary& unary)
 
 void CodeGenerator::operator()(Call& call)
 {
+	int line = call.m_paren.m_line;
 	int arity = static_cast<int>(call.m_arguments.size());
 	if (arity > UINT8_MAX)
 	{
@@ -303,11 +284,12 @@ void CodeGenerator::operator()(Call& call)
 
 	for (std::unique_ptr<Expression>& arg : call.m_arguments)
 	{
+		EmitByte(OpCode::DEFINE_NAME, line);
 		std::visit([this](auto&& arg) {(*this)(arg); }, *arg);
 	}
 
-	EmitByte(OpCode::CALL, call.m_paren.m_line);
-	EmitByte(static_cast<OpCode>(arity), call.m_paren.m_line);
+	EmitByte(OpCode::CALL, line);
+	EmitByte(static_cast<OpCode>(arity), line);
 }
 
 void CodeGenerator::operator()(Get& get)
@@ -332,7 +314,7 @@ void CodeGenerator::operator()(Variable& variable)
 			}
 			else if constexpr (std::is_same_v<T, VariableSemantic::Global>)
 			{
-				EmitVariable(m_global_variables[variable.m_name.m_lexeme], OpCode::GET_GLOBAL, variable.m_name.m_line);
+				EmitVariable(m_global_variables[variable.m_name.m_lexeme], OpCode::GET_NATIVE, variable.m_name.m_line);
 			}
 			else if constexpr (std::is_same_v<T, VariableSemantic::Cell>)
 			{
@@ -357,10 +339,6 @@ void CodeGenerator::operator()(Assign& assign)
 			if constexpr (std::is_same_v<T, VariableSemantic::Local>)
 			{
 				EmitVariable(arg.m_index, OpCode::SET_LOCAL, assign.m_name.m_line);
-			}
-			else if constexpr (std::is_same_v<T, VariableSemantic::Global>)
-			{
-				EmitVariable(m_global_variables[assign.m_name.m_lexeme], OpCode::SET_GLOBAL, assign.m_name.m_line);
 			}
 			else if constexpr (std::is_same_v<T, VariableSemantic::Cell>)
 			{
@@ -391,7 +369,7 @@ void CodeGenerator::operator()(Number& number)
 
 void CodeGenerator::operator()(Unit& nil)
 {
-	EmitByte(OpCode::NIL, nil.m_token.m_line);
+	EmitByte(OpCode::UNIT, nil.m_token.m_line);
 }
 
 void CodeGenerator::operator()(Function& function)
@@ -410,12 +388,12 @@ void CodeGenerator::operator()(Function& function)
 	std::visit([this](auto&& arg) {(*this)(arg); }, *function.m_body);
 
 	BytecodeStream bytecode(std::move(m_module));
-	Object* function_ptr = Object::AllocateObject(Object::DefinedFunction(std::move(bytecode), Object::Closure(), std::move(arity)));
+	Object* closure_ptr = Object::AllocateObject(Object::Closure(Object::DefinedFunction(std::move(bytecode), std::move(arity)), std::vector<Object*>()));
 #ifdef DEBUG
-	m_sub_modules.emplace_back(&function_ptr->GetDefinedFunction());
+	m_sub_modules.emplace_back(&closure_ptr->GetClosure().m_function);
 #endif
 	m_module = std::move(prev_module);
-	EmitConstant(function_ptr, line);
+	EmitConstant(closure_ptr, line);
 	EmitByte(OpCode::CREATE_CLOSURE, line);
 }
 
@@ -507,7 +485,7 @@ void CodeGenerator::operator()(Ternary& ternary)
 
 void CodeGenerator::SetUpGlobalVariables()
 {
-	std::string variable_name = "Print";
+	std::string variable_name = "PrintLine";
 	int index = m_global_table.AddGlobalVariable(std::move(variable_name));
-	m_global_variables["Print"] = index;
+	m_global_variables["PrintLine"] = index;
 }

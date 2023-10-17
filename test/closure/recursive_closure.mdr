@@ -1,0 +1,6 @@
+var makeRecursive = function(n) {
+  if (n == 0) return function(x) { return 1; };
+  return function(x) { return x * makeRecursive(n - 1)(x - 1); };
+};
+var factorial = makeRecursive(5);
+PrintLine(factorial(5));  // Should print 120

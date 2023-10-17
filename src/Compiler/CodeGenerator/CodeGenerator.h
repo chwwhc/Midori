@@ -124,7 +124,7 @@ private:
 
 	void operator()(Simple& simple);
 
-	void operator()(Let& let);
+	void operator()(Define& def);
 
 	void operator()(If& if_stmt);
 

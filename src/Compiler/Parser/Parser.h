@@ -19,7 +19,8 @@ private:
 	using Scope = std::unordered_map<std::string, VariableContext>;
 
 	TokenStream m_tokens;
-	std::vector<Scope> m_scopes = { Scope() };
+	std::vector<Scope> m_scopes;
+	std::unordered_set<std::string> m_native_functions;
 	int m_function_depth = 0;
 	int m_current = 0;
 	int m_total_locals = 0;
@@ -29,7 +30,7 @@ private:
 public:
 	explicit Parser(TokenStream&& tokens) : m_tokens(std::move(tokens))
 	{
-		m_scopes.back()["Print"] = { 0, 0 };
+		m_native_functions.emplace("PrintLine");
 	}
 
 	Result::ParserResult Parse();
@@ -99,7 +100,10 @@ private:
 		return lower_expr;
 	}
 
-	inline void BeginScope() { m_scopes.emplace_back(Scope()); }
+	inline void BeginScope() 
+	{ 
+		m_scopes.emplace_back(Scope()); 
+	}
 
 	inline int EndScope()
 	{
@@ -125,17 +129,11 @@ private:
 		return name;
 	}
 
-	inline std::optional<int> GetLocalVariableIndex(const std::string& name)
+	inline int GetLocalVariableIndex(const std::string& name)
 	{
-		bool is_global = static_cast<int>(m_scopes.size()) == 1;
-		std::optional<int> local_index = std::nullopt;
-		if (!is_global)
-		{
-			m_scopes.back()[name] = { m_total_locals++, m_total_variables++ };
-			local_index.emplace(m_scopes.back()[name].m_relative_index);
-		}
+		m_scopes.back()[name] = { m_total_locals++, m_total_variables++ };
 
-		return local_index;
+		return m_scopes.back()[name].m_relative_index;
 	}
 
 	Result::ExpressionResult ParseExpression();
@@ -180,7 +178,7 @@ private:
 
 	Result::StatementResult ParseBlockStatement();
 
-	Result::StatementResult ParseLetStatement();
+	Result::StatementResult ParseDefineStatement();
 
 	Result::StatementResult ParseNamespaceDeclaration();
 

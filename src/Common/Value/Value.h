@@ -59,13 +59,13 @@ public:
 
 	static void PrintMemoryTelemetry() 
 	{
-		std::cout << "\n------------------------------\n";
-		std::cout << "Memory telemetry:\n";
-		std::cout << "Heap objects allocated: " << std::dec << s_objects.size() << '\n';
-		std::cout << "Total Bytes allocated: " << std::dec << s_total_bytes_allocated << '\n';
-		std::cout << "Static Bytes allocated: " << std::dec << s_static_bytes_allocated << '\n';
-		std::cout << "Dynamic Bytes allocated: " << std::dec << s_total_bytes_allocated - s_static_bytes_allocated;
-		std::cout << "\n------------------------------\n";
+		std::cout << "\n\t------------------------------\n";
+		std::cout << "\tMemory telemetry:\n";
+		std::cout << "\tHeap objects allocated: " << std::dec << s_objects.size() << '\n';
+		std::cout << "\tTotal Bytes allocated: " << std::dec << s_total_bytes_allocated << '\n';
+		std::cout << "\tStatic Bytes allocated: " << std::dec << s_static_bytes_allocated << '\n';
+		std::cout << "\tDynamic Bytes allocated: " << std::dec << s_total_bytes_allocated - s_static_bytes_allocated;
+		std::cout << "\n\t------------------------------\n\n";
 	}
 };
 
@@ -136,7 +136,7 @@ public:
 				}
 				else if constexpr (std::is_same_v<Type, std::monostate>)
 				{
-					return "nil";
+					return "#";
 				}
 				else if constexpr (std::is_same_v<Type, bool>)
 				{
@@ -163,8 +163,6 @@ public:
 class Object : public Traceable
 {
 public:
-	using Closure = std::vector<Value>;
-
 	struct NativeFunction
 	{
 		std::function<void()> m_cpp_function;
@@ -175,12 +173,22 @@ public:
 	struct DefinedFunction
 	{
 		BytecodeStream m_bytecode;
-		Closure m_closure;
 		int m_arity;
 	};
 
+	struct CellValue
+	{
+		Value m_value;
+	};
+
+	struct Closure
+	{
+		DefinedFunction m_function;
+		std::vector<Object*> m_cell_values;
+	};
+
 private:
-	std::variant<std::string, std::vector<Value>, NativeFunction, DefinedFunction> m_value;
+	std::variant<std::string, std::vector<Value>, NativeFunction, DefinedFunction, CellValue, Closure> m_value;
 
 public:
 
@@ -202,6 +210,14 @@ public:
 	inline DefinedFunction& GetDefinedFunction() const { return const_cast<DefinedFunction&>(std::get<DefinedFunction>(m_value)); }
 
 	inline bool IsDefinedFunction() const { return std::holds_alternative<DefinedFunction>(m_value); }
+
+	inline bool IsCellValue() const { return std::holds_alternative<CellValue>(m_value); }
+
+	inline CellValue& GetCellValue() const { return const_cast<CellValue&>(std::get<CellValue>(m_value)); }
+
+	inline bool IsClosure() const { return std::holds_alternative<Closure>(m_value); }
+
+	inline Closure& GetClosure() const { return const_cast<Closure&>(std::get<Closure>(m_value)); }
 
 	inline std::string ToString() const
 	{
@@ -232,6 +248,14 @@ public:
 				{
 					return "<defined function at: "  + std::to_string(reinterpret_cast<uintptr_t>(&arg.m_bytecode)) + ">";
 				}
+				else if constexpr (std::is_same_v<T, CellValue>)
+				{
+					return arg.m_value.ToString();
+				}
+				else if constexpr (std::is_same_v<T, Closure>)
+				{
+					return "<closure at: " + std::to_string(reinterpret_cast<uintptr_t>(&arg.m_function.m_bytecode)) + ">";
+				}
 				else
 				{
 					return "Unknown Object";	
@@ -253,4 +277,8 @@ private:
 	Object(NativeFunction&& native_function) : m_value(std::move(native_function)) {}
 
 	Object(DefinedFunction&& defined_function) : m_value(std::move(defined_function)) {}
+
+	Object(CellValue&& cell_value) : m_value(std::move(cell_value)) {}
+
+	Object(Closure&& closure) : m_value(std::move(closure)) {}
 };

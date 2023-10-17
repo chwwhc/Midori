@@ -1,0 +1,6 @@
+var counter = (function() {
+  var privateCounter = 0;
+  return function() { privateCounter = privateCounter + 1; return privateCounter; };
+})();
+PrintLine(counter());  // Should print 1
+PrintLine(counter());  // Should print 2
