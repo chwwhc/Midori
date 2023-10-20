@@ -1,5 +1,5 @@
-var makeAdder = function(a, b) {
-  return function(x) { return a + b + x; };
+var makeAdder = closure(a, b) {
+  return closure(x) { return a + b + x; };
 };
 var adder = makeAdder(3, 4);
 PrintLine(adder(5));  // Should print 12

@@ -8,9 +8,9 @@ var A = closure(k, x1, x2, x3, x4, x5)
     var B = closure()
     {
         k = k - 1;
-        return A(k, B, x1, x2, x3, x4); //decrement k before use
+        return A(k, B, x1, x2, x3, x4); 
     };
     return k > 0 ? B() : x4() + x5();
 };
 
-PrintLine(A(4, x(1), x(-1), x(-1), x(1), x(0))); // result: -67
+PrintLine(A(1, x(1), x(-1), x(-1), x(1), x(0)));

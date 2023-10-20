@@ -18,7 +18,7 @@ struct Unary;
 struct Assign;
 struct Variable;
 struct Call;
-struct Function;
+struct Closure;
 struct Ternary;
 struct Get;
 struct Set;
@@ -26,7 +26,7 @@ struct Array;
 struct ArrayGet;
 struct ArraySet;
 
-using Expression = std::variant < Binary, Logical, Group, String, Bool, Number, Unit, Unary, Assign, Variable, Call, Function, Ternary, Get, Set, Array, ArrayGet, ArraySet>;
+using Expression = std::variant < Binary, Logical, Group, String, Bool, Number, Unit, Unary, Assign, Variable, Call, Closure, Ternary, Get, Set, Array, ArrayGet, ArraySet>;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -161,9 +161,9 @@ struct Call
 	std::unique_ptr<Type> m_type = std::make_unique<Type>(AnyType());
 };
 
-struct Function
+struct Closure
 {
-	Token m_function_keyword;
+	Token m_closure_keyword;
 	std::vector<Token> m_params;
 	std::unique_ptr<Statement> m_body;
 	std::unique_ptr<Type> m_type = std::make_unique<Type>(AnyType());

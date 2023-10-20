@@ -1,6 +1,6 @@
-var makeAdder = function(a) {
-  return function(b) {
-    return function(c) {
+var makeAdder = closure(a) {
+  return closure(b) {
+    return closure(c) {
       return a + b + c;
     };
   };

@@ -6,6 +6,7 @@
 #include "Common/Value/GlobalVariableTable.h"
 #include "Interpreter/GarbageCollector/GarbageCollector.h"
 #include "Interpreter/NativeFunction/NativeFunction.h"
+#include "Compiler/Error/Error.h"
 
 #include <array>
 #include <functional>
@@ -22,7 +23,7 @@ class VirtualMachine
 
 public:
 
-	VirtualMachine(BytecodeStream&& bytecode, Traceable::GarbageCollectionRoots&& constant_roots, StaticData&& static_data, GlobalVariableTable&& global_table) : m_module(std::move(bytecode)), m_garbage_collector(GarbageCollector(std::move(constant_roots))), m_static_data(std::move(static_data)), m_global_table(std::move(global_table)), m_current_bytecode(&m_module), m_instruction_pointer(m_current_bytecode->cbegin()) {}
+	VirtualMachine(Result::ExecutableModule&& module) : m_executable_module(std::move(module)), m_garbage_collector(std::move(m_executable_module.m_constant_roots)), m_current_bytecode(&m_executable_module.m_modules[0]), m_instruction_pointer(m_current_bytecode->cbegin()) {}
 
 	~VirtualMachine() { Traceable::CleanUp(); }
 
@@ -41,7 +42,7 @@ private:
 
 	struct CallFrame
 	{
-		BytecodeStream* m_return_module = nullptr;
+		BytecodeStream* m_return_module;
 		StackPointer<ValueSlot, VALUE_STACK_MAX>  m_return_bp;
 		StackPointer<ValueSlot, VALUE_STACK_MAX>  m_return_sp;
 		InstructionPointer m_return_ip;
@@ -49,13 +50,11 @@ private:
 
 	std::array<ValueSlot, VALUE_STACK_MAX> m_value_stack;
 	std::array<CallFrame, FRAME_STACK_MAX> m_call_stack;
-	BytecodeStream m_module;
-	StaticData m_static_data;
+	Result::ExecutableModule m_executable_module;
 	GlobalVariables m_global_vars;
-	GlobalVariableTable m_global_table;
 	GarbageCollector m_garbage_collector;
-	std::vector<Object::Closure*> m_closures;
-	BytecodeStream* m_current_bytecode = nullptr;
+	std::vector<Traceable::Closure*> m_closures;
+	BytecodeStream* m_current_bytecode;
 	StackPointer<ValueSlot, VALUE_STACK_MAX> m_base_pointer = m_value_stack.begin();
 	StackPointer<ValueSlot, VALUE_STACK_MAX> m_value_stack_pointer = m_value_stack.begin();
 	StackPointer<CallFrame, FRAME_STACK_MAX> m_call_stack_pointer = m_call_stack.begin();
@@ -105,46 +104,63 @@ private:
 				(static_cast<int>(ReadByte()) << 16);
 		}
 
-		return m_static_data.GetConstant(index);
+		return m_executable_module.m_static_data.GetConstant(index);
 	}
-	
+
 	inline const std::string& ReadGlobalVariable()
 	{
 		int index = static_cast<int>(ReadByte());
-		return m_global_table.GetGlobalVariable(index);
+		return m_executable_module.m_global_table.GetGlobalVariable(index);
 	}
 
 	inline void Push(Value&& value)
 	{
+		if (m_value_stack_pointer == m_value_stack.end())
 		{
-			if (m_value_stack_pointer == m_value_stack.end())
-			{
-				std::cerr << "Value stack overflow." << std::endl;
-				m_error = true;
-			}
-			m_value_stack_pointer->m_value = std::move(value);
-			++m_value_stack_pointer;
+			std::cerr << "Value stack overflow." << std::endl;
+			m_error = true;
 		}
+
+		m_value_stack_pointer->m_value = std::move(value);
+		++m_value_stack_pointer;
 	}
 
-	inline Value Pop()
+	inline Value& Pop()
 	{
 		if (m_value_stack_pointer == m_base_pointer)
 		{
 			std::cerr << "Value stack underflow." << std::endl;
 			m_error = true;
 		}
-		return (--m_value_stack_pointer)->m_value;
+
+		Value& value = (--m_value_stack_pointer)->m_value;
+		if (value.IsObjectPointer() && value.GetObjectPointer()->IsCellValue())
+		{
+			return value.GetObjectPointer()->GetCellValue().m_value;
+		}
+		else
+		{
+			return value;
+		}
 	}
 
-	inline ValueSlot& Peek(int distance)
+	inline Value& Peek(int distance)
 	{
 		if (m_value_stack_pointer - 1 - distance < m_base_pointer)
 		{
 			std::cerr << "Value stack underflow." << std::endl;
 			m_error = true;
 		}
-		return *(m_value_stack_pointer - 1 - distance);
+
+		Value& value = (m_value_stack_pointer - 1 - distance)->m_value;
+		if (value.IsObjectPointer() && value.GetObjectPointer()->IsCellValue())
+		{
+			return value.GetObjectPointer()->GetCellValue().m_value;
+		}
+		else
+		{
+			return value;
+		}
 	}
 
 	inline void CheckIsArray(const Value& val)
@@ -194,23 +210,23 @@ private:
 
 	inline static bool AreSameType(const Value& left, const Value& right) { return Value::AreSameType(left, right); }
 
-	inline static bool AreNumerical(const Value& left, const Value& right){ return left.IsNumber() && right.IsNumber(); }
+	inline static bool AreNumerical(const Value& left, const Value& right) { return left.IsNumber() && right.IsNumber(); }
 
-	inline static bool AreConcatenatable(const Value& left, const Value& right) 
-	{ 
+	inline static bool AreConcatenatable(const Value& left, const Value& right)
+	{
 		if (!left.IsObjectPointer() || !right.IsObjectPointer())
 		{
 			return false;
 		}
 
-		Object* left_value = left.GetObjectPointer();
-		Object* right_value = right.GetObjectPointer();
+		Traceable* left_value = left.GetObjectPointer();
+		Traceable* right_value = right.GetObjectPointer();
 
 		return (left_value->IsString() && right_value->IsString()) || (left_value->IsArray() && right_value->IsArray());
 	}
 
-	inline static bool Are32BitIntegers(const Value& left, const Value &right) 
-	{ 
+	inline static bool Are32BitIntegers(const Value& left, const Value& right)
+	{
 		if (!AreNumerical(left, right))
 		{
 			return false;
@@ -218,24 +234,22 @@ private:
 
 		double left_value = left.GetNumber();
 		double right_value = right.GetNumber();
-		
+
 		return left_value >= INT_MIN && left_value <= INT_MAX &&
 			right_value >= INT_MIN && right_value <= INT_MAX;
 	}
 
 	Traceable::GarbageCollectionRoots GetValueStackGarbageCollectionRoots();
 
-	Traceable::GarbageCollectionRoots GetGlobalGarbageCollectionRoots();
-
 	Traceable::GarbageCollectionRoots GetGarbageCollectionRoots();
 
 	void CollectGarbage();
 
 	template<typename T>
-	Object* RuntimeAllocateObject(T&& value)
+	Traceable* RuntimeAllocateObject(T&& value)
 	{
-		//CollectGarbage();
-		return Object::AllocateObject(std::forward<T>(value));
+		CollectGarbage();
+		return Traceable::AllocateObject(std::forward<T>(value));
 	}
 
 	void BinaryOperation(std::function<Value(const Value&, const Value&)>&& op, bool (*type_checker)(const Value&, const Value&));

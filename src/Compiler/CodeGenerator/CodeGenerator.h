@@ -9,15 +9,14 @@ class CodeGenerator
 public:
 
 private:
-	BytecodeStream m_module;
+	std::vector<BytecodeStream> m_modules = { BytecodeStream() };
 	std::vector<std::string> m_errors;
 	std::unordered_map<std::string, int> m_global_variables;
-#ifdef DEBUG
-	std::vector<const Object::DefinedFunction*> m_sub_modules;
-#endif
+
 	StaticData m_static_data;
 	GlobalVariableTable m_global_table;
 	Traceable::GarbageCollectionRoots m_traceable_constants;
+	int m_current_module_index = 0;
 
 public:
 
@@ -25,7 +24,7 @@ public:
 
 private:
 
-	inline void EmitByte(OpCode byte, int line) { m_module.AddByteCode(byte, line); }
+	inline void EmitByte(OpCode byte, int line) { m_modules[m_current_module_index].AddByteCode(byte, line); }
 
 	inline void EmitTwoBytes(int byte1, int byte2, int line)
 	{
@@ -46,7 +45,7 @@ private:
 		{
 			Traceable* traceable = static_cast<Traceable*>(value.GetObjectPointer());
 			m_traceable_constants.emplace(traceable);
-			Traceable::s_static_bytes_allocated += traceable->m_size;
+			Traceable::s_static_bytes_allocated += traceable->GetSize();
 		}
 
 		int index = m_static_data.AddConstant(std::move(value));
@@ -91,28 +90,28 @@ private:
 		EmitByte(op, line);
 		EmitByte(static_cast<OpCode>(0xff), line);
 		EmitByte(static_cast<OpCode>(0xff), line);
-		return m_module.GetByteCodeSize() - 2;
+		return m_modules[m_current_module_index].GetByteCodeSize() - 2;
 	}
 
 	inline void PatchJump(int offset, int line)
 	{
-		int jump = m_module.GetByteCodeSize() - offset - 2;
+		int jump = m_modules[m_current_module_index].GetByteCodeSize() - offset - 2;
 		if (jump > UINT16_MAX)
 		{
 			m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Too much code to jump over (max 65535).", line));
 		}
 
-		m_module.SetByteCode(offset, static_cast<OpCode>(jump & 0xff));
-		m_module.SetByteCode(offset + 1, static_cast<OpCode>((jump >> 8) & 0xff));
+		m_modules[m_current_module_index].SetByteCode(offset, static_cast<OpCode>(jump & 0xff));
+		m_modules[m_current_module_index].SetByteCode(offset + 1, static_cast<OpCode>((jump >> 8) & 0xff));
 	}
 
 	inline void EmitLoop(int loop_start, int line)
 	{
 		EmitByte(OpCode::JUMP_BACK, line);
 
-		int offset = m_module.GetByteCodeSize() - loop_start + 2;
+		int offset = m_modules[m_current_module_index].GetByteCodeSize() - loop_start + 2;
 		if (offset > UINT16_MAX)
-		{ 
+		{
 			m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Loop body too large (max 65535).", line));
 		}
 
@@ -168,7 +167,7 @@ private:
 
 	void operator()(Unit& nil);
 
-	void operator()(Function& function);
+	void operator()(Closure& closure);
 
 	void operator()(Array& array);
 

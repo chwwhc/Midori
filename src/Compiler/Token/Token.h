@@ -52,7 +52,7 @@ struct Token
 		// reserved
 		ELSE,
 		FALSE,
-		FUN,
+		CLOSURE,
 		FOR,
 		IF,
 		RETURN,

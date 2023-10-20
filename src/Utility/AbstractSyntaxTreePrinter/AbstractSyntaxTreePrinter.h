@@ -54,7 +54,7 @@ struct PrintAbstractSyntaxTree
 
 	void operator()(const Unit&, int depth = 0) const;
 
-	void operator()(const Function& function, int depth = 0) const;
+	void operator()(const Closure& closure, int depth = 0) const;
 
 	void operator()(const Array& array, int depth = 0) const;
 

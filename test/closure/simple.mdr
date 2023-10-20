@@ -1,5 +1,5 @@
-var x = function(y) {
-  return function() { return y; };
+var x = closure(y) {
+  return closure() { return y; };
 };
 var f = x(5);
 PrintLine(f()); // Should print 5

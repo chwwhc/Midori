@@ -1,6 +1,6 @@
 var getFunc = #;
 if (true) {
   var y = 5;
-  getFunc = function() { return y; };
+  getFunc = closure() { return y; };
 }
 PrintLine(getFunc());  // Should print 5

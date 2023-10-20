@@ -1,0 +1,9 @@
+var arr = [@3];
+for (var i = 0; i < 3; i = i + 1) {
+  (closure(i) {
+    arr[i] = closure() { return i; };
+  })(i);
+}
+PrintLine(arr[0]());  // Should print 0
+PrintLine(arr[1]());  // Should print 1
+PrintLine(arr[2]());  // Should print 2

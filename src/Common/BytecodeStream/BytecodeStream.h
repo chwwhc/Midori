@@ -56,7 +56,7 @@ enum class OpCode : uint8_t
     JUMP,
     JUMP_BACK,
 
-    // Functions
+    // Callable
     CALL,
 
     // Variable Operations

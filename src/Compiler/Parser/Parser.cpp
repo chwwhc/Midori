@@ -74,7 +74,7 @@ Result::ExpressionResult Parser::ParseAssignment()
 				if (find_result != scope_it->end())
 				{
 					// local
-					if (m_function_depth == 0 || scope_it == m_scopes.rbegin())
+					if (m_closure_depth == 0 || scope_it == m_scopes.rbegin())
 					{
 						return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Local(find_result->second.m_relative_index)));
 					}
@@ -291,7 +291,7 @@ Result::ExpressionResult Parser::ParsePrimary()
 			if (find_result != scope_it->end())
 			{
 				// local
-				if (m_function_depth == 0 || scope_it == m_scopes.rbegin())
+				if (m_closure_depth == 0 || scope_it == m_scopes.rbegin())
 				{
 					return std::make_unique<Expression>(Variable(std::move(Previous()), VariableSemantic::Local(find_result->second.m_relative_index)));
 				}
@@ -305,16 +305,16 @@ Result::ExpressionResult Parser::ParsePrimary()
 
 		return std::unexpected(GenerateParserError("Undefined Variable.", variable));
 	}
-	else if (Match(Token::Type::FUN))
+	else if (Match(Token::Type::CLOSURE))
 	{
-		Token& fun_keyword = Previous();
+		Token& keyword = Previous();
 
-		Consume(Token::Type::LEFT_PAREN, "Expected '(' before function parameters.");
+		Consume(Token::Type::LEFT_PAREN, "Expected '(' before closure parameters.");
 		std::vector<Token> params;
 
 		int prev_total_locals = m_total_locals;
 		m_total_locals = 0;
-		m_function_depth += 1;
+		m_closure_depth += 1;
 
 		std::vector<std::unique_ptr<Statement>> statements;
 		BeginScope();
@@ -341,13 +341,13 @@ Result::ExpressionResult Parser::ParsePrimary()
 				}
 			} while (Match(Token::Type::COMMA));
 
-			Result::TokenResult paren = Consume(Token::Type::RIGHT_PAREN, "Expected ')' before function parameters.");
+			Result::TokenResult paren = Consume(Token::Type::RIGHT_PAREN, "Expected ')' before closure parameters.");
 			if (!paren.has_value())
 			{
 				return std::unexpected(std::move(paren.error()));
 			}
 		}
-		Result::TokenResult brace = Consume(Token::Type::LEFT_BRACE, "Expected '{' before function expression body.");
+		Result::TokenResult brace = Consume(Token::Type::LEFT_BRACE, "Expected '{' before closure expression body.");
 		if (!brace.has_value())
 		{
 			return std::unexpected(std::move(brace.error()));
@@ -364,7 +364,7 @@ Result::ExpressionResult Parser::ParsePrimary()
 			statements.emplace_back(std::move(decl.value()));
 		}
 
-		brace = Consume(Token::Type::RIGHT_BRACE, "Expected '}' function expression body.");
+		brace = Consume(Token::Type::RIGHT_BRACE, "Expected '}' closure expression body.");
 		if (!brace.has_value())
 		{
 			return std::unexpected(std::move(brace.error()));
@@ -373,12 +373,12 @@ Result::ExpressionResult Parser::ParsePrimary()
 		Token& right_brace = Previous();
 		int block_local_count = EndScope();
 
-		std::unique_ptr<Statement> function_body = std::make_unique<Statement>(Block(std::move(right_brace), std::move(statements), block_local_count));
+		std::unique_ptr<Statement> closure_body = std::make_unique<Statement>(Block(std::move(right_brace), std::move(statements), block_local_count));
 
-		m_function_depth -= 1;
+		m_closure_depth -= 1;
 		m_total_locals = prev_total_locals;
 
-		return std::make_unique<Expression>(Function(std::move(fun_keyword), std::move(params), std::move(function_body)));
+		return std::make_unique<Expression>(Closure(std::move(keyword), std::move(params), std::move(closure_body)));
 	}
 	else if (Match(Token::Type::TRUE, Token::Type::FALSE))
 	{
@@ -831,9 +831,9 @@ Result::StatementResult Parser::ParseImportStatement()
 Result::StatementResult Parser::ParseReturnStatement()
 {
 	Token& keyword = Previous();
-	if (m_function_depth == 0)
+	if (m_closure_depth == 0)
 	{
-		return std::unexpected(GenerateParserError("'return' must be used inside a function.", keyword));
+		return std::unexpected(GenerateParserError("'return' must be used inside a closure.", keyword));
 	}
 
 	Result::ExpressionResult expr = ParseExpression();
@@ -935,7 +935,6 @@ void Parser::Synchronize()
 		switch (Peek(0).m_token_type)
 		{
 		case Token::Type::NAMESPACE:
-		case Token::Type::FUN:
 		case Token::Type::VAR:
 		case Token::Type::FIXED:
 		case Token::Type::FOR:

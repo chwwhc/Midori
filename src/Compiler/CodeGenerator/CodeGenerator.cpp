@@ -16,11 +16,7 @@ Result::CodeGeneratorResult CodeGenerator::GenerateCode(ProgramTree&& program_tr
 		return std::unexpected(std::move(m_errors));
 	}
 
-#ifdef DEBUG
-	return Result::GeneratedBytecodeBundle(std::move(m_module), std::move(m_traceable_constants), std::move(m_sub_modules), std::move(m_static_data), std::move(m_global_table));
-#else
-	return Result::GeneratedBytecodeBundle(std::move(m_module), std::move(m_traceable_constants), std::move(m_static_data), std::move(m_global_table));
-#endif
+	return Result::ExecutableModule(std::move(m_modules), std::move(m_traceable_constants), std::move(m_static_data), std::move(m_global_table));
 }
 
 void CodeGenerator::operator()(Block& block)
@@ -73,7 +69,7 @@ void CodeGenerator::operator()(If& if_stmt)
 
 void CodeGenerator::operator()(While& while_stmt)
 {
-	int loop_start = m_module.GetByteCodeSize();
+	int loop_start = m_modules[m_current_module_index].GetByteCodeSize();
 
 	std::visit([this](auto&& arg) {(*this)(arg); }, *while_stmt.m_condition);
 
@@ -93,7 +89,7 @@ void CodeGenerator::operator()(For& for_stmt)
 {
 	std::visit([this](auto&& arg) {(*this)(arg); }, *for_stmt.m_condition_intializer);
 
-	int loop_start = m_module.GetByteCodeSize();
+	int loop_start = m_modules[m_current_module_index].GetByteCodeSize();
 
 	int line = for_stmt.m_for_keyword.m_line;
 	if (for_stmt.m_condition.has_value())
@@ -276,7 +272,7 @@ void CodeGenerator::operator()(Call& call)
 	int arity = static_cast<int>(call.m_arguments.size());
 	if (arity > UINT8_MAX)
 	{
-		m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Too many function arguments (max 255).", call.m_paren.m_line));
+		m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Too many arguments (max 255).", call.m_paren.m_line));
 		return;
 	}
 
@@ -304,8 +300,8 @@ void CodeGenerator::operator()(Set& set)
 
 void CodeGenerator::operator()(Variable& variable)
 {
-	std::visit([&variable, this](auto&& arg) 
-		{ 
+	std::visit([&variable, this](auto&& arg)
+		{
 			using T = std::decay_t<decltype(arg)>;
 
 			if constexpr (std::is_same_v<T, VariableSemantic::Local>)
@@ -354,7 +350,7 @@ void CodeGenerator::operator()(Assign& assign)
 
 void CodeGenerator::operator()(String& string)
 {
-	EmitConstant(Object::AllocateObject(std::move(string.m_token.m_lexeme)), string.m_token.m_line);
+	EmitConstant(Traceable::AllocateObject(std::move(string.m_token.m_lexeme)), string.m_token.m_line);
 }
 
 void CodeGenerator::operator()(Bool& bool_expr)
@@ -372,28 +368,25 @@ void CodeGenerator::operator()(Unit& nil)
 	EmitByte(OpCode::UNIT, nil.m_token.m_line);
 }
 
-void CodeGenerator::operator()(Function& function)
+void CodeGenerator::operator()(Closure& closure)
 {
-	int line = function.m_function_keyword.m_line;
-	int arity = static_cast<int>(function.m_params.size());
+	int line = closure.m_closure_keyword.m_line;
+	int arity = static_cast<int>(closure.m_params.size());
 	if (arity > UINT8_MAX)
 	{
-		m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Too many function arguments (max 255).", line));
+		m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Too many arguments (max 255).", line));
 		return;
 	}
 
-	BytecodeStream prev_module = std::move(m_module);
-	m_module = BytecodeStream();
+	int prev_index = m_current_module_index;
+	m_modules.emplace_back(BytecodeStream());
+	m_current_module_index = static_cast<int>(m_modules.size() - 1u);
+	std::visit([this](auto&& arg) {(*this)(arg); }, *closure.m_body);
 
-	std::visit([this](auto&& arg) {(*this)(arg); }, *function.m_body);
+	Traceable* closure_ptr = Traceable::AllocateObject(Traceable::Closure(std::vector<Traceable*>(), m_current_module_index, arity));
+	m_current_module_index = prev_index;
 
-	BytecodeStream bytecode(std::move(m_module));
-	Object* closure_ptr = Object::AllocateObject(Object::Closure(Object::DefinedFunction(std::move(bytecode), std::move(arity)), std::vector<Object*>()));
-#ifdef DEBUG
-	m_sub_modules.emplace_back(&closure_ptr->GetClosure().m_function);
-#endif
-	m_module = std::move(prev_module);
-	EmitConstant(closure_ptr, line);
+	EmitConstant(std::move(closure_ptr), line);
 	EmitByte(OpCode::CREATE_CLOSURE, line);
 }
 

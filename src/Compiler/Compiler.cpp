@@ -53,14 +53,15 @@ namespace Compiler
 				else
 				{
 #ifdef DEBUG
-					Disassembler::DisassembleBytecodeStream(compilation_result.value().m_module, compilation_result.value().m_static_data, compilation_result.value().m_global_table, "main");
-					for (const Object::DefinedFunction* m : compilation_result.value().m_sub_modules)
+					Disassembler::DisassembleBytecodeStream(compilation_result.value().m_modules[0], compilation_result.value().m_static_data, compilation_result.value().m_global_table, "main");
+					for (size_t i = 1u; i < compilation_result.value().m_modules.size(); i += 1u)
 					{
-						std::string function_name = std::string("Function at: ") + std::to_string(reinterpret_cast<uintptr_t>(m));
-						Disassembler::DisassembleBytecodeStream(m->m_bytecode, compilation_result.value().m_static_data, compilation_result.value().m_global_table, function_name.data());
+						const BytecodeStream& bytecode = compilation_result.value().m_modules[i];
+						std::string function_name = std::string("Bytecode Stream at: ") + std::to_string(reinterpret_cast<uintptr_t>(&bytecode));
+						Disassembler::DisassembleBytecodeStream(bytecode, compilation_result.value().m_static_data, compilation_result.value().m_global_table, function_name.data());
 					}
 #endif
-					return { { std::move(compilation_result.value().m_module), std::move(compilation_result.value().m_constant_roots), std::move(compilation_result.value().m_static_data), std::move(compilation_result.value().m_global_table)} };
+					return compilation_result.value();
 				}
 			}
 		}

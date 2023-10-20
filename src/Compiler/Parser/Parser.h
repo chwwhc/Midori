@@ -21,7 +21,7 @@ private:
 	TokenStream m_tokens;
 	std::vector<Scope> m_scopes;
 	std::unordered_set<std::string> m_native_functions;
-	int m_function_depth = 0;
+	int m_closure_depth = 0;
 	int m_current = 0;
 	int m_total_locals = 0;
 	int m_total_variables = 0;

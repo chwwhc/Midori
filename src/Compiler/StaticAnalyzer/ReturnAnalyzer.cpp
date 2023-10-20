@@ -63,7 +63,7 @@ namespace ReturnAnalyzer
 					return std::visit([&stmt, &errors, &arg](auto&& inner_arg) -> void
 						{
 							using ET = std::decay_t<decltype(inner_arg)>;
-							if constexpr (std::is_same_v<ET, Function>)
+							if constexpr (std::is_same_v<ET, Closure>)
 							{
 								bool function_result = HasReturnStatement(*inner_arg.m_body);
 								if (!function_result)

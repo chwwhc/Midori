@@ -172,7 +172,7 @@ void PrintAbstractSyntaxTree::operator()(const Call& call, int depth) const
 void PrintAbstractSyntaxTree::operator()(const Get& get, int depth) const
 {
 	PrintWithIndentation(depth, "Get {");
-	PrintWithIndentation(depth + 1, "Object: ");
+	PrintWithIndentation(depth + 1, "Traceable: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *get.m_object);
 	PrintWithIndentation(depth + 1, "Name: " + get.m_name.m_lexeme);
 	PrintWithIndentation(depth, "}");
@@ -181,7 +181,7 @@ void PrintAbstractSyntaxTree::operator()(const Get& get, int depth) const
 void PrintAbstractSyntaxTree::operator()(const Set& set, int depth) const
 {
 	PrintWithIndentation(depth, "Set {");
-	PrintWithIndentation(depth + 1, "Object: ");
+	PrintWithIndentation(depth + 1, "Traceable: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *set.m_object);
 	PrintWithIndentation(depth + 1, "Name: " + set.m_name.m_lexeme);
 	PrintWithIndentation(depth + 1, "Value: ");
@@ -261,16 +261,16 @@ void PrintAbstractSyntaxTree::operator()(const Unit&, int depth) const
 	PrintWithIndentation(depth, "#");
 }
 
-void PrintAbstractSyntaxTree::operator()(const Function& function, int depth) const
+void PrintAbstractSyntaxTree::operator()(const Closure& closure, int depth) const
 {
-	PrintWithIndentation(depth, "Function {");
+	PrintWithIndentation(depth, "Closure {");
 	PrintWithIndentation(depth + 1, "Params: ");
-	for (const Token& param : function.m_params)
+	for (const Token& param : closure.m_params)
 	{
 		PrintWithIndentation(depth + 2, param.m_lexeme);
 	}
 	PrintWithIndentation(depth + 1, "Body: ");
-	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *function.m_body);
+	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *closure.m_body);
 	PrintWithIndentation(depth, "}");
 }
 

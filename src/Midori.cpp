@@ -60,7 +60,7 @@ int main()
 	if (compilation_result.has_value())
 	{
 		Result::ExecutableModule& compilation_result_value = compilation_result.value();
-		VirtualMachine vm(std::move(compilation_result_value.m_bytecode), std::move(compilation_result_value.m_constant_roots), std::move(compilation_result_value.m_static_data), std::move(compilation_result_value.m_global_table));
+		VirtualMachine vm(std::move(compilation_result_value));
 		vm.Execute();
 	}
 	else

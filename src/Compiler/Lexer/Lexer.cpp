@@ -11,7 +11,7 @@ const std::unordered_map<std::string, Token::Type> Lexer::s_keywords =
     {"true", Token::Type::TRUE},
 	{"var", Token::Type::VAR},
     {"fixed", Token::Type::FIXED},
-    {"function", Token::Type::FUN},
+    {"closure", Token::Type::CLOSURE},
     {"while", Token::Type::WHILE},
     {"do", Token::Type::DO},
     {"break", Token::Type::BREAK},

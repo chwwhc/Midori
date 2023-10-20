@@ -21,6 +21,4 @@ private:
 	void Mark(Traceable::GarbageCollectionRoots&& roots);
 
 	void Sweep();
-
-	Traceable::GarbageCollectionRoots GetChildren(Traceable* root);
 };

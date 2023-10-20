@@ -11,29 +11,14 @@
 
 namespace Result
 {
-	struct GeneratedBytecodeBundle
-	{
-		BytecodeStream m_module;
-		Traceable::GarbageCollectionRoots m_constant_roots;
-		StaticData m_static_data;
-		GlobalVariableTable m_global_table;
-#ifdef DEBUG
-		std::vector<const Object::DefinedFunction*> m_sub_modules;
-#endif
-
-#ifdef DEBUG
-		GeneratedBytecodeBundle(BytecodeStream&& bytecode, Traceable::GarbageCollectionRoots&& roots, std::vector<const Object::DefinedFunction*>&& modules, StaticData&& static_data, GlobalVariableTable&& global_table) : m_module(std::move(bytecode)), m_constant_roots(std::move(roots)), m_sub_modules(std::move(modules)), m_static_data(std::move(static_data)), m_global_table(std::move(global_table)) {}
-#else
-		GeneratedBytecodeBundle(BytecodeStream&& bytecode, Traceable::GarbageCollectionRoots&& roots, StaticData&& static_data, GlobalVariableTable&& global_table) : m_module(std::move(bytecode)), m_constant_roots(std::move(roots)), m_static_data(std::move(static_data)), m_global_table(std::move(global_table)) {}
-#endif
-	};
-
 	struct ExecutableModule
 	{
-		BytecodeStream m_bytecode;
+		std::vector<BytecodeStream> m_modules;
 		Traceable::GarbageCollectionRoots m_constant_roots;
 		StaticData m_static_data;
 		GlobalVariableTable m_global_table;
+
+		ExecutableModule(std::vector<BytecodeStream>&& bytecode_vector, Traceable::GarbageCollectionRoots&& roots, StaticData&& static_data, GlobalVariableTable&& global_table) : m_modules(std::move(bytecode_vector)), m_constant_roots(std::move(roots)), m_static_data(std::move(static_data)), m_global_table(std::move(global_table)) {}
 	};
 
 	using TokenResult = std::expected<Token, std::string>;
@@ -42,7 +27,7 @@ namespace Result
 	using StatementResult = std::expected<std::unique_ptr<Statement>, std::string>;
 	using ParserResult = std::expected<ProgramTree, std::vector<std::string>>;
 	using StaticAnalyzerResult = std::optional<std::vector<std::string>>;
-	using CodeGeneratorResult = std::expected<GeneratedBytecodeBundle, std::vector<std::string>>;
+	using CodeGeneratorResult = std::expected<ExecutableModule, std::vector<std::string>>;
 	using CompilerResult = std::expected<ExecutableModule, std::vector<std::string>>;
 }
 

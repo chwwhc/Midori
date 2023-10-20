@@ -1,7 +1,7 @@
-var createCounter = function(initial) {
-  var counter = function(value) {
+var createCounter = closure(initial) {
+  var counter = closure(value) {
     initial = initial + value;
-    return function() { return initial; };
+    return closure() { return initial; };
   };
   return counter;
 };

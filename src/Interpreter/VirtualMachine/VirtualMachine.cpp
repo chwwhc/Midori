@@ -5,8 +5,8 @@
 
 void VirtualMachine::BinaryOperation(std::function<Value(const Value&, const Value&)>&& op, bool (*type_checker)(const Value&, const Value&))
 {
-	const Value& right_peek = Peek(0).m_value;
-	const Value& left_peek = Peek(1).m_value;
+	const Value& right_peek = Peek(0);
+	const Value& left_peek = Peek(1);
 
 	if (!type_checker(left_peek, right_peek))
 	{
@@ -15,8 +15,8 @@ void VirtualMachine::BinaryOperation(std::function<Value(const Value&, const Val
 		return;
 	}
 
-	Value right = Pop();
-	Value left = Pop();
+	Value& right = Pop();
+	Value& left = Pop();
 
 	Push(op(left, right));
 }
@@ -26,7 +26,7 @@ Traceable::GarbageCollectionRoots VirtualMachine::GetValueStackGarbageCollection
 	Traceable::GarbageCollectionRoots roots;
 	for (StackPointer<VirtualMachine::ValueSlot, VALUE_STACK_MAX> it = m_value_stack.begin(); it < m_value_stack_pointer; ++it)
 	{
-		if (it->m_value.IsObjectPointer())
+		if (it->m_is_named && it->m_value.IsObjectPointer())
 		{
 			roots.emplace(static_cast<Traceable*>(it->m_value.GetObjectPointer()));
 		}
@@ -35,28 +35,9 @@ Traceable::GarbageCollectionRoots VirtualMachine::GetValueStackGarbageCollection
 	return roots;
 }
 
-Traceable::GarbageCollectionRoots VirtualMachine::GetGlobalGarbageCollectionRoots()
-{
-	Traceable::GarbageCollectionRoots roots;
-	for (GlobalVariables::const_iterator it = m_global_vars.cbegin(); it != m_global_vars.cend(); ++it)
-	{
-		const Value& value = it->second;
-		if (value.IsObjectPointer())
-		{
-			roots.emplace(static_cast<Traceable*>(value.GetObjectPointer()));
-		}
-	}
-
-	return roots;
-}
-
 Traceable::GarbageCollectionRoots VirtualMachine::GetGarbageCollectionRoots()
 {
-	Traceable::GarbageCollectionRoots stack_value_roots = GetValueStackGarbageCollectionRoots();
-	Traceable::GarbageCollectionRoots global_roots = GetGlobalGarbageCollectionRoots();
-	
-	stack_value_roots.insert(global_roots.begin(), global_roots.end());
-	return stack_value_roots;
+	return GetValueStackGarbageCollectionRoots();
 }
 
 void VirtualMachine::CollectGarbage()
@@ -93,11 +74,11 @@ void VirtualMachine::Execute()
 		std::cout << "          ";
 		for (StackPointer<VirtualMachine::ValueSlot, VALUE_STACK_MAX> it = m_base_pointer; it < m_value_stack_pointer; ++it)
 		{
-			std::cout << "[ " << it->m_value.ToString() << " | " << (it->m_is_named ? "named" : "unnamed") << " ]";
+			std::cout << "[ " << it->m_value.ToString() << " | " << (it->m_is_named ? 'L' : 'R') << " ]";
 		}
 		std::cout << std::endl;
 		int dbg_instruction_pointer = static_cast<int>(std::distance(m_current_bytecode->cbegin(), m_instruction_pointer));
-		Disassembler::DisassembleInstruction(*m_current_bytecode, m_static_data, m_global_table, dbg_instruction_pointer);
+		Disassembler::DisassembleInstruction(*m_current_bytecode, m_executable_module.m_static_data, m_executable_module.m_global_table, dbg_instruction_pointer);
 #endif
 		OpCode instruction = ReadByte();
 
@@ -133,17 +114,17 @@ void VirtualMachine::Execute()
 			arr.reserve(count);
 			for (int i = 0; i < count; i++)
 			{
-				arr.emplace_back(Pop());
+				arr.emplace_back(std::move(Pop()));
 			}
 			std::reverse(arr.begin(), arr.end());
-			Object* arr_object = RuntimeAllocateObject(std::move(arr));
+			Traceable* arr_object = RuntimeAllocateObject(std::move(arr));
 			Push(arr_object);
 			break;
 		}
 		case OpCode::GET_ARRAY:
 		{
 			int num_indices = static_cast<int>(ReadByte());
-			CheckIsArray(Peek(num_indices).m_value);
+			CheckIsArray(Peek(num_indices));
 			if (m_error)
 			{
 				return;
@@ -152,12 +133,12 @@ void VirtualMachine::Execute()
 			std::vector<Value> indices;
 			for (int i = 0; i < num_indices; i += 1)
 			{
-				indices.emplace_back(Pop());
+				indices.emplace_back(std::move(Pop()));
 			}
 
 			std::reverse(indices.begin(), indices.end());
 
-			Value arr = Pop();
+			Value& arr = Pop();
 			std::vector<Value>& arr_ref = arr.GetObjectPointer()->GetArray();
 
 			for (Value& index : indices)
@@ -204,23 +185,23 @@ void VirtualMachine::Execute()
 		case OpCode::SET_ARRAY:
 		{
 			int num_indices = static_cast<int>(ReadByte());
-			CheckIsArray(Peek(num_indices + 1).m_value);
+			CheckIsArray(Peek(num_indices + 1));
 			if (m_error)
 			{
 				return;
 			}
 
-			Value value_to_set = Pop();
+			Value& value_to_set = Pop();
 			std::vector<Value> indices;
 
 			for (int i = 0; i < num_indices; ++i)
 			{
-				indices.emplace_back(Pop());
+				indices.emplace_back(std::move(Pop()));
 			}
 
 			std::reverse(indices.begin(), indices.end());
 
-			Value arr = Pop();
+			Value& arr = Pop();
 			std::vector<Value>& arr_ref = arr.GetObjectPointer()->GetArray();
 
 			for (Value& index : indices)
@@ -266,7 +247,7 @@ void VirtualMachine::Execute()
 		}
 		case OpCode::RESERVE_ARRAY:
 		{
-			Value value = Pop();
+			Value& value = Pop();
 
 			CheckIsNumber(value);
 			if (m_error)
@@ -282,7 +263,7 @@ void VirtualMachine::Execute()
 			}
 
 			size_t size = static_cast<size_t>(value_as_double);
-			Object* arr_object = RuntimeAllocateObject(std::vector<Value>(size));
+			Traceable* arr_object = RuntimeAllocateObject(std::vector<Value>(size));
 			Push(arr_object);
 			break;
 		}
@@ -360,8 +341,8 @@ void VirtualMachine::Execute()
 		{
 			BinaryOperation([this](const Value& left, const Value& right)
 				{
-					Object* left_value = left.GetObjectPointer();
-					Object* right_value = right.GetObjectPointer();
+					Traceable* left_value = left.GetObjectPointer();
+					Traceable* right_value = right.GetObjectPointer();
 
 					if (left_value->IsArray()) {
 						const std::vector<Value>& left_value_vector_ref = left_value->GetArray();
@@ -430,38 +411,38 @@ void VirtualMachine::Execute()
 		}
 		case OpCode::NOT:
 		{
-			if (!Peek(0).m_value.IsBool())
+			if (!Peek(0).IsBool())
 			{
 				std::cerr << "Operand must be a boolean.";
 				m_error = true;
 				return;
 			}
 
-			(std::prev(m_value_stack_pointer))->m_value = Value(!Peek(0).m_value.GetBool());
+			(std::prev(m_value_stack_pointer))->m_value = Value(!Peek(0).GetBool());
 			break;
 		}
 		case OpCode::NEGATE:
 		{
-			if (!Peek(0).m_value.IsNumber())
+			if (!Peek(0).IsNumber())
 			{
 				std::cerr << "Operand must be a number.";
 				m_error = true;
 				return;
 			}
 
-			(std::prev(m_value_stack_pointer))->m_value = Value(-Peek(0).m_value.GetNumber());
+			(std::prev(m_value_stack_pointer))->m_value = Value(-Peek(0).GetNumber());
 			break;
 		}
 		case OpCode::JUMP_IF_FALSE:
 		{
 			int offset = ReadShort();
-			if (!Peek(0).m_value.IsBool())
+			if (!Peek(0).IsBool())
 			{
 				std::cerr << "Operand must be a boolean.";
 				m_error = true;
 				return;
 			}
-			if (!Peek(0).m_value.GetBool())
+			if (!Peek(0).GetBool())
 			{
 				m_instruction_pointer += offset;
 			}
@@ -471,13 +452,13 @@ void VirtualMachine::Execute()
 		case OpCode::JUMP_IF_TRUE:
 		{
 			int offset = ReadShort();
-			if (!Peek(0).m_value.IsBool())
+			if (!Peek(0).IsBool())
 			{
 				std::cerr << "Operand must be a boolean.";
 				m_error = true;
 				return;
 			}
-			if (Peek(0).m_value.GetBool())
+			if (Peek(0).GetBool())
 			{
 				m_instruction_pointer += offset;
 			}
@@ -499,21 +480,12 @@ void VirtualMachine::Execute()
 		case OpCode::CALL:
 		{
 			int arity = static_cast<int>(ReadByte());
-			const Value& function = Peek(arity).m_value;
+			const Value& callable = Peek(arity);
 
-			if (!function.IsObjectPointer())
+			// Native function
+			if (callable.IsNativeFunction())
 			{
-				std::cerr << "Not a callable.\n";
-				m_error = true;
-				return;
-			}
-
-			Object* function_ptr = function.GetObjectPointer();
-
-			// Native Function
-			if (function_ptr->IsNativeFunction())
-			{
-				Object::NativeFunction& native_function = function.GetObjectPointer()->GetNativeFunction();
+				Value::NativeFunction& native_function = callable.GetNativeFunction();
 
 				if (arity != native_function.m_arity)
 				{
@@ -525,11 +497,11 @@ void VirtualMachine::Execute()
 				native_function.m_cpp_function();
 				m_value_stack_pointer -= arity;
 			}
-			else if (function_ptr->IsClosure())
+			else if (callable.IsObjectPointer() && callable.GetObjectPointer()->IsClosure())
 			{
-				Object::Closure& closure = function.GetObjectPointer()->GetClosure();
-
-				if (arity != closure.m_function.m_arity)
+				Traceable::Closure& closure = callable.GetObjectPointer()->GetClosure();
+				
+				if (arity != closure.m_arity)
 				{
 					std::cerr << "Incorrect arity";
 					m_error = true;
@@ -541,24 +513,44 @@ void VirtualMachine::Execute()
 				// Return address := pop all the arguments and the callee
 				*m_call_stack_pointer++ = { m_current_bytecode , m_base_pointer, m_value_stack_pointer - arity - 1, m_instruction_pointer };
 
-				m_current_bytecode = &closure.m_function.m_bytecode;
+				m_current_bytecode = &m_executable_module.m_modules[closure.m_bytecode_index];
 				m_instruction_pointer = m_current_bytecode->cbegin();
 				m_base_pointer = m_value_stack_pointer - arity;
+				for (VirtualMachine::StackPointer<ValueSlot, VALUE_STACK_MAX> it = m_base_pointer; it != m_value_stack_pointer; ++it)
+				{
+					if (it->m_value.IsObjectPointer() && it->m_value.GetObjectPointer()->IsCellValue())
+					{
+						it->m_value = it->m_value.GetObjectPointer()->GetCellValue().m_value;
+					}
+				}
+			}
+			else
+			{
+				std::cerr << "Not a callable.\n";
+				m_error = true;
+				return;
 			}
 
 			break;
 		}
 		case OpCode::CREATE_CLOSURE:
 		{
-			Object::Closure& closure = Peek(0).m_value.GetObjectPointer()->GetClosure();
-			closure.m_cell_values.clear();
-			std::vector<Object*>& captured_variables = closure.m_cell_values;
+			Value& closure_value = Peek(0);
+			Traceable* new_closure = RuntimeAllocateObject(Traceable::Closure(closure_value.GetObjectPointer()->GetClosure()));
+			Traceable* old_closure = closure_value.GetObjectPointer();
+			Traceable::Closure& new_closure_ref = new_closure->GetClosure();
+			Traceable::Closure& old_closure_ref = old_closure->GetClosure();
+			new_closure_ref.m_cell_values.clear();
+			old_closure_ref.m_cell_values.clear();
+			std::vector<Traceable*>& new_captured_variables = new_closure_ref.m_cell_values;
+			std::vector<Traceable*>& old_captured_variables = old_closure_ref.m_cell_values;
 
 			if (!m_closures.empty())
 			{
-				for (Object* enclosed_cell_value : m_closures.back()->m_cell_values)
+				for (Traceable* enclosed_cell_value : m_closures.back()->m_cell_values)
 				{
-					captured_variables.emplace_back(RuntimeAllocateObject(Object::CellValue(enclosed_cell_value->GetCellValue())));
+					new_captured_variables.emplace_back(enclosed_cell_value);
+					old_captured_variables.emplace_back(enclosed_cell_value);
 				}
 			}
 
@@ -566,10 +558,22 @@ void VirtualMachine::Execute()
 			{
 				if (it->m_is_named)
 				{
-					captured_variables.emplace_back(RuntimeAllocateObject(Object::CellValue(it->m_value)));
+					if (it->m_value.IsObjectPointer() && it->m_value.GetObjectPointer()->IsCellValue())
+					{
+						new_captured_variables.emplace_back(it->m_value.GetObjectPointer());
+						old_captured_variables.emplace_back(it->m_value.GetObjectPointer());
+					}
+					else
+					{
+						Traceable* cell_value = RuntimeAllocateObject(Traceable::CellValue(std::move(it->m_value)));
+						it->m_value = Value(cell_value);
+						new_captured_variables.emplace_back(cell_value);
+						old_captured_variables.emplace_back(cell_value);
+					}
 				}
 			}
 
+			closure_value = Value(new_closure);
 			break;
 		}
 		case OpCode::GET_NATIVE:
@@ -595,7 +599,15 @@ void VirtualMachine::Execute()
 		case OpCode::SET_LOCAL:
 		{
 			int offset = static_cast<int>(ReadByte());
-			(m_base_pointer + offset)->m_value = Peek(0).m_value;
+			Value& value = (m_base_pointer + offset)->m_value;
+			if (value.IsObjectPointer() && value.GetObjectPointer()->IsCellValue())
+			{
+				value.GetObjectPointer()->GetCellValue().m_value = Peek(0);
+			}
+			else
+			{
+				value = Peek(0);
+			}
 			break;
 		}
 		case OpCode::GET_CELL:
@@ -608,7 +620,7 @@ void VirtualMachine::Execute()
 		case OpCode::SET_CELL:
 		{
 			int offset = static_cast<int>(ReadByte());
-			m_closures.back()->m_cell_values[offset]->GetCellValue().m_value = Peek(0).m_value;
+			m_closures.back()->m_cell_values[offset]->GetCellValue().m_value = Peek(0);
 			break;
 		}
 		case OpCode::DEFINE_NAME:
@@ -632,7 +644,7 @@ void VirtualMachine::Execute()
 			CallFrame& top_frame = *(--m_call_stack_pointer);
 			m_closures.pop_back();
 
-			Value return_val = Pop();
+			Value& return_val = Pop();
 
 			m_current_bytecode = top_frame.m_return_module;
 			m_base_pointer = top_frame.m_return_bp;
@@ -646,9 +658,6 @@ void VirtualMachine::Execute()
 		{
 			return;
 		}
-
-
-
 		default:
 		{
 			std::cout << "Unknown instruction: " << static_cast<int>(instruction) << std::endl;
