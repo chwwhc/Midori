@@ -110,17 +110,16 @@ void VirtualMachine::Execute()
 		case OpCode::CREATE_ARRAY:
 		{
 			int count = ReadThreeBytes();
-			std::vector<Value> arr;
-			arr.reserve(count);
-			for (int i = 0; i < count; i++)
+			std::vector<Value> arr(count);  
+			for (int i = count - 1; i >= 0; i -= 1) 
 			{
-				arr.emplace_back(std::move(Pop()));
+				arr[i] = std::move(Pop());
 			}
-			std::reverse(arr.begin(), arr.end());
 			Traceable* arr_object = RuntimeAllocateObject(std::move(arr));
 			Push(arr_object);
 			break;
 		}
+
 		case OpCode::GET_ARRAY:
 		{
 			int num_indices = static_cast<int>(ReadByte());
@@ -130,13 +129,11 @@ void VirtualMachine::Execute()
 				return;
 			}
 
-			std::vector<Value> indices;
-			for (int i = 0; i < num_indices; i += 1)
+			std::vector<Value> indices(num_indices);
+			for (int i = num_indices - 1; i >= 0; i -= 1)
 			{
-				indices.emplace_back(std::move(Pop()));
+				indices[i] = std::move(Pop());
 			}
-
-			std::reverse(indices.begin(), indices.end());
 
 			Value& arr = Pop();
 			std::vector<Value>& arr_ref = arr.GetObjectPointer()->GetArray();
@@ -192,14 +189,11 @@ void VirtualMachine::Execute()
 			}
 
 			Value& value_to_set = Pop();
-			std::vector<Value> indices;
-
-			for (int i = 0; i < num_indices; ++i)
+			std::vector<Value> indices(num_indices);
+			for (int i = num_indices - 1; i >= 0; i -= 1)
 			{
-				indices.emplace_back(std::move(Pop()));
+				indices[i] = std::move(Pop());
 			}
-
-			std::reverse(indices.begin(), indices.end());
 
 			Value& arr = Pop();
 			std::vector<Value>& arr_ref = arr.GetObjectPointer()->GetArray();
