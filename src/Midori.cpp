@@ -5,6 +5,7 @@
 #include <sstream>
 #include <iostream>
 #include <iomanip>
+#include <algorithm>
 
 std::optional<std::string> ReadFile(const char* filename)
 {
@@ -26,7 +27,7 @@ int main()
 	std::cout << "\033[32m";  // Set the text color to green
 	std::cout << std::endl;
 
-	const char* lines[] = 
+	const char* lines[] =
 	{
 		"	MM MM III DDDD   OOO  RRRR  III ",
 		"	MM MM  I  D   D O   O R   R  I  ",
@@ -35,10 +36,10 @@ int main()
 		"	M   M III DDDD   OOO  R   R III "
 	};
 
-	for (int i = 0; i < 5; i += 1) 
+	for (int i = 0; i < 5; i += 1)
 	{
 		std::cout << lines[i] << std::setw(10) << "|";
-		if (i == 2) 
+		if (i == 2)
 		{
 			std::cout << "\t緑 (MIDORI) Language REPL";
 		}
@@ -56,19 +57,24 @@ int main()
 		std::exit(60);
 	}
 
-	auto compilation_result = Compiler::Compile(std::move(script.value()));
+	MidoriResult::CompilerResult compilation_result = Compiler::Compile(std::move(script.value()));
 	if (compilation_result.has_value())
 	{
-		Result::ExecutableModule& compilation_result_value = compilation_result.value();
+		MidoriResult::ExecutableModule& compilation_result_value = compilation_result.value();
 		VirtualMachine vm(std::move(compilation_result_value));
-		vm.Execute();
+		MidoriResult::InterpreterResult vm_result = vm.Execute();
+		if (vm_result.has_value())
+		{
+			std::cout << "Program exited normally" << std::endl;
+		}
+		else
+		{
+			std::cerr << vm_result.error() << std::endl;
+		}
 	}
 	else
 	{
-		for (const std::string& error : compilation_result.error())
-		{
-			std::cerr << error << std::endl;
-		}
+		std::for_each(compilation_result.error().cbegin(), compilation_result.error().cend(), [](const std::string& error) { std::cerr << error << std::endl; });
 	}
 
 	return 0;

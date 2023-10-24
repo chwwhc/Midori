@@ -1,6 +1,7 @@
 #pragma once
 
-#include "Compiler/Error/Error.h"
+#include "Common/Error/Error.h"
+#include "Common/Result/Result.h"
 
 #include <unordered_map>
 #include <expected>
@@ -33,7 +34,7 @@ public:
 		m_native_functions.emplace("PrintLine");
 	}
 
-	Result::ParserResult Parse();
+	MidoriResult::ParserResult Parse();
 
 private:
 
@@ -42,7 +43,7 @@ private:
 	inline std::string GenerateParserError(const char* message, const Token& token)
 	{
 		Synchronize();
-		return CompilerError::GenerateParserError(message, token);
+		return MidoriError::GenerateParserError(message, token);
 	}
 
 	inline bool IsAtEnd() { return Peek(0).m_token_type == Token::Type::END_OF_FILE; }
@@ -55,14 +56,14 @@ private:
 
 	inline Token& Advance() { if (!IsAtEnd()) { m_current += 1; } return Previous(); }
 
-	inline Result::TokenResult Consume(Token::Type type, const char* message)
+	inline MidoriResult::TokenResult Consume(Token::Type type, const char* message)
 	{
 		if (Check(type, 0))
 		{
 			return Advance();
 		}
 
-		return std::unexpected(CompilerError::GenerateParserError(message, Peek(0)));
+		return std::unexpected<std::string>(MidoriError::GenerateParserError(message, Peek(0)));
 	}
 
 	template <typename... T>
@@ -77,21 +78,21 @@ private:
 	}
 
 	template <typename... T>
-	inline Result::ExpressionResult ParseBinary(Result::ExpressionResult(Parser::* operand)(), T... types)
+	inline MidoriResult::ExpressionResult ParseBinary(MidoriResult::ExpressionResult(Parser::* operand)(), T... types)
 	{
-		Result::ExpressionResult lower_expr = (this->*operand)();
+		MidoriResult::ExpressionResult lower_expr = (this->*operand)();
 		if (!lower_expr.has_value())
 		{
-			return std::unexpected(std::move(lower_expr.error()));
+			return std::unexpected<std::string>(std::move(lower_expr.error()));
 		}
 
 		while (Match(types...))
 		{
 			const Token& op = Previous();
-			Result::ExpressionResult right = (this->*operand)();
+			MidoriResult::ExpressionResult right = (this->*operand)();
 			if (!right.has_value())
 			{
-				return std::unexpected(std::move(right.error()));
+				return std::unexpected<std::string>(std::move(right.error()));
 			}
 
 			lower_expr = std::make_unique<Expression>(Binary(std::move(op), std::move(lower_expr.value()), std::move(right.value())));
@@ -114,12 +115,12 @@ private:
 		return block_local_count;
 	}
 
-	inline Result::TokenResult DefineName(const Token& name)
+	inline MidoriResult::TokenResult DefineName(const Token& name)
 	{
 		Scope::const_iterator it = m_scopes.back().find(name.m_lexeme);
 		if (it != m_scopes.back().end())
 		{
-			return std::unexpected(CompilerError::GenerateParserError("Name already declared in this scope.", name));
+			return std::unexpected<std::string>(MidoriError::GenerateParserError("Name already declared in this scope.", name));
 		}
 		else
 		{
@@ -136,67 +137,67 @@ private:
 		return m_scopes.back()[name].m_relative_index;
 	}
 
-	Result::ExpressionResult ParseExpression();
+	MidoriResult::ExpressionResult ParseExpression();
 
-	Result::ExpressionResult ParseFactor();
+	MidoriResult::ExpressionResult ParseFactor();
 
-	Result::ExpressionResult ParseShift();
+	MidoriResult::ExpressionResult ParseShift();
 
-	Result::ExpressionResult ParseTerm();
+	MidoriResult::ExpressionResult ParseTerm();
 
-	Result::ExpressionResult ParseComparison();
+	MidoriResult::ExpressionResult ParseComparison();
 
-	Result::ExpressionResult ParseEquality();
+	MidoriResult::ExpressionResult ParseEquality();
 
-	Result::ExpressionResult ParseBitwiseAnd();
+	MidoriResult::ExpressionResult ParseBitwiseAnd();
 
-	Result::ExpressionResult ParseBitwiseXor();
+	MidoriResult::ExpressionResult ParseBitwiseXor();
 
-	Result::ExpressionResult ParseBitwiseOr();
+	MidoriResult::ExpressionResult ParseBitwiseOr();
 
-	Result::ExpressionResult ParseAssignment();
+	MidoriResult::ExpressionResult ParseAssignment();
 
-	Result::ExpressionResult ParseUnary();
+	MidoriResult::ExpressionResult ParseUnary();
 
-	Result::ExpressionResult ParseArrayAccessHelper(std::unique_ptr<Expression>&& arr_var);
+	MidoriResult::ExpressionResult ParseArrayAccessHelper(std::unique_ptr<Expression>&& arr_var);
 
-	Result::ExpressionResult ParseArrayAccess();
+	MidoriResult::ExpressionResult ParseArrayAccess();
 
-	Result::ExpressionResult ParseTernary();
+	MidoriResult::ExpressionResult ParseTernary();
 
-	Result::ExpressionResult ParseCall();
+	MidoriResult::ExpressionResult ParseCall();
 
-	Result::ExpressionResult FinishCall(std::unique_ptr<Expression>&& callee);
+	MidoriResult::ExpressionResult FinishCall(std::unique_ptr<Expression>&& callee);
 
-	Result::ExpressionResult ParsePrimary();
+	MidoriResult::ExpressionResult ParsePrimary();
 
-	Result::ExpressionResult ParseLogicalAnd();
+	MidoriResult::ExpressionResult ParseLogicalAnd();
 
-	Result::ExpressionResult ParseLogicalOr();
+	MidoriResult::ExpressionResult ParseLogicalOr();
 
-	Result::StatementResult ParseDeclaration();
+	MidoriResult::StatementResult ParseDeclaration();
 
-	Result::StatementResult ParseBlockStatement();
+	MidoriResult::StatementResult ParseBlockStatement();
 
-	Result::StatementResult ParseDefineStatement();
+	MidoriResult::StatementResult ParseDefineStatement();
 
-	Result::StatementResult ParseNamespaceDeclaration();
+	MidoriResult::StatementResult ParseNamespaceDeclaration();
 
-	Result::StatementResult ParseIfStatement();
+	MidoriResult::StatementResult ParseIfStatement();
 
-	Result::StatementResult ParseWhileStatement();
+	MidoriResult::StatementResult ParseWhileStatement();
 
-	Result::StatementResult ParseForStatement();
+	MidoriResult::StatementResult ParseForStatement();
 
-	Result::StatementResult ParseBreakStatement();
+	MidoriResult::StatementResult ParseBreakStatement();
 
-	Result::StatementResult ParseContinueStatement();
+	MidoriResult::StatementResult ParseContinueStatement();
 
-	Result::StatementResult ParseSimpleStatement();
+	MidoriResult::StatementResult ParseSimpleStatement();
 
-	Result::StatementResult ParseImportStatement();
+	MidoriResult::StatementResult ParseImportStatement();
 
-	Result::StatementResult ParseReturnStatement();
+	MidoriResult::StatementResult ParseReturnStatement();
 
-	Result::StatementResult ParseStatement();
+	MidoriResult::StatementResult ParseStatement();
 };

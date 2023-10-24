@@ -1,6 +1,7 @@
 #pragma once
 
-#include "Compiler/Error/Error.h"
+#include "Common/Error/Error.h"
+#include "Common/Result/Result.h"
 
 #include <unordered_map>
 
@@ -20,7 +21,7 @@ private:
 
 public:
 
-	Result::CodeGeneratorResult GenerateCode(ProgramTree&& program_tree);
+	MidoriResult::CodeGeneratorResult GenerateCode(ProgramTree&& program_tree);
 
 private:
 
@@ -70,7 +71,7 @@ private:
 		}
 		else
 		{
-			m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Too many constants (max 16777215).", line));
+			m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too many constants (max 16777215).", line));
 		}
 	}
 
@@ -78,7 +79,7 @@ private:
 	{
 		if (variable_index > UINT8_MAX)
 		{
-			m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Too many variables (max 255).", line));
+			m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too many variables (max 255).", line));
 		}
 
 		EmitByte(op, line);
@@ -98,7 +99,7 @@ private:
 		int jump = m_modules[m_current_module_index].GetByteCodeSize() - offset - 2;
 		if (jump > UINT16_MAX)
 		{
-			m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Too much code to jump over (max 65535).", line));
+			m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too much code to jump over (max 65535).", line));
 		}
 
 		m_modules[m_current_module_index].SetByteCode(offset, static_cast<OpCode>(jump & 0xff));
@@ -112,7 +113,7 @@ private:
 		int offset = m_modules[m_current_module_index].GetByteCodeSize() - loop_start + 2;
 		if (offset > UINT16_MAX)
 		{
-			m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Loop body too large (max 65535).", line));
+			m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Loop body too large (max 65535).", line));
 		}
 
 		EmitByte(static_cast<OpCode>(offset & 0xff), line);

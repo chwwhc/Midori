@@ -1,6 +1,7 @@
 #include "AbstractSyntaxTreePrinter.h"
 
 #include <iostream>
+#include <algorithm>
 
 void PrintAbstractSyntaxTree::PrintWithIndentation(int depth, std::string text) const
 {
@@ -15,10 +16,10 @@ void PrintAbstractSyntaxTree::PrintWithIndentation(int depth, std::string text) 
 void PrintAbstractSyntaxTree::operator()(const Block& block, int depth) const
 {
 	PrintWithIndentation(depth, "Block {");
-	for (const std::unique_ptr<Statement>& stmt : block.m_stmts)
-	{
-		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 1); }, *stmt);
-	}
+	std::for_each(block.m_stmts.cbegin(), block.m_stmts.cend(), [depth, this](const std::unique_ptr<Statement>& stmt)
+		{
+			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 1); }, *stmt);
+		});
 	PrintWithIndentation(depth, "}");
 }
 
@@ -162,10 +163,10 @@ void PrintAbstractSyntaxTree::operator()(const Call& call, int depth) const
 	PrintWithIndentation(depth + 1, "Callee: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *call.m_callee);
 	PrintWithIndentation(depth + 1, "Args: ");
-	for (const std::unique_ptr<Expression>& arg : call.m_arguments)
-	{
-		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *arg);
-	}
+	std::for_each(call.m_arguments.cbegin(), call.m_arguments.cend(), [depth, this](const std::unique_ptr<Expression>& arg)
+		{
+			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *arg);
+		});
 	PrintWithIndentation(depth, "}");
 }
 
@@ -265,10 +266,10 @@ void PrintAbstractSyntaxTree::operator()(const Closure& closure, int depth) cons
 {
 	PrintWithIndentation(depth, "Closure {");
 	PrintWithIndentation(depth + 1, "Params: ");
-	for (const Token& param : closure.m_params)
-	{
-		PrintWithIndentation(depth + 2, param.m_lexeme);
-	}
+	std::for_each(closure.m_params.cbegin(), closure.m_params.cend(), [depth, this](const Token& param)
+		{
+			PrintWithIndentation(depth + 2, param.m_lexeme);
+		});
 	PrintWithIndentation(depth + 1, "Body: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *closure.m_body);
 	PrintWithIndentation(depth, "}");
@@ -278,10 +279,10 @@ void PrintAbstractSyntaxTree::operator()(const Array& array, int depth) const
 {
 	PrintWithIndentation(depth, "Array {");
 	PrintWithIndentation(depth + 1, "Elements: ");
-	for (const std::unique_ptr<Expression>& element : array.m_elems)
-	{
-		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *element);
-	}
+	std::for_each(array.m_elems.cbegin(), array.m_elems.cend(), [depth, this](const std::unique_ptr<Expression>& element)
+		{
+			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *element);
+		});
 	PrintWithIndentation(depth, "}");
 }
 
@@ -291,10 +292,10 @@ void PrintAbstractSyntaxTree::operator()(const ArrayGet& array_get, int depth) c
 	PrintWithIndentation(depth + 1, "Array: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *array_get.m_arr_var);
 	PrintWithIndentation(depth + 1, "Index: ");
-	for (const std::unique_ptr<Expression>& index : array_get.m_indices)
-	{
-		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *index);
-	}
+	std::for_each(array_get.m_indices.cbegin(), array_get.m_indices.cend(), [depth, this](const std::unique_ptr<Expression>& index)
+		{
+			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *index);
+		});
 	PrintWithIndentation(depth, "}");
 }
 
@@ -304,10 +305,10 @@ void PrintAbstractSyntaxTree::PrintAbstractSyntaxTree::operator()(const ArraySet
 	PrintWithIndentation(depth + 1, "Array: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *array_set.m_arr_var);
 	PrintWithIndentation(depth + 1, "Index: ");
-	for (const std::unique_ptr<Expression>& index : array_set.m_indices)
-	{
-		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *index);
-	}
+	std::for_each(array_set.m_indices.cbegin(), array_set.m_indices.cend(), [depth, this](const std::unique_ptr<Expression>& index)
+		{
+			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *index);
+		});
 	PrintWithIndentation(depth + 1, "Value: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *array_set.m_value);
 	PrintWithIndentation(depth, "}");

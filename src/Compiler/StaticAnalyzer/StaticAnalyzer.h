@@ -1,11 +1,12 @@
 #pragma once
 
-#include "Compiler/Error/Error.h"
+#include "Common/Error/Error.h"
+#include "Common/Result/Result.h"
 
 class StaticAnalyzer
 {
 public:
-	static Result::StaticAnalyzerResult AnalyzeProgram(const ProgramTree& prog)
+	static MidoriResult::StaticAnalyzerResult AnalyzeProgram(const ProgramTree& prog)
 	{
 		std::vector<std::string> result = AnalyzeReturn(prog);
 		if (result.empty())

@@ -1,8 +1,9 @@
 #pragma once
 
-#include "Compiler/Error/Error.h"
+#include "Common/Error/Error.h"
+#include "Common/Result/Result.h"
 
 namespace Compiler
 {
-	Result::CompilerResult Compile(std::string&& script);
+	MidoriResult::CompilerResult Compile(std::string&& script);
 };

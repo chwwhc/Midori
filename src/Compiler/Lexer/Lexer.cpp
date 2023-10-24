@@ -63,7 +63,7 @@ std::optional<std::string> Lexer::SkipWhitespaceAndComments()
 
                 if (IsAtEnd(0))
                 {
-                    return CompilerError::GenerateLexerError("Unterminated block comment.", m_line);
+                    return MidoriError::GenerateLexerError("Unterminated block comment.", m_line);
                 }
 
                 // The closing "*/".
@@ -81,7 +81,7 @@ std::optional<std::string> Lexer::SkipWhitespaceAndComments()
     }
 }
 
-Result::TokenResult Lexer::MatchString()
+MidoriResult::TokenResult Lexer::MatchString()
 {
     std::string result;
 
@@ -128,7 +128,7 @@ Result::TokenResult Lexer::MatchString()
 
     if (IsAtEnd(0))
     {
-        return std::unexpected(CompilerError::GenerateLexerError("Unterminated string.", m_line));
+        return std::unexpected<std::string>(MidoriError::GenerateLexerError("Unterminated string.", m_line));
     }
     else
     {
@@ -181,11 +181,11 @@ Token Lexer::MatchIdentifierOrReserved()
     }
 }
 
-Result::TokenResult Lexer::LexOneToken()
+MidoriResult::TokenResult Lexer::LexOneToken()
 {
     if (SkipWhitespaceAndComments().has_value())
     {
-        return std::unexpected(SkipWhitespaceAndComments().value());
+        return std::unexpected<std::string>(SkipWhitespaceAndComments().value());
     }
 
     if (IsAtEnd(0))
@@ -333,12 +333,12 @@ Result::TokenResult Lexer::LexOneToken()
         }
         else
         {
-            return std::unexpected(CompilerError::GenerateLexerError("Invalid character.", m_line));
+            return std::unexpected<std::string>(MidoriError::GenerateLexerError("Invalid character.", m_line));
         }
     }
 }
 
-Result::LexerResult Lexer::Lex()
+MidoriResult::LexerResult Lexer::Lex()
 {
     TokenStream token_stream;
     std::vector<std::string> errors;
@@ -358,7 +358,7 @@ Result::LexerResult Lexer::Lex()
 
     if (!errors.empty())
     {
-        return std::unexpected(errors);
+        return std::unexpected<std::vector<std::string>>(errors);
     }
 
     if (std::prev(token_stream.cend())->m_token_type != Token::Type::END_OF_FILE)

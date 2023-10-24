@@ -68,7 +68,7 @@ namespace ReturnAnalyzer
 								bool function_result = HasReturnStatement(*inner_arg.m_body);
 								if (!function_result)
 								{
-									errors.emplace_back(CompilerError::GenerateStaticAnalyzerError("Does not return in all paths.", arg.m_name));
+									errors.emplace_back(MidoriError::GenerateStaticAnalyzerError("Does not return in all paths.", arg.m_name));
 								}
 
 								const Block& body = std::get<Block>(*inner_arg.m_body);

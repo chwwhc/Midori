@@ -1,13 +1,12 @@
 #include "GarbageCollector.h"
 
+#include <algorithm>
+
 void GarbageCollector::Mark(Traceable::GarbageCollectionRoots&& roots)
 {
 	roots.insert(m_constant_roots.begin(), m_constant_roots.end());
 
-	for (Traceable* obj : roots)
-	{
-		obj->Trace();
-	}
+	std::for_each(Traceable::s_objects.begin(), Traceable::s_objects.end(), [](Traceable* obj) { obj->Trace(); });
 }
 
 void GarbageCollector::Sweep()

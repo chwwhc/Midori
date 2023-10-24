@@ -12,30 +12,30 @@
 
 namespace Compiler
 {
-	Result::CompilerResult Compile(std::string&& script)
+	MidoriResult::CompilerResult Compile(std::string&& script)
 	{
 		Lexer lexer(std::move(script));
-		Result::LexerResult lexer_result = lexer.Lex();
+		MidoriResult::LexerResult lexer_result = lexer.Lex();
 		if (!lexer_result.has_value())
 		{
-			return std::unexpected(std::move(lexer_result.error()));
+			return std::unexpected<std::vector<std::string>>(std::move(lexer_result.error()));
 		}
 		else
 		{
 			TokenStream tokens = std::move(lexer_result.value());
 			Parser parser(std::move(tokens));
-			Result::ParserResult parser_result = parser.Parse();
+			MidoriResult::ParserResult parser_result = parser.Parse();
 			if (!parser_result.has_value())
 			{
-				return std::unexpected(std::move(parser_result.error()));
+				return std::unexpected<std::vector<std::string>>(std::move(parser_result.error()));
 			}
 			else
 			{
 				ProgramTree program = std::move(parser_result.value());
-				Result::StaticAnalyzerResult static_analyzer_result = StaticAnalyzer::AnalyzeProgram(program);
+				MidoriResult::StaticAnalyzerResult static_analyzer_result = StaticAnalyzer::AnalyzeProgram(program);
 				if (static_analyzer_result.has_value())
 				{
-					return std::unexpected(std::move(static_analyzer_result.value()));
+					return std::unexpected<std::vector<std::string>>(std::move(static_analyzer_result.value()));
 				}
 #ifdef DEBUG
 				PrintAbstractSyntaxTree ast_printer;
@@ -45,10 +45,10 @@ namespace Compiler
 				}
 #endif
 				CodeGenerator code_generator;
-				Result::CodeGeneratorResult compilation_result = code_generator.GenerateCode(std::move(program));
+				MidoriResult::CodeGeneratorResult compilation_result = code_generator.GenerateCode(std::move(program));
 				if (!compilation_result.has_value())
 				{
-					return std::unexpected(std::move(compilation_result.error()));
+					return std::unexpected<std::vector<std::string>>(std::move(compilation_result.error()));
 				}
 				else
 				{

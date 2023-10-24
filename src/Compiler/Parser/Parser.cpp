@@ -1,62 +1,62 @@
 #include "Parser.h"
 
-#include <iostream>
+#include <algorithm>
 
-Result::ExpressionResult Parser::ParseFactor()
+MidoriResult::ExpressionResult Parser::ParseFactor()
 {
 	return ParseBinary(&Parser::ParseUnary, Token::Type::STAR, Token::Type::SLASH, Token::Type::PERCENT);
 }
 
-Result::ExpressionResult Parser::ParseShift()
+MidoriResult::ExpressionResult Parser::ParseShift()
 {
 	return ParseBinary(&Parser::ParseTerm, Token::Type::LEFT_SHIFT, Token::Type::RIGHT_SHIFT);
 }
 
-Result::ExpressionResult Parser::ParseTerm()
+MidoriResult::ExpressionResult Parser::ParseTerm()
 {
 	return ParseBinary(&Parser::ParseFactor, Token::Type::SINGLE_PLUS, Token::Type::DOUBLE_PLUS, Token::Type::MINUS);
 }
 
-Result::ExpressionResult Parser::ParseComparison()
+MidoriResult::ExpressionResult Parser::ParseComparison()
 {
 	return ParseBinary(&Parser::ParseShift, Token::Type::LESS, Token::Type::LESS_EQUAL, Token::Type::GREATER, Token::Type::GREATER_EQUAL);
 }
 
-Result::ExpressionResult Parser::ParseEquality()
+MidoriResult::ExpressionResult Parser::ParseEquality()
 {
 	return ParseBinary(&Parser::ParseComparison, Token::Type::BANG_EQUAL, Token::Type::DOUBLE_EQUAL);
 }
 
-Result::ExpressionResult Parser::ParseBitwiseAnd()
+MidoriResult::ExpressionResult Parser::ParseBitwiseAnd()
 {
 	return ParseBinary(&Parser::ParseEquality, Token::Type::SINGLE_AMPERSAND);
 }
 
-Result::ExpressionResult Parser::ParseBitwiseXor()
+MidoriResult::ExpressionResult Parser::ParseBitwiseXor()
 {
 	return ParseBinary(&Parser::ParseBitwiseAnd, Token::Type::CARET);
 }
 
-Result::ExpressionResult Parser::ParseBitwiseOr()
+MidoriResult::ExpressionResult Parser::ParseBitwiseOr()
 {
 	return ParseBinary(&Parser::ParseBitwiseXor, Token::Type::SINGLE_BAR);
 }
 
-Result::ExpressionResult Parser::ParseAssignment()
+MidoriResult::ExpressionResult Parser::ParseAssignment()
 {
-	Result::ExpressionResult expr = ParseTernary();
+	MidoriResult::ExpressionResult expr = ParseTernary();
 	if (!expr.has_value())
 	{
-		return std::unexpected(std::move(expr.error()));
+		return std::unexpected<std::string>(std::move(expr.error()));
 	}
 
 	if (Match(Token::Type::SINGLE_EQUAL))
 	{
 		Token& equal = Previous();
-		Result::ExpressionResult value = ParseAssignment();
+		MidoriResult::ExpressionResult value = ParseAssignment();
 		if (!value.has_value())
 		{
-			return std::unexpected(std::move(value.error()));
+			return std::unexpected<std::string>(std::move(value.error()));
 		}
 
 		if (std::holds_alternative<Variable>(*expr.value()))
@@ -86,7 +86,7 @@ Result::ExpressionResult Parser::ParseAssignment()
 				}
 			}
 
-			return std::unexpected(GenerateParserError("Undefined Variable.", variable_expr.m_name));
+			return std::unexpected<std::string>(GenerateParserError("Undefined Variable.", variable_expr.m_name));
 		}
 		else if (std::holds_alternative<Get>(*expr.value()))
 		{
@@ -99,21 +99,21 @@ Result::ExpressionResult Parser::ParseAssignment()
 			return std::make_unique<Expression>(ArraySet(std::move(access_expr.m_op), std::move(access_expr.m_arr_var), std::move(access_expr.m_indices), std::move(value.value())));
 		}
 
-		return std::unexpected(GenerateParserError("Invalid assignment target.", equal));
+		return std::unexpected<std::string>(GenerateParserError("Invalid assignment target.", equal));
 	}
 
 	return expr;
 }
 
-Result::ExpressionResult Parser::ParseUnary()
+MidoriResult::ExpressionResult Parser::ParseUnary()
 {
 	if (Match(Token::Type::BANG, Token::Type::MINUS))
 	{
 		Token& op = Previous();
-		Result::ExpressionResult right = ParseUnary();
+		MidoriResult::ExpressionResult right = ParseUnary();
 		if (!right.has_value())
 		{
-			return std::unexpected(std::move(right.error()));
+			return std::unexpected<std::string>(std::move(right.error()));
 		}
 
 		return std::make_unique<Expression>(Unary(std::move(op), std::move(right.value())));
@@ -122,59 +122,59 @@ Result::ExpressionResult Parser::ParseUnary()
 	return ParseCall();
 }
 
-Result::ExpressionResult Parser::ParseTernary()
+MidoriResult::ExpressionResult Parser::ParseTernary()
 {
-	Result::ExpressionResult condition = ParseLogicalOr();
+	MidoriResult::ExpressionResult condition = ParseLogicalOr();
 	if (!condition.has_value())
 	{
-		return std::unexpected(std::move(condition.error()));
+		return std::unexpected<std::string>(std::move(condition.error()));
 	}
 
 	if (Match(Token::Type::QUESTION))
 	{
 		Token& question = Previous();
-		Result::ExpressionResult true_branch = ParseTernary();
+		MidoriResult::ExpressionResult true_branch = ParseTernary();
 		if (!true_branch.has_value())
 		{
-			return std::unexpected(std::move(true_branch.error()));
+			return std::unexpected<std::string>(std::move(true_branch.error()));
 		}
 
 		if (Match(Token::Type::SINGLE_COLON))
 		{
 			Token& colon = Previous();
-			Result::ExpressionResult else_branch = ParseTernary();
+			MidoriResult::ExpressionResult else_branch = ParseTernary();
 			if (!else_branch.has_value())
 			{
-				return std::unexpected(std::move(else_branch.error()));
+				return std::unexpected<std::string>(std::move(else_branch.error()));
 			}
 
 			return std::make_unique<Expression>(Ternary(std::move(question), std::move(colon), std::move(condition.value()), std::move(true_branch.value()), std::move(else_branch.value())));
 		}
 		else
 		{
-			return std::unexpected(GenerateParserError("Expected ':' for ternary expression.", question));
+			return std::unexpected<std::string>(GenerateParserError("Expected ':' for ternary expression.", question));
 		}
 	}
 
 	return condition;
 }
 
-Result::ExpressionResult Parser::ParseExpression()
+MidoriResult::ExpressionResult Parser::ParseExpression()
 {
 	return ParseAssignment();
 }
 
-Result::ExpressionResult Parser::ParseArrayAccessHelper(std::unique_ptr<Expression>&& arr_var)
+MidoriResult::ExpressionResult Parser::ParseArrayAccessHelper(std::unique_ptr<Expression>&& arr_var)
 {
 	Token& op = Previous();
 	std::vector<std::unique_ptr<Expression>> indices;
 
 	while (Match(Token::Type::LEFT_BRACKET))
 	{
-		Result::ExpressionResult assignment = ParseAssignment();
+		MidoriResult::ExpressionResult assignment = ParseAssignment();
 		if (!assignment.has_value())
 		{
-			return std::unexpected(std::move(assignment.error()));
+			return std::unexpected<std::string>(std::move(assignment.error()));
 		}
 
 		indices.emplace_back(std::move(assignment.value()));
@@ -184,12 +184,12 @@ Result::ExpressionResult Parser::ParseArrayAccessHelper(std::unique_ptr<Expressi
 	return std::make_unique<Expression>(ArrayGet(std::move(op), std::move(arr_var), std::move(indices)));
 }
 
-Result::ExpressionResult Parser::ParseArrayAccess()
+MidoriResult::ExpressionResult Parser::ParseArrayAccess()
 {
-	Result::ExpressionResult arr_var = ParsePrimary();
+	MidoriResult::ExpressionResult arr_var = ParsePrimary();
 	if (!arr_var.has_value())
 	{
-		return std::unexpected(std::move(arr_var.error()));
+		return std::unexpected<std::string>(std::move(arr_var.error()));
 	}
 
 	if (Check(Token::Type::LEFT_BRACKET, 0))
@@ -200,12 +200,12 @@ Result::ExpressionResult Parser::ParseArrayAccess()
 	return arr_var;
 }
 
-Result::ExpressionResult Parser::ParseCall()
+MidoriResult::ExpressionResult Parser::ParseCall()
 {
-	Result::ExpressionResult expr = ParseArrayAccess();
+	MidoriResult::ExpressionResult expr = ParseArrayAccess();
 	if (!expr.has_value())
 	{
-		return std::unexpected(std::move(expr.error()));
+		return std::unexpected<std::string>(std::move(expr.error()));
 	}
 
 	while (true)
@@ -215,15 +215,15 @@ Result::ExpressionResult Parser::ParseCall()
 			expr = FinishCall(std::move(expr.value()));
 			if (!expr.has_value())
 			{
-				return std::unexpected(std::move(expr.error()));
+				return std::unexpected<std::string>(std::move(expr.error()));
 			}
 		}
 		else if (Match(Token::Type::DOT))
 		{
-			Result::TokenResult name = Consume(Token::Type::IDENTIFIER, "Expected identifier after '.'.");
+			MidoriResult::TokenResult name = Consume(Token::Type::IDENTIFIER, "Expected identifier after '.'.");
 			if (!name.has_value())
 			{
-				return std::unexpected(std::move(name.error()));
+				return std::unexpected<std::string>(std::move(name.error()));
 			}
 
 			expr = std::make_unique<Expression>(Get(std::move(name.value()), std::move(expr.value())));
@@ -237,17 +237,17 @@ Result::ExpressionResult Parser::ParseCall()
 	return expr;
 }
 
-Result::ExpressionResult Parser::FinishCall(std::unique_ptr<Expression>&& callee)
+MidoriResult::ExpressionResult Parser::FinishCall(std::unique_ptr<Expression>&& callee)
 {
 	std::vector<std::unique_ptr<Expression>> arguments;
 	if (!Check(Token::Type::RIGHT_PAREN, 0))
 	{
 		do
 		{
-			Result::ExpressionResult expr = ParseExpression();
+			MidoriResult::ExpressionResult expr = ParseExpression();
 			if (!expr.has_value())
 			{
-				return std::unexpected(std::move(expr.error()));
+				return std::unexpected<std::string>(std::move(expr.error()));
 			}
 
 			arguments.emplace_back(std::move(expr.value()));
@@ -255,23 +255,23 @@ Result::ExpressionResult Parser::FinishCall(std::unique_ptr<Expression>&& callee
 	}
 
 	std::expected<Token, std::string> paren = Consume(Token::Type::RIGHT_PAREN, "Expected ')' after arguments.");
-	return paren.has_value() ? Result::ExpressionResult(std::make_unique<Expression>(Call(std::move(paren.value()), std::move(callee), std::move(arguments)))) : std::unexpected(paren.error());
+	return paren.has_value() ? MidoriResult::ExpressionResult(std::make_unique<Expression>(Call(std::move(paren.value()), std::move(callee), std::move(arguments)))) : std::unexpected<std::string>(paren.error());
 }
 
-Result::ExpressionResult Parser::ParsePrimary()
+MidoriResult::ExpressionResult Parser::ParsePrimary()
 {
 	if (Match(Token::Type::LEFT_PAREN))
 	{
-		Result::ExpressionResult expr_in = ParseExpression();
+		MidoriResult::ExpressionResult expr_in = ParseExpression();
 		if (!expr_in.has_value())
 		{
-			return std::unexpected(std::move(expr_in.error()));
+			return std::unexpected<std::string>(std::move(expr_in.error()));
 		}
 
-		Result::TokenResult paren = Consume(Token::Type::RIGHT_PAREN, "Expected right parentheses.");
+		MidoriResult::TokenResult paren = Consume(Token::Type::RIGHT_PAREN, "Expected right parentheses.");
 		if (!paren.has_value())
 		{
-			return std::unexpected(std::move(paren.error()));
+			return std::unexpected<std::string>(std::move(paren.error()));
 		}
 
 		return std::make_unique<Expression>(Group(std::move(expr_in.value())));
@@ -303,7 +303,7 @@ Result::ExpressionResult Parser::ParsePrimary()
 			}
 		}
 
-		return std::unexpected(GenerateParserError("Undefined Variable.", variable));
+		return std::unexpected<std::string>(GenerateParserError("Undefined Variable.", variable));
 	}
 	else if (Match(Token::Type::CLOSURE))
 	{
@@ -323,13 +323,13 @@ Result::ExpressionResult Parser::ParsePrimary()
 		{
 			do
 			{
-				Result::TokenResult name = Consume(Token::Type::IDENTIFIER, "Expected parameter name.");
+				MidoriResult::TokenResult name = Consume(Token::Type::IDENTIFIER, "Expected parameter name.");
 				if (!name.has_value())
 				{
-					return std::unexpected(std::move(name.error()));
+					return std::unexpected<std::string>(std::move(name.error()));
 				}
 
-				Result::TokenResult param_name = DefineName(name.value());
+				MidoriResult::TokenResult param_name = DefineName(name.value());
 				if (param_name.has_value())
 				{
 					params.emplace_back(param_name.value());
@@ -337,28 +337,28 @@ Result::ExpressionResult Parser::ParsePrimary()
 				}
 				else
 				{
-					return std::unexpected(std::move(param_name.error()));
+					return std::unexpected<std::string>(std::move(param_name.error()));
 				}
 			} while (Match(Token::Type::COMMA));
 
-			Result::TokenResult paren = Consume(Token::Type::RIGHT_PAREN, "Expected ')' before closure parameters.");
+			MidoriResult::TokenResult paren = Consume(Token::Type::RIGHT_PAREN, "Expected ')' before closure parameters.");
 			if (!paren.has_value())
 			{
-				return std::unexpected(std::move(paren.error()));
+				return std::unexpected<std::string>(std::move(paren.error()));
 			}
 		}
-		Result::TokenResult brace = Consume(Token::Type::LEFT_BRACE, "Expected '{' before closure expression body.");
+		MidoriResult::TokenResult brace = Consume(Token::Type::LEFT_BRACE, "Expected '{' before closure expression body.");
 		if (!brace.has_value())
 		{
-			return std::unexpected(std::move(brace.error()));
+			return std::unexpected<std::string>(std::move(brace.error()));
 		}
 
 		while (!IsAtEnd() && !Check(Token::Type::RIGHT_BRACE, 0))
 		{
-			Result::StatementResult decl = ParseDeclaration();
+			MidoriResult::StatementResult decl = ParseDeclaration();
 			if (!decl.has_value())
 			{
-				return std::unexpected(std::move(decl.error()));
+				return std::unexpected<std::string>(std::move(decl.error()));
 			}
 
 			statements.emplace_back(std::move(decl.value()));
@@ -367,7 +367,7 @@ Result::ExpressionResult Parser::ParsePrimary()
 		brace = Consume(Token::Type::RIGHT_BRACE, "Expected '}' closure expression body.");
 		if (!brace.has_value())
 		{
-			return std::unexpected(std::move(brace.error()));
+			return std::unexpected<std::string>(std::move(brace.error()));
 		}
 
 		Token& right_brace = Previous();
@@ -407,16 +407,16 @@ Result::ExpressionResult Parser::ParsePrimary()
 		}
 		else if (Match(Token::Type::AT))
 		{
-			Result::ExpressionResult allocated_size = ParseTernary();
+			MidoriResult::ExpressionResult allocated_size = ParseTernary();
 			if (!allocated_size.has_value())
 			{
-				return std::unexpected(std::move(allocated_size.error()));
+				return std::unexpected<std::string>(std::move(allocated_size.error()));
 			}
 
-			Result::TokenResult bracket = Consume(Token::Type::RIGHT_BRACKET, "Expected ']' for array expression.");
+			MidoriResult::TokenResult bracket = Consume(Token::Type::RIGHT_BRACKET, "Expected ']' for array expression.");
 			if (!bracket.has_value())
 			{
-				return std::unexpected(std::move(bracket.error()));
+				return std::unexpected<std::string>(std::move(bracket.error()));
 			}
 
 			return std::make_unique<Expression>(Array(std::move(op), std::move(expr_vector), std::move(allocated_size.value())));
@@ -424,76 +424,76 @@ Result::ExpressionResult Parser::ParsePrimary()
 
 		do
 		{
-			Result::ExpressionResult expr = ParseExpression();
+			MidoriResult::ExpressionResult expr = ParseExpression();
 			if (!expr.has_value())
 			{
-				return std::unexpected(std::move(expr.error()));
+				return std::unexpected<std::string>(std::move(expr.error()));
 			}
 
 			expr_vector.emplace_back(std::move(expr.value()));
 		} while (Match(Token::Type::COMMA));
 
-		Result::TokenResult bracket = Consume(Token::Type::RIGHT_BRACKET, "Expected ']' for array expression.");
+		MidoriResult::TokenResult bracket = Consume(Token::Type::RIGHT_BRACKET, "Expected ']' for array expression.");
 		if (!bracket.has_value())
 		{
-			return std::unexpected(std::move(bracket.error()));
+			return std::unexpected<std::string>(std::move(bracket.error()));
 		}
 
 		return std::make_unique<Expression>(Array(std::move(op), std::move(expr_vector), std::nullopt));
 	}
 	else
 	{
-		return std::unexpected(GenerateParserError("Expected expression.", Previous()));
+		return std::unexpected<std::string>(GenerateParserError("Expected expression.", Previous()));
 	}
 }
 
-Result::ExpressionResult Parser::ParseLogicalAnd()
+MidoriResult::ExpressionResult Parser::ParseLogicalAnd()
 {
-	Result::ExpressionResult expr = ParseBitwiseOr();
+	MidoriResult::ExpressionResult expr = ParseBitwiseOr();
 	if (!expr.has_value())
 	{
-		return std::unexpected(std::move(expr.error()));
+		return std::unexpected<std::string>(std::move(expr.error()));
 	}
 
 	while (Match(Token::Type::DOUBLE_AMPERSAND))
 	{
 		Token& op = Previous();
-		Result::ExpressionResult right = ParseBitwiseOr();
+		MidoriResult::ExpressionResult right = ParseBitwiseOr();
 		if (!right.has_value())
 		{
-			return std::unexpected(std::move(right.error()));
+			return std::unexpected<std::string>(std::move(right.error()));
 		}
 
-		expr = Result::ExpressionResult(std::make_unique<Expression>(Logical(std::move(op), std::move(expr.value()), std::move(right.value()))));
+		expr = MidoriResult::ExpressionResult(std::make_unique<Expression>(Logical(std::move(op), std::move(expr.value()), std::move(right.value()))));
 	}
 
 	return expr;
 }
 
-Result::ExpressionResult Parser::ParseLogicalOr()
+MidoriResult::ExpressionResult Parser::ParseLogicalOr()
 {
-	Result::ExpressionResult expr = ParseLogicalAnd();
+	MidoriResult::ExpressionResult expr = ParseLogicalAnd();
 	if (!expr.has_value())
 	{
-		return std::unexpected(std::move(expr.error()));
+		return std::unexpected<std::string>(std::move(expr.error()));
 	}
 
 	while (Match(Token::Type::DOUBLE_BAR))
 	{
 		Token& op = Previous();
-		Result::ExpressionResult right = ParseLogicalAnd();
+		MidoriResult::ExpressionResult right = ParseLogicalAnd();
 		if (!right.has_value())
 		{
-			return std::unexpected(std::move(right.error()));
+			return std::unexpected<std::string>(std::move(right.error()));
 		}
 
-		expr = Result::ExpressionResult(std::make_unique<Expression>(Logical(std::move(op), std::move(expr.value()), std::move(right.value()))));
+		expr = MidoriResult::ExpressionResult(std::make_unique<Expression>(Logical(std::move(op), std::move(expr.value()), std::move(right.value()))));
 	}
 
 	return expr;
 }
 
-Result::StatementResult Parser::ParseDeclaration()
+MidoriResult::StatementResult Parser::ParseDeclaration()
 {
 	if (Match(Token::Type::VAR, Token::Type::FIXED))
 	{
@@ -506,17 +506,17 @@ Result::StatementResult Parser::ParseDeclaration()
 	return ParseStatement();
 }
 
-Result::StatementResult Parser::ParseBlockStatement()
+MidoriResult::StatementResult Parser::ParseBlockStatement()
 {
 	std::vector<std::unique_ptr<Statement>> statements;
 	BeginScope();
 
 	while (!IsAtEnd() && !Check(Token::Type::RIGHT_BRACE, 0))
 	{
-		Result::StatementResult decl = ParseDeclaration();
+		MidoriResult::StatementResult decl = ParseDeclaration();
 		if (!decl.has_value())
 		{
-			return std::unexpected(std::move(decl.error()));
+			return std::unexpected<std::string>(std::move(decl.error()));
 		}
 		else
 		{
@@ -524,10 +524,10 @@ Result::StatementResult Parser::ParseBlockStatement()
 		}
 	}
 
-	Result::TokenResult brace = Consume(Token::Type::RIGHT_BRACE, "Expected '}' after block.");
+	MidoriResult::TokenResult brace = Consume(Token::Type::RIGHT_BRACE, "Expected '}' after block.");
 	if (!brace.has_value())
 	{
-		return std::unexpected(std::move(brace.error()));
+		return std::unexpected<std::string>(std::move(brace.error()));
 	}
 
 	Token& right_brace = Previous();
@@ -536,19 +536,19 @@ Result::StatementResult Parser::ParseBlockStatement()
 	return std::make_unique<Statement>(Block(std::move(right_brace), std::move(statements), std::move(block_local_count)));
 }
 
-Result::StatementResult Parser::ParseDefineStatement()
+MidoriResult::StatementResult Parser::ParseDefineStatement()
 {
 	bool is_fixed = Previous().m_token_type == Token::Type::FIXED;
-	Result::TokenResult var_name = Consume(Token::Type::IDENTIFIER, "Expected variable name.");
+	MidoriResult::TokenResult var_name = Consume(Token::Type::IDENTIFIER, "Expected variable name.");
 	if (!var_name.has_value())
 	{
-		return std::unexpected(std::move(var_name.error()));
+		return std::unexpected<std::string>(std::move(var_name.error()));
 	}
 
-	Result::TokenResult define_name_result = DefineName(var_name.value());
+	MidoriResult::TokenResult define_name_result = DefineName(var_name.value());
 	if (!define_name_result.has_value())
 	{
-		return std::unexpected(std::move(define_name_result.error()));
+		return std::unexpected<std::string>(std::move(define_name_result.error()));
 	}
 	Token& name = define_name_result.value();
 
@@ -556,17 +556,17 @@ Result::StatementResult Parser::ParseDefineStatement()
 
 	if (Match(Token::Type::SINGLE_EQUAL))
 	{
-		Result::ExpressionResult expr = ParseExpression();
+		MidoriResult::ExpressionResult expr = ParseExpression();
 		if (!expr.has_value())
 		{
-			return std::unexpected(std::move(expr.error()));
+			return std::unexpected<std::string>(std::move(expr.error()));
 		}
 		else
 		{
-			Result::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after variable declaration.");
+			MidoriResult::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after variable declaration.");
 			if (!semi_colon.has_value())
 			{
-				return std::unexpected(std::move(semi_colon.error()));
+				return std::unexpected<std::string>(std::move(semi_colon.error()));
 			}
 			else
 			{
@@ -576,58 +576,58 @@ Result::StatementResult Parser::ParseDefineStatement()
 	}
 	else
 	{
-		return std::unexpected(GenerateParserError("Expected initializer.", Previous()));
+		return std::unexpected<std::string>(GenerateParserError("Expected initializer.", Previous()));
 	}
 }
 
-Result::StatementResult Parser::ParseNamespaceDeclaration()
+MidoriResult::StatementResult Parser::ParseNamespaceDeclaration()
 {
-	Result::TokenResult name = Consume(Token::Type::IDENTIFIER, "Expected module name.");
+	MidoriResult::TokenResult name = Consume(Token::Type::IDENTIFIER, "Expected module name.");
 	if (!name.has_value())
 	{
-		return std::unexpected(std::move(name.error()));
+		return std::unexpected<std::string>(std::move(name.error()));
 	}
 
-	Result::TokenResult brace = Consume(Token::Type::LEFT_BRACE, "Expected '{' before module body.");
+	MidoriResult::TokenResult brace = Consume(Token::Type::LEFT_BRACE, "Expected '{' before module body.");
 	if (!brace.has_value())
 	{
-		return std::unexpected(std::move(brace.error()));
+		return std::unexpected<std::string>(std::move(brace.error()));
 	}
 
-	Result::StatementResult block = ParseBlockStatement();
+	MidoriResult::StatementResult block = ParseBlockStatement();
 	if (!block.has_value())
 	{
-		return std::unexpected(std::move(block.error()));
+		return std::unexpected<std::string>(std::move(block.error()));
 	}
 	return std::make_unique<Statement>(Namespace(std::move(name.value()), std::move(block.value())));
 }
 
-Result::StatementResult Parser::ParseIfStatement()
+MidoriResult::StatementResult Parser::ParseIfStatement()
 {
 	Token& if_token = Previous();
 
-	Result::TokenResult paren = Consume(Token::Type::LEFT_PAREN, "Expected '(' after \"if\".");
+	MidoriResult::TokenResult paren = Consume(Token::Type::LEFT_PAREN, "Expected '(' after \"if\".");
 	if (!paren.has_value())
 	{
-		return std::unexpected(std::move(paren.error()));
+		return std::unexpected<std::string>(std::move(paren.error()));
 	}
 
-	Result::ExpressionResult condition = ParseExpression();
+	MidoriResult::ExpressionResult condition = ParseExpression();
 	if (!condition.has_value())
 	{
-		return std::unexpected(std::move(condition.error()));
+		return std::unexpected<std::string>(std::move(condition.error()));
 	}
 
 	paren = Consume(Token::Type::RIGHT_PAREN, "Expected ')' after if condition.");
 	if (!paren.has_value())
 	{
-		return std::unexpected(std::move(paren.error()));
+		return std::unexpected<std::string>(std::move(paren.error()));
 	}
 
-	Result::StatementResult then_branch = ParseStatement();
+	MidoriResult::StatementResult then_branch = ParseStatement();
 	if (!then_branch.has_value())
 	{
-		return std::unexpected(std::move(then_branch.error()));
+		return std::unexpected<std::string>(std::move(then_branch.error()));
 	}
 
 	std::optional<std::unique_ptr<Statement>> else_branch = std::nullopt;
@@ -636,10 +636,10 @@ Result::StatementResult Parser::ParseIfStatement()
 	{
 		else_token.emplace(Previous());
 
-		Result::StatementResult else_branch_result = ParseStatement();
+		MidoriResult::StatementResult else_branch_result = ParseStatement();
 		if (!else_branch_result.has_value())
 		{
-			return std::unexpected(std::move(else_branch_result.error()));
+			return std::unexpected<std::string>(std::move(else_branch_result.error()));
 		}
 		else_branch.emplace(std::move(else_branch_result.value()));
 	}
@@ -647,56 +647,56 @@ Result::StatementResult Parser::ParseIfStatement()
 	return std::make_unique<Statement>(If(std::move(if_token), std::move(else_token), std::move(else_branch), std::move(condition.value()), std::move(then_branch.value())));
 }
 
-Result::StatementResult Parser::ParseWhileStatement()
+MidoriResult::StatementResult Parser::ParseWhileStatement()
 {
 	Token& keyword = Previous();
 
-	Result::TokenResult paren = Consume(Token::Type::LEFT_PAREN, "Expected '(' after \"while\".");
+	MidoriResult::TokenResult paren = Consume(Token::Type::LEFT_PAREN, "Expected '(' after \"while\".");
 	if (!paren.has_value())
 	{
-		return std::unexpected(std::move(paren.error()));
+		return std::unexpected<std::string>(std::move(paren.error()));
 	}
 
-	Result::ExpressionResult condition = ParseExpression();
+	MidoriResult::ExpressionResult condition = ParseExpression();
 	if (!condition.has_value())
 	{
-		return std::unexpected(std::move(condition.error()));
+		return std::unexpected<std::string>(std::move(condition.error()));
 	}
 
 	paren = Consume(Token::Type::RIGHT_PAREN, "Expected ')' after condition.");
 	if (!paren.has_value())
 	{
-		return std::unexpected(std::move(paren.error()));
+		return std::unexpected<std::string>(std::move(paren.error()));
 	}
 
-	Result::StatementResult body = ParseStatement();
+	MidoriResult::StatementResult body = ParseStatement();
 	if (!body.has_value())
 	{
-		return std::unexpected(std::move(body.error()));
+		return std::unexpected<std::string>(std::move(body.error()));
 	}
 
 	return std::make_unique<Statement>(While(std::move(keyword), std::move(condition.value()), std::move(body.value())));
 }
 
-Result::StatementResult Parser::ParseForStatement()
+MidoriResult::StatementResult Parser::ParseForStatement()
 {
 	Token& keyword = Previous();
 
 	BeginScope();
 
-	Result::TokenResult paren = Consume(Token::Type::LEFT_PAREN, "Expected '(' after \"for\".");
+	MidoriResult::TokenResult paren = Consume(Token::Type::LEFT_PAREN, "Expected '(' after \"for\".");
 	if (!paren.has_value())
 	{
-		return std::unexpected(std::move(paren.error()));
+		return std::unexpected<std::string>(std::move(paren.error()));
 	}
 
 	std::unique_ptr<Statement> initializer;
 	if (Match(Token::Type::VAR, Token::Type::FIXED))
 	{
-		Result::StatementResult init_result = ParseDefineStatement();
+		MidoriResult::StatementResult init_result = ParseDefineStatement();
 		if (!init_result.has_value())
 		{
-			return std::unexpected(std::move(init_result.error()));
+			return std::unexpected<std::string>(std::move(init_result.error()));
 		}
 		else
 		{
@@ -705,10 +705,10 @@ Result::StatementResult Parser::ParseForStatement()
 	}
 	else if (!Match(Token::Type::SINGLE_SEMICOLON))
 	{
-		Result::StatementResult init_result = ParseSimpleStatement();
+		MidoriResult::StatementResult init_result = ParseSimpleStatement();
 		if (!init_result.has_value())
 		{
-			return std::unexpected(std::move(init_result.error()));
+			return std::unexpected<std::string>(std::move(init_result.error()));
 		}
 		else
 		{
@@ -719,29 +719,29 @@ Result::StatementResult Parser::ParseForStatement()
 	std::optional<std::unique_ptr<Expression>> condition = std::nullopt;
 	if (!Check(Token::Type::SINGLE_SEMICOLON, 0))
 	{
-		Result::ExpressionResult expr = ParseExpression();
+		MidoriResult::ExpressionResult expr = ParseExpression();
 		if (!expr.has_value())
 		{
-			return std::unexpected(std::move(expr.error()));
+			return std::unexpected<std::string>(std::move(expr.error()));
 		}
 		else
 		{
 			condition.emplace(std::move(expr.value()));
 		}
 	}
-	Result::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after \"for\" condition.");
+	MidoriResult::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after \"for\" condition.");
 	if (!semi_colon.has_value())
 	{
-		return std::unexpected(std::move(semi_colon.error()));
+		return std::unexpected<std::string>(std::move(semi_colon.error()));
 	}
 
 	std::optional<std::unique_ptr<Statement>> increment = std::nullopt;
 	if (!Check(Token::Type::RIGHT_PAREN, 0))
 	{
-		Result::ExpressionResult expr = ParseExpression();
+		MidoriResult::ExpressionResult expr = ParseExpression();
 		if (!expr.has_value())
 		{
-			return std::unexpected(std::move(expr.error()));
+			return std::unexpected<std::string>(std::move(expr.error()));
 		}
 		else
 		{
@@ -751,13 +751,13 @@ Result::StatementResult Parser::ParseForStatement()
 	paren = Consume(Token::Type::RIGHT_PAREN, "Expected ')' after \"for\" clauses.");
 	if (!paren.has_value())
 	{
-		return std::unexpected(std::move(paren.error()));
+		return std::unexpected<std::string>(std::move(paren.error()));
 	}
 
-	Result::StatementResult body = ParseStatement();
+	MidoriResult::StatementResult body = ParseStatement();
 	if (!body.has_value())
 	{
-		return std::unexpected(std::move(body.error()));
+		return std::unexpected<std::string>(std::move(body.error()));
 	}
 
 	int control_block_local_count = EndScope();
@@ -767,92 +767,92 @@ Result::StatementResult Parser::ParseForStatement()
 	return body;
 }
 
-Result::StatementResult Parser::ParseBreakStatement()
+MidoriResult::StatementResult Parser::ParseBreakStatement()
 {
 	Token& keyword = Previous();
 
-	Result::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after \"break\".");
+	MidoriResult::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after \"break\".");
 	if (!semi_colon.has_value())
 	{
-		return std::unexpected(std::move(semi_colon.error()));
+		return std::unexpected<std::string>(std::move(semi_colon.error()));
 	}
 
 	return std::make_unique<Statement>(Break(std::move(keyword)));
 }
 
-Result::StatementResult Parser::ParseContinueStatement()
+MidoriResult::StatementResult Parser::ParseContinueStatement()
 {
 	Token& keyword = Previous();
 
-	Result::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after \"continue\".");
+	MidoriResult::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after \"continue\".");
 	if (!semi_colon.has_value())
 	{
-		return std::unexpected(std::move(semi_colon.error()));
+		return std::unexpected<std::string>(std::move(semi_colon.error()));
 	}
 
 	return std::make_unique<Statement>(Continue(std::move(keyword)));
 }
 
-Result::StatementResult Parser::ParseSimpleStatement()
+MidoriResult::StatementResult Parser::ParseSimpleStatement()
 {
-	Result::ExpressionResult expr = ParseExpression();
+	MidoriResult::ExpressionResult expr = ParseExpression();
 	if (!expr.has_value())
 	{
-		return std::unexpected(std::move(expr.error()));
+		return std::unexpected<std::string>(std::move(expr.error()));
 	}
 
-	Result::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after expression.");
+	MidoriResult::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after expression.");
 	if (!semi_colon.has_value())
 	{
-		return std::unexpected(std::move(semi_colon.error()));
+		return std::unexpected<std::string>(std::move(semi_colon.error()));
 	}
 
 	return std::make_unique<Statement>(Simple(std::move(semi_colon.value()), std::move(expr.value())));
 }
 
-Result::StatementResult Parser::ParseImportStatement()
+MidoriResult::StatementResult Parser::ParseImportStatement()
 {
 	Token& keyword = Previous();
-	Result::ExpressionResult path = ParseExpression();
+	MidoriResult::ExpressionResult path = ParseExpression();
 	if (!path.has_value())
 	{
-		return std::unexpected(std::move(path.error()));
+		return std::unexpected<std::string>(std::move(path.error()));
 	}
 
-	Result::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after script path.");
+	MidoriResult::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after script path.");
 	if (!semi_colon.has_value())
 	{
-		return std::unexpected(std::move(semi_colon.error()));
+		return std::unexpected<std::string>(std::move(semi_colon.error()));
 	}
 
 	return std::make_unique<Statement>(Import(std::move(keyword), std::move(path.value())));
 }
 
-Result::StatementResult Parser::ParseReturnStatement()
+MidoriResult::StatementResult Parser::ParseReturnStatement()
 {
 	Token& keyword = Previous();
 	if (m_closure_depth == 0)
 	{
-		return std::unexpected(GenerateParserError("'return' must be used inside a closure.", keyword));
+		return std::unexpected<std::string>(GenerateParserError("'return' must be used inside a closure.", keyword));
 	}
 
-	Result::ExpressionResult expr = ParseExpression();
+	MidoriResult::ExpressionResult expr = ParseExpression();
 	if (!expr.has_value())
 	{
-		return std::unexpected(std::move(expr.error()));
+		return std::unexpected<std::string>(std::move(expr.error()));
 	}
 
-	Result::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after return value.");
+	MidoriResult::TokenResult semi_colon = Consume(Token::Type::SINGLE_SEMICOLON, "Expected ';' after return value.");
 	if (!semi_colon.has_value())
 	{
-		return std::unexpected(std::move(semi_colon.error()));
+		return std::unexpected<std::string>(std::move(semi_colon.error()));
 	}
 
 	return std::make_unique<Statement>(Return(std::move(keyword), std::move(expr.value())));
 }
 
 
-Result::StatementResult Parser::ParseStatement()
+MidoriResult::StatementResult Parser::ParseStatement()
 {
 	if (Match(Token::Type::LEFT_BRACE))
 	{
@@ -892,7 +892,7 @@ Result::StatementResult Parser::ParseStatement()
 	}
 }
 
-Result::ParserResult Parser::Parse()
+MidoriResult::ParserResult Parser::Parse()
 {
 	ProgramTree programTree;
 	std::vector<std::string> errors;
@@ -900,7 +900,7 @@ Result::ParserResult Parser::Parse()
 	BeginScope();
 	while (!IsAtEnd())
 	{
-		Result::StatementResult result = ParseDeclaration();
+		MidoriResult::StatementResult result = ParseDeclaration();
 		if (result.has_value())
 		{
 			programTree.emplace_back(std::move(result.value()));
@@ -918,7 +918,7 @@ Result::ParserResult Parser::Parse()
 	}
 	else
 	{
-		return std::unexpected(std::move(errors));
+		return std::unexpected<std::vector<std::string>>(std::move(errors));
 	}
 }
 

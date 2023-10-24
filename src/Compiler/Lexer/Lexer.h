@@ -1,6 +1,7 @@
 #pragma once
 
-#include "Compiler/Error/Error.h"
+#include "Common/Error/Error.h"
+#include "Common/Result/Result.h"
 
 #include <string>
 #include <vector>
@@ -21,7 +22,7 @@ public:
 
     explicit Lexer(std::string&& source_code) noexcept : m_source_code(std::move(source_code)) {}
 
-    Result::LexerResult Lex();
+    MidoriResult::LexerResult Lex();
 
 private:
 
@@ -43,11 +44,11 @@ private:
 
     inline Token MakeToken(Token::Type type, std::string&& lexeme) { return Token(type, std::move(lexeme), m_line); }
 
-    Result::TokenResult LexOneToken();
+    MidoriResult::TokenResult LexOneToken();
 
     std::optional<std::string> SkipWhitespaceAndComments();
 
-    Result::TokenResult MatchString();
+    MidoriResult::TokenResult MatchString();
 
     Token MatchNumber();
 

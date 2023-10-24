@@ -1,30 +1,30 @@
-#pragma warning(disable: 4100)
-
 #include "CodeGenerator.h"
 
-Result::CodeGeneratorResult CodeGenerator::GenerateCode(ProgramTree&& program_tree)
+#include <algorithm>
+
+MidoriResult::CodeGeneratorResult CodeGenerator::GenerateCode(ProgramTree&& program_tree)
 {
 	SetUpGlobalVariables();
 
-	for (std::unique_ptr<Statement>& statement : program_tree)
-	{
-		std::visit([this](auto&& arg) { (*this)(arg); }, *statement);
-	}
+	std::for_each(program_tree.begin(), program_tree.end(), [this](std::unique_ptr<Statement>& statement)
+		{
+			std::visit([this](auto&& arg) { (*this)(arg); }, *statement);
+		});
 
 	if (!m_errors.empty())
 	{
-		return std::unexpected(std::move(m_errors));
+		return std::unexpected<std::vector<std::string>>(std::move(m_errors));
 	}
 
-	return Result::ExecutableModule(std::move(m_modules), std::move(m_traceable_constants), std::move(m_static_data), std::move(m_global_table));
+	return MidoriResult::ExecutableModule(std::move(m_modules), std::move(m_traceable_constants), std::move(m_static_data), std::move(m_global_table));
 }
 
 void CodeGenerator::operator()(Block& block)
 {
-	for (std::unique_ptr<Statement>& statement : block.m_stmts)
-	{
-		std::visit([this](auto&& arg) { (*this)(arg); }, *statement);
-	}
+	std::for_each(block.m_stmts.begin(), block.m_stmts.end(), [this](std::unique_ptr<Statement>& statement)
+		{
+			std::visit([this](auto&& arg) { (*this)(arg); }, *statement);
+		});
 
 	while (block.m_local_count > 0)
 	{
@@ -143,7 +143,7 @@ void CodeGenerator::operator()(Return& return_stmt)
 	EmitByte(OpCode::RETURN, line);
 }
 
-void CodeGenerator::operator()(Import& import)
+void CodeGenerator::operator()(Import & import)
 {
 	return;
 }
@@ -238,7 +238,7 @@ void CodeGenerator::operator()(Logical& logical)
 	}
 	else
 	{
-		m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Unrecognized logical operator.", line));
+		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Unrecognized logical operator.", line));
 	}
 }
 
@@ -272,17 +272,17 @@ void CodeGenerator::operator()(Call& call)
 	int arity = static_cast<int>(call.m_arguments.size());
 	if (arity > UINT8_MAX)
 	{
-		m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Too many arguments (max 255).", call.m_paren.m_line));
+		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too many arguments (max 255).", call.m_paren.m_line));
 		return;
 	}
 
 	std::visit([this](auto&& arg) {(*this)(arg); }, *call.m_callee);
 
-	for (std::unique_ptr<Expression>& arg : call.m_arguments)
-	{
-		EmitByte(OpCode::DEFINE_NAME, line);
-		std::visit([this](auto&& arg) {(*this)(arg); }, *arg);
-	}
+	std::for_each(call.m_arguments.begin(), call.m_arguments.end(), [&line, this](std::unique_ptr<Expression>& arg)
+		{
+			EmitByte(OpCode::DEFINE_NAME, line);
+			std::visit([this](auto&& arg) {(*this)(arg); }, *arg);
+		});
 
 	EmitByte(OpCode::CALL, line);
 	EmitByte(static_cast<OpCode>(arity), line);
@@ -318,7 +318,7 @@ void CodeGenerator::operator()(Variable& variable)
 			}
 			else
 			{
-				m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Bad Variable Expression.", variable.m_name.m_line));
+				m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Bad Variable Expression.", variable.m_name.m_line));
 				return;
 			}
 		}, variable.m_semantic);
@@ -342,7 +342,7 @@ void CodeGenerator::operator()(Assign& assign)
 			}
 			else
 			{
-				m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Bad Assign Expression.", assign.m_name.m_line));
+				m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Bad Assign Expression.", assign.m_name.m_line));
 				return;
 			}
 		}, assign.m_semantic);
@@ -374,7 +374,7 @@ void CodeGenerator::operator()(Closure& closure)
 	int arity = static_cast<int>(closure.m_params.size());
 	if (arity > UINT8_MAX)
 	{
-		m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Too many arguments (max 255).", line));
+		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too many arguments (max 255).", line));
 		return;
 	}
 
@@ -405,14 +405,14 @@ void CodeGenerator::operator()(Array& array)
 
 		if (length > THREE_BYTE_MAX)
 		{
-			m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Too many array elements (max 16777215).", line));
+			m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too many array elements (max 16777215).", line));
 			return;
 		}
 
-		for (std::unique_ptr<Expression>& elem : array.m_elems)
-		{
-			std::visit([this](auto&& arg) {(*this)(arg); }, *elem);
-		}
+		std::for_each(array.m_elems.begin(), array.m_elems.end(), [this](std::unique_ptr<Expression>& elem)
+			{
+				std::visit([this](auto&& arg) {(*this)(arg); }, *elem);
+			});
 		EmitByte(OpCode::CREATE_ARRAY, line);
 		EmitThreeBytes(length, length >> 8, length >> 16, line);
 	}
@@ -424,16 +424,16 @@ void CodeGenerator::operator()(ArrayGet& array_get)
 
 	if (array_get.m_indices.size() > UINT8_MAX)
 	{
-		m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Too many array indices (max 255).", line));
+		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too many array indices (max 255).", line));
 		return;
 	}
 
 	std::visit([this](auto&& arg) {(*this)(arg); }, *array_get.m_arr_var);
 
-	for (std::unique_ptr<Expression>& index : array_get.m_indices)
-	{
-		std::visit([this](auto&& arg) {(*this)(arg); }, *index);
-	}
+	std::for_each(array_get.m_indices.begin(), array_get.m_indices.end(), [this](std::unique_ptr<Expression>& index)
+		{
+			std::visit([this](auto&& arg) {(*this)(arg); }, *index);
+		});
 
 	EmitByte(OpCode::GET_ARRAY, line);
 	EmitByte(static_cast<OpCode>(array_get.m_indices.size()), line);
@@ -445,16 +445,16 @@ void CodeGenerator::operator()(ArraySet& array_set)
 
 	if (array_set.m_indices.size() > UINT8_MAX)
 	{
-		m_errors.emplace_back(CompilerError::GenerateCodeGeneratorError("Too many array indices (max 255).", line));
+		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too many array indices (max 255).", line));
 		return;
 	}
 
 	std::visit([this](auto&& arg) {(*this)(arg); }, *array_set.m_arr_var);
 
-	for (std::unique_ptr<Expression>& index : array_set.m_indices)
-	{
-		std::visit([this](auto&& arg) {(*this)(arg); }, *index);
-	}
+	std::for_each(array_set.m_indices.begin(), array_set.m_indices.end(), [this](std::unique_ptr<Expression>& index)
+		{
+			std::visit([this](auto&& arg) {(*this)(arg); }, *index);
+		});
 
 	std::visit([this](auto&& arg) {(*this)(arg); }, *array_set.m_value);
 
