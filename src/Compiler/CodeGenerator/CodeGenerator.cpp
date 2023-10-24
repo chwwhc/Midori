@@ -276,13 +276,12 @@ void CodeGenerator::operator()(Call& call)
 		return;
 	}
 
-	std::visit([this](auto&& arg) {(*this)(arg); }, *call.m_callee);
-
 	std::for_each(call.m_arguments.begin(), call.m_arguments.end(), [&line, this](std::unique_ptr<Expression>& arg)
 		{
 			EmitByte(OpCode::DEFINE_NAME, line);
 			std::visit([this](auto&& arg) {(*this)(arg); }, *arg);
 		});
+	std::visit([this](auto&& arg) {(*this)(arg); }, *call.m_callee);
 
 	EmitByte(OpCode::CALL, line);
 	EmitByte(static_cast<OpCode>(arity), line);

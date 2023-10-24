@@ -2,6 +2,7 @@ var arr = [@3];
 for (var i = 0; i < 3; i = i + 1) {
   (closure(i) {
     arr[i] = closure() { return i; };
+    return #;
   })(i);
 }
 PrintLine(arr[0]());  // Should print 0

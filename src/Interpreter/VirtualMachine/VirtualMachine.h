@@ -134,6 +134,19 @@ private:
 		return &(m_value_stack_pointer - 1)->m_value;
 	}
 
+	inline MidoriResult::InterpreterResult Duplicate()
+	{
+		if (m_value_stack_pointer == m_value_stack.end())
+		{
+			return std::unexpected<std::string>(GenerateRuntimeError("Value stack overflow.", GetLine()));
+		}
+
+		Value top_value = std::prev(m_value_stack_pointer)->m_value;
+		m_value_stack_pointer->m_value = std::move(top_value);
+		++m_value_stack_pointer;
+		return &(m_value_stack_pointer - 1)->m_value;
+	}
+
 	inline MidoriResult::InterpreterResult Pop()
 	{
 		if (m_value_stack_pointer == m_base_pointer)
@@ -142,24 +155,6 @@ private:
 		}
 
 		Value& value = (--m_value_stack_pointer)->m_value;
-		if (value.IsObjectPointer() && value.GetObjectPointer()->IsCellValue())
-		{
-			return &value.GetObjectPointer()->GetCellValue().m_value;
-		}
-		else
-		{
-			return &value;
-		}
-	}
-
-	inline MidoriResult::InterpreterResult Peek(int distance)
-	{
-		if (m_value_stack_pointer - 1 - distance < m_base_pointer)
-		{
-			return std::unexpected<std::string>(GenerateRuntimeError("Value stack underflow.", GetLine()));
-		}
-
-		Value& value = (m_value_stack_pointer - 1 - distance)->m_value;
 		if (value.IsObjectPointer() && value.GetObjectPointer()->IsCellValue())
 		{
 			return &value.GetObjectPointer()->GetCellValue().m_value;
@@ -268,8 +263,6 @@ private:
 		return left_value >= INT_MIN && left_value <= INT_MAX &&
 			right_value >= INT_MIN && right_value <= INT_MAX;
 	}
-
-	MidoriResult::InterpreterResult ProcessIndicesAndPerformChecks(std::vector<Value>& indices, Value& arr);
 
 	Traceable::GarbageCollectionRoots GetValueStackGarbageCollectionRoots();
 
