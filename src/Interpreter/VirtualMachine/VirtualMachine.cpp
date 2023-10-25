@@ -508,11 +508,18 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 
 				m_current_closure = &closure;
 
+				if (std::next(m_call_stack_pointer) == m_call_stack.end())
+				{
+					return std::unexpected<std::string>(GenerateRuntimeError("Call stack overflow.", GetLine()));
+				}
+
 				// Return address := pop all the arguments and the callee
 				*m_call_stack_pointer++ = { m_current_bytecode , m_base_pointer, m_value_stack_pointer - arity, m_instruction_pointer };
 				m_current_bytecode = &m_executable_module.m_modules[closure.m_bytecode_index];
 				m_instruction_pointer = m_current_bytecode->cbegin();
 				m_base_pointer = m_value_stack_pointer - arity;
+
+
 				std::for_each_n(m_base_pointer, std::distance(m_base_pointer, m_value_stack_pointer), [](MidoriValue& value) -> void
 					{
 						if (value.IsObjectPointer() && value.GetObjectPointer()->IsCellValue())
@@ -647,6 +654,10 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 		}
 		case OpCode::RETURN:
 		{
+			if (m_call_stack_pointer == m_call_stack.begin())
+			{
+				return std::unexpected<std::string>(GenerateRuntimeError("Call stack underflow.", GetLine()));
+			}
 			CallFrame& top_frame = *(--m_call_stack_pointer);
 
 			EXECUTE_OR_ABORT(Pop());
