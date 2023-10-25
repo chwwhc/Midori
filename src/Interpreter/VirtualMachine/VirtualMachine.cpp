@@ -9,11 +9,11 @@
     if (!m_last_result.has_value())	 \
         return m_last_result
 
-MidoriResult::InterpreterResult VirtualMachine::BinaryOperation(std::function<Value(const Value&, const Value&)>&& op, bool (*type_checker)(const Value&, const Value&))
+MidoriResult::InterpreterResult VirtualMachine::BinaryOperation(std::function<MidoriValue(const MidoriValue&, const MidoriValue&)>&& op, bool (*type_checker)(const MidoriValue&, const MidoriValue&))
 {
-	return Bind(Pop(), [&op, type_checker, this](Value* right) -> MidoriResult::InterpreterResult
+	return Bind(Pop(), [&op, type_checker, this](MidoriValue* right) -> MidoriResult::InterpreterResult
 		{
-			return Bind(Pop(), [&op, type_checker, this, &right](Value* left) -> MidoriResult::InterpreterResult
+			return Bind(Pop(), [&op, type_checker, this, &right](MidoriValue* left) -> MidoriResult::InterpreterResult
 				{
 					if (!type_checker(*left, *right))
 					{
@@ -21,13 +21,13 @@ MidoriResult::InterpreterResult VirtualMachine::BinaryOperation(std::function<Va
 					}
 					else
 					{
-						return Bind(Push(std::move(*left)), [&op, &right, &left, this](Value*) -> MidoriResult::InterpreterResult
+						return Bind(Push(std::move(*left)), [&op, &right, &left, this](MidoriValue*) -> MidoriResult::InterpreterResult
 							{
-								return Bind(Push(std::move(*right)), [&op, &right, this](Value*) -> MidoriResult::InterpreterResult
+								return Bind(Push(std::move(*right)), [&op, &right, this](MidoriValue*) -> MidoriResult::InterpreterResult
 									{
-										return Bind(Pop(), [&op, &right, this](Value* right) -> MidoriResult::InterpreterResult
+										return Bind(Pop(), [&op, &right, this](MidoriValue* right) -> MidoriResult::InterpreterResult
 											{
-												return Bind(Pop(), [&op, &right, this](Value* left) -> MidoriResult::InterpreterResult
+												return Bind(Pop(), [&op, &right, this](MidoriValue* left) -> MidoriResult::InterpreterResult
 													{
 														return Push(op(*left, *right));
 													});
@@ -43,7 +43,7 @@ Traceable::GarbageCollectionRoots VirtualMachine::GetValueStackGarbageCollection
 {
 	Traceable::GarbageCollectionRoots roots;
 
-	std::for_each_n(m_value_stack.begin(), std::distance(m_value_stack.begin(), m_value_stack_pointer), [&roots](Value& value) -> void
+	std::for_each_n(m_value_stack.begin(), std::distance(m_value_stack.begin(), m_value_stack_pointer), [&roots](MidoriValue& value) -> void
 		{
 			if (value.IsObjectPointer())
 			{
@@ -91,7 +91,7 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 	{
 #ifdef DEBUG
 		std::cout << "          ";
-		for (StackPointer<Value, VALUE_STACK_MAX> it = m_base_pointer; it < m_value_stack_pointer; ++it)
+		for (StackPointer<MidoriValue, VALUE_STACK_MAX> it = m_base_pointer; it < m_value_stack_pointer; ++it)
 		{
 			std::cout << "[ " << it->ToString() << " ]";
 		}
@@ -107,29 +107,29 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 		case OpCode::CONSTANT_LONG:
 		case OpCode::CONSTANT_LONG_LONG:
 		{
-			Value constant = ReadConstant(instruction);
+			MidoriValue constant = ReadConstant(instruction);
 			Push(std::move(constant));
 			break;
 		}
 		case OpCode::UNIT:
 		{
-			Push(Value());
+			Push(MidoriValue());
 			break;
 		}
 		case OpCode::TRUE:
 		{
-			Push(Value(true));
+			Push(MidoriValue(true));
 			break;
 		}
 		case OpCode::FALSE:
 		{
-			Push(Value(false));
+			Push(MidoriValue(false));
 			break;
 		}
 		case OpCode::CREATE_ARRAY:
 		{
 			int count = ReadThreeBytes();
-			std::vector<Value> arr(count);
+			std::vector<MidoriValue> arr(count);
 			for (int i = count - 1; i >= 0; i -= 1)
 			{
 				EXECUTE_OR_ABORT(Pop());
@@ -143,32 +143,32 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 		{
 			int num_indices = static_cast<int>(ReadByte());
 
-			std::vector<Value> indices(num_indices);
+			std::vector<MidoriValue> indices(num_indices);
 			for (int i = num_indices - 1; i >= 0; i -= 1)
 			{
 				EXECUTE_OR_ABORT(Pop());
 				indices[i] = std::move(*m_last_result.value());
 			}
 
-			EXECUTE_OR_ABORT(Bind(Pop(), [this](Value* value) -> MidoriResult::InterpreterResult
+			EXECUTE_OR_ABORT(Bind(Pop(), [this](MidoriValue* value) -> MidoriResult::InterpreterResult
 				{
 					return CheckIsArray(value);
 				}));
-			Value& arr = *m_last_result.value();
-			std::vector<Value>& arr_ref = arr.GetObjectPointer()->GetArray();
+			MidoriValue& arr = *m_last_result.value();
+			std::vector<MidoriValue>& arr_ref = arr.GetObjectPointer()->GetArray();
 			int arr_size = static_cast<int>(arr_ref.size());
 
-			for (Value& index : indices)
+			for (MidoriValue& index : indices)
 			{
-				EXECUTE_OR_ABORT(Bind(CheckIsNumber(&index), [arr_size, this](Value* value) -> MidoriResult::InterpreterResult
+				EXECUTE_OR_ABORT(Bind(CheckIsNumber(&index), [arr_size, this](MidoriValue* value) -> MidoriResult::InterpreterResult
 					{
-						return Bind(CheckIsInteger(value), [arr_size, this](Value* value) -> MidoriResult::InterpreterResult
+						return Bind(CheckIsInteger(value), [arr_size, this](MidoriValue* value) -> MidoriResult::InterpreterResult
 							{
 								return CheckIndexBounds(value, arr_size);
 							});
 					}));
 
-				Value& next_val = arr_ref[static_cast<size_t>(index.GetNumber())];
+				MidoriValue& next_val = arr_ref[static_cast<size_t>(index.GetNumber())];
 
 				if (&index != &indices.back())
 				{
@@ -187,28 +187,28 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 			int num_indices = static_cast<int>(ReadByte());
 
 			EXECUTE_OR_ABORT(Pop());
-			Value& value_to_set = *m_last_result.value();
+			MidoriValue& value_to_set = *m_last_result.value();
 
-			std::vector<Value> indices(num_indices);
+			std::vector<MidoriValue> indices(num_indices);
 			for (int i = num_indices - 1; i >= 0; i -= 1)
 			{
 				EXECUTE_OR_ABORT(Pop());
 				indices[i] = std::move(*m_last_result.value());
 			}
 
-			EXECUTE_OR_ABORT(Bind(Pop(), [this](Value* value) -> MidoriResult::InterpreterResult
+			EXECUTE_OR_ABORT(Bind(Pop(), [this](MidoriValue* value) -> MidoriResult::InterpreterResult
 				{
 					return CheckIsArray(value);
 				}));
-			Value& arr = *m_last_result.value();
-			std::vector<Value>& arr_ref = arr.GetObjectPointer()->GetArray();
+			MidoriValue& arr = *m_last_result.value();
+			std::vector<MidoriValue>& arr_ref = arr.GetObjectPointer()->GetArray();
 			int arr_size = static_cast<int>(arr_ref.size());
 
-			for (Value& index : indices)
+			for (MidoriValue& index : indices)
 			{
-				EXECUTE_OR_ABORT(Bind(CheckIsNumber(&index), [arr_size, this](Value* value) -> MidoriResult::InterpreterResult
+				EXECUTE_OR_ABORT(Bind(CheckIsNumber(&index), [arr_size, this](MidoriValue* value) -> MidoriResult::InterpreterResult
 					{
-						return Bind(CheckIsInteger(value), [arr_size, this](Value* value) -> MidoriResult::InterpreterResult
+						return Bind(CheckIsInteger(value), [arr_size, this](MidoriValue* value) -> MidoriResult::InterpreterResult
 							{
 								return CheckIndexBounds(value, arr_size);
 							});
@@ -231,101 +231,101 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 		}
 		case OpCode::RESERVE_ARRAY:
 		{
-			EXECUTE_OR_ABORT(Bind(Pop(), [this](Value* value) -> MidoriResult::InterpreterResult
+			EXECUTE_OR_ABORT(Bind(Pop(), [this](MidoriValue* value) -> MidoriResult::InterpreterResult
 				{
-					return Bind(CheckIsNumber(value), [this](Value* value) -> MidoriResult::InterpreterResult
+					return Bind(CheckIsNumber(value), [this](MidoriValue* value) -> MidoriResult::InterpreterResult
 						{
 							return CheckArrayMaxLength(value);
 						});
 				}));
 
 			size_t size = static_cast<size_t>(m_last_result.value()->GetNumber());
-			Traceable* arr_object = RuntimeAllocateObject(std::vector<Value>(size));
+			Traceable* arr_object = RuntimeAllocateObject(std::vector<MidoriValue>(size));
 			EXECUTE_OR_ABORT(Push(arr_object));
 			break;
 		}
 		case OpCode::LEFT_SHIFT:
 		{
-			EXECUTE_OR_ABORT(BinaryOperation([](const Value& left, const Value& right)
-				{ return Value(static_cast<double>(static_cast<int>(left.GetNumber()) << static_cast<int>(right.GetNumber()))); },
+			EXECUTE_OR_ABORT(BinaryOperation([](const MidoriValue& left, const MidoriValue& right)
+				{ return MidoriValue(static_cast<double>(static_cast<int>(left.GetNumber()) << static_cast<int>(right.GetNumber()))); },
 				Are32BitIntegers));
 			break;
 		}
 		case OpCode::RIGHT_SHIFT:
 		{
-			EXECUTE_OR_ABORT(BinaryOperation([](const Value& left, const Value& right)
-				{ return Value(static_cast<double>(static_cast<int>(left.GetNumber()) >> static_cast<int>(right.GetNumber()))); },
+			EXECUTE_OR_ABORT(BinaryOperation([](const MidoriValue& left, const MidoriValue& right)
+				{ return MidoriValue(static_cast<double>(static_cast<int>(left.GetNumber()) >> static_cast<int>(right.GetNumber()))); },
 				Are32BitIntegers));
 			break;
 		}
 		case OpCode::BITWISE_AND:
 		{
-			EXECUTE_OR_ABORT(BinaryOperation([](const Value& left, const Value& right)
-				{ return Value(static_cast<double>(static_cast<int>(left.GetNumber()) & static_cast<int>(right.GetNumber()))); },
+			EXECUTE_OR_ABORT(BinaryOperation([](const MidoriValue& left, const MidoriValue& right)
+				{ return MidoriValue(static_cast<double>(static_cast<int>(left.GetNumber()) & static_cast<int>(right.GetNumber()))); },
 				Are32BitIntegers));
 			break;
 		}
 		case OpCode::BITWISE_OR:
 		{
-			EXECUTE_OR_ABORT(BinaryOperation([](const Value& left, const Value& right)
-				{ return Value(static_cast<double>(static_cast<int>(left.GetNumber()) | static_cast<int>(right.GetNumber()))); },
+			EXECUTE_OR_ABORT(BinaryOperation([](const MidoriValue& left, const MidoriValue& right)
+				{ return MidoriValue(static_cast<double>(static_cast<int>(left.GetNumber()) | static_cast<int>(right.GetNumber()))); },
 				Are32BitIntegers));
 			break;
 		}
 		case OpCode::BITWISE_XOR:
 		{
-			EXECUTE_OR_ABORT(BinaryOperation([](const Value& left, const Value& right)
-				{ return Value(static_cast<double>(static_cast<int>(left.GetNumber()) ^ static_cast<int>(right.GetNumber()))); },
+			EXECUTE_OR_ABORT(BinaryOperation([](const MidoriValue& left, const MidoriValue& right)
+				{ return MidoriValue(static_cast<double>(static_cast<int>(left.GetNumber()) ^ static_cast<int>(right.GetNumber()))); },
 				Are32BitIntegers));
 			break;
 		}
 		case OpCode::ADD:
 		{
-			EXECUTE_OR_ABORT(BinaryOperation([](const Value& left, const Value& right)
-				{ return Value(left.GetNumber() + right.GetNumber()); },
+			EXECUTE_OR_ABORT(BinaryOperation([](const MidoriValue& left, const MidoriValue& right)
+				{ return MidoriValue(left.GetNumber() + right.GetNumber()); },
 				AreNumerical));
 			break;
 		}
 		case OpCode::SUBTRACT:
 		{
-			EXECUTE_OR_ABORT(BinaryOperation([](const Value& left, const Value& right)
-				{ return Value(left.GetNumber() - right.GetNumber()); },
+			EXECUTE_OR_ABORT(BinaryOperation([](const MidoriValue& left, const MidoriValue& right)
+				{ return MidoriValue(left.GetNumber() - right.GetNumber()); },
 				AreNumerical));
 			break;
 		}
 		case OpCode::MULTIPLY:
 		{
-			EXECUTE_OR_ABORT(BinaryOperation([](const Value& left, const Value& right)
-				{ return Value(left.GetNumber() * right.GetNumber()); },
+			EXECUTE_OR_ABORT(BinaryOperation([](const MidoriValue& left, const MidoriValue& right)
+				{ return MidoriValue(left.GetNumber() * right.GetNumber()); },
 				AreNumerical));
 			break;
 		}
 		case OpCode::DIVIDE:
 		{
-			EXECUTE_OR_ABORT(BinaryOperation([](const Value& left, const Value& right)
-				{ return Value(left.GetNumber() / right.GetNumber()); },
+			EXECUTE_OR_ABORT(BinaryOperation([](const MidoriValue& left, const MidoriValue& right)
+				{ return MidoriValue(left.GetNumber() / right.GetNumber()); },
 				AreNumerical));
 			break;
 		}
 		case OpCode::MODULO:
 		{
-			EXECUTE_OR_ABORT(BinaryOperation([](const Value& left, const Value& right)
-				{ return Value(std::fmod(left.GetNumber(), right.GetNumber())); },
+			EXECUTE_OR_ABORT(BinaryOperation([](const MidoriValue& left, const MidoriValue& right)
+				{ return MidoriValue(std::fmod(left.GetNumber(), right.GetNumber())); },
 				AreNumerical));
 			break;
 		}
 		case OpCode::CONCAT:
 		{
-			EXECUTE_OR_ABORT(BinaryOperation([this](const Value& left, const Value& right)
+			EXECUTE_OR_ABORT(BinaryOperation([this](const MidoriValue& left, const MidoriValue& right)
 				{
 					Traceable* left_value = left.GetObjectPointer();
 					Traceable* right_value = right.GetObjectPointer();
 
 					if (left_value->IsArray()) {
-						const std::vector<Value>& left_value_vector_ref = left_value->GetArray();
-						const std::vector<Value>& right_value_vector_ref = right_value->GetArray();
+						const std::vector<MidoriValue>& left_value_vector_ref = left_value->GetArray();
+						const std::vector<MidoriValue>& right_value_vector_ref = right_value->GetArray();
 
-						std::vector<Value> new_value_vector(left_value_vector_ref);
+						std::vector<MidoriValue> new_value_vector(left_value_vector_ref);
 						new_value_vector.insert(new_value_vector.end(),
 							right_value_vector_ref.begin(),
 							right_value_vector_ref.end());
@@ -346,53 +346,53 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 		}
 		case OpCode::EQUAL:
 		{
-			EXECUTE_OR_ABORT(BinaryOperation([](const Value& left, const Value& right)
-				{ return Value(left == right); },
+			EXECUTE_OR_ABORT(BinaryOperation([](const MidoriValue& left, const MidoriValue& right)
+				{ return MidoriValue(left == right); },
 				AreSameType));
 			break;
 		}
 		case OpCode::NOT_EQUAL:
 		{
-			EXECUTE_OR_ABORT(BinaryOperation([](const Value& left, const Value& right)
-				{ return Value(left != right); },
+			EXECUTE_OR_ABORT(BinaryOperation([](const MidoriValue& left, const MidoriValue& right)
+				{ return MidoriValue(left != right); },
 				AreSameType));
 			break;
 		}
 		case OpCode::GREATER:
 		{
-			EXECUTE_OR_ABORT(BinaryOperation([](const Value& left, const Value& right)
-				{ return Value(left.GetNumber() > right.GetNumber()); },
+			EXECUTE_OR_ABORT(BinaryOperation([](const MidoriValue& left, const MidoriValue& right)
+				{ return MidoriValue(left.GetNumber() > right.GetNumber()); },
 				AreNumerical));
 			break;
 		}
 		case OpCode::GREATER_EQUAL:
 		{
-			EXECUTE_OR_ABORT(BinaryOperation([](const Value& left, const Value& right)
-				{ return Value(left.GetNumber() >= right.GetNumber()); },
+			EXECUTE_OR_ABORT(BinaryOperation([](const MidoriValue& left, const MidoriValue& right)
+				{ return MidoriValue(left.GetNumber() >= right.GetNumber()); },
 				AreNumerical));
 			break;
 		}
 		case OpCode::LESS:
 		{
-			EXECUTE_OR_ABORT(BinaryOperation([](const Value& left, const Value& right)
-				{ return Value(left.GetNumber() < right.GetNumber()); },
+			EXECUTE_OR_ABORT(BinaryOperation([](const MidoriValue& left, const MidoriValue& right)
+				{ return MidoriValue(left.GetNumber() < right.GetNumber()); },
 				AreNumerical));
 			break;
 		}
 		case OpCode::LESS_EQUAL:
 		{
-			EXECUTE_OR_ABORT(BinaryOperation([](const Value& left, const Value& right)
-				{ return Value(left.GetNumber() <= right.GetNumber()); },
+			EXECUTE_OR_ABORT(BinaryOperation([](const MidoriValue& left, const MidoriValue& right)
+				{ return MidoriValue(left.GetNumber() <= right.GetNumber()); },
 				AreNumerical));
 			break;
 		}
 		case OpCode::NOT:
 		{
-			EXECUTE_OR_ABORT(Bind(Pop(), [this](Value* value) -> MidoriResult::InterpreterResult
+			EXECUTE_OR_ABORT(Bind(Pop(), [this](MidoriValue* value) -> MidoriResult::InterpreterResult
 				{
 					if (value->IsBool())
 					{
-						return Push(Value(!value->GetBool()));
+						return Push(MidoriValue(!value->GetBool()));
 					}
 					else
 					{
@@ -403,11 +403,11 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 		}
 		case OpCode::NEGATE:
 		{
-			EXECUTE_OR_ABORT(Bind(Pop(), [this](Value* value) -> MidoriResult::InterpreterResult
+			EXECUTE_OR_ABORT(Bind(Pop(), [this](MidoriValue* value) -> MidoriResult::InterpreterResult
 				{
 					if (value->IsNumber())
 					{
-						return Push(Value(-value->GetNumber()));
+						return Push(MidoriValue(-value->GetNumber()));
 					}
 					else
 					{
@@ -419,7 +419,7 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 		case OpCode::JUMP_IF_FALSE:
 		{
 			int offset = ReadShort();
-			EXECUTE_OR_ABORT(Bind(Pop(), [offset, this](Value* value) -> MidoriResult::InterpreterResult
+			EXECUTE_OR_ABORT(Bind(Pop(), [offset, this](MidoriValue* value) -> MidoriResult::InterpreterResult
 				{
 					if (value->IsBool())
 					{
@@ -439,7 +439,7 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 		case OpCode::JUMP_IF_TRUE:
 		{
 			int offset = ReadShort();
-			EXECUTE_OR_ABORT(Bind(Pop(), [offset, this](Value* value) -> MidoriResult::InterpreterResult
+			EXECUTE_OR_ABORT(Bind(Pop(), [offset, this](MidoriValue* value) -> MidoriResult::InterpreterResult
 				{
 					if (value->IsBool())
 					{
@@ -470,7 +470,7 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 		}
 		case OpCode::CALL:
 		{
-			EXECUTE_OR_ABORT(Bind(Pop(), [this](Value* value) -> MidoriResult::InterpreterResult
+			EXECUTE_OR_ABORT(Bind(Pop(), [this](MidoriValue* value) -> MidoriResult::InterpreterResult
 				{
 					if (value->IsNativeFunction() || (value->IsObjectPointer() && value->GetObjectPointer()->IsClosure()))
 					{
@@ -481,14 +481,14 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 						return std::unexpected<std::string>(GenerateRuntimeError("Operand must be a callable.", GetLine()));
 					}
 				}));
-			const Value& callable = *m_last_result.value();
+			const MidoriValue& callable = *m_last_result.value();
 
 			int arity = static_cast<int>(ReadByte());
 
 			// Native function
 			if (callable.IsNativeFunction())
 			{
-				Value::NativeFunction& native_function = callable.GetNativeFunction();
+				MidoriValue::NativeFunction& native_function = callable.GetNativeFunction();
 
 				if (arity != native_function.m_arity)
 				{
@@ -513,7 +513,7 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 				m_current_bytecode = &m_executable_module.m_modules[closure.m_bytecode_index];
 				m_instruction_pointer = m_current_bytecode->cbegin();
 				m_base_pointer = m_value_stack_pointer - arity;
-				std::for_each_n(m_base_pointer, std::distance(m_base_pointer, m_value_stack_pointer), [](Value& value) -> void
+				std::for_each_n(m_base_pointer, std::distance(m_base_pointer, m_value_stack_pointer), [](MidoriValue& value) -> void
 					{
 						if (value.IsObjectPointer() && value.GetObjectPointer()->IsCellValue())
 						{
@@ -527,7 +527,7 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 		case OpCode::CREATE_CLOSURE:
 		{
 			int count = static_cast<int>(ReadByte());
-			EXECUTE_OR_ABORT(Bind(Pop(), [this](Value* value) -> MidoriResult::InterpreterResult
+			EXECUTE_OR_ABORT(Bind(Pop(), [this](MidoriValue* value) -> MidoriResult::InterpreterResult
 				{
 					if (value->IsObjectPointer() && value->GetObjectPointer()->IsClosure())
 					{
@@ -539,7 +539,7 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 					}
 				}));
 
-			Value& closure_value = *m_last_result.value();
+			MidoriValue& closure_value = *m_last_result.value();
 			Traceable* new_closure = RuntimeAllocateObject(Traceable::Closure(closure_value.GetObjectPointer()->GetClosure()));
 			Traceable* old_closure = closure_value.GetObjectPointer();
 			Traceable::Closure& new_closure_ref = new_closure->GetClosure();
@@ -554,7 +554,7 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 				count -= static_cast<int>(m_current_closure->m_cell_values.size());
 			}
 
-			for (StackPointer<Value, VALUE_STACK_MAX> it = m_base_pointer; it < m_base_pointer + count; ++it)
+			for (StackPointer<MidoriValue, VALUE_STACK_MAX> it = m_base_pointer; it < m_base_pointer + count; ++it)
 			{
 				if (it->IsObjectPointer() && it->GetObjectPointer()->IsCellValue())
 				{
@@ -564,13 +564,13 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 				else
 				{
 					Traceable* cell_value = RuntimeAllocateObject(Traceable::CellValue(std::move(*it)));
-					*it = Value(cell_value);
+					*it = MidoriValue(cell_value);
 					new_captured_variables.emplace_back(cell_value);
 					old_captured_variables.emplace_back(cell_value);
 				}
 			}
 
-			EXECUTE_OR_ABORT(Push(Value(new_closure)));
+			EXECUTE_OR_ABORT(Push(MidoriValue(new_closure)));
 			break;
 		}
 		case OpCode::GET_NATIVE:
@@ -581,23 +581,23 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 			{
 				return std::unexpected<std::string>(GenerateRuntimeError("Undefined variable '" + name + "'.", GetLine()));
 			}
-			EXECUTE_OR_ABORT(Push(Value(it->second)));
+			EXECUTE_OR_ABORT(Push(MidoriValue(it->second)));
 			break;
 		}
 		case OpCode::GET_LOCAL:
 		{
 			int offset = static_cast<int>(ReadByte());
-			Value value_copy = *(m_base_pointer + offset);
+			MidoriValue value_copy = *(m_base_pointer + offset);
 			EXECUTE_OR_ABORT(Push(std::move(value_copy)));
 			break;
 		}
 		case OpCode::SET_LOCAL:
 		{
 			int offset = static_cast<int>(ReadByte());
-			Value& var = *(m_base_pointer + offset);
-			EXECUTE_OR_ABORT(Bind(Duplicate(), [&var, this](Value*) -> MidoriResult::InterpreterResult
+			MidoriValue& var = *(m_base_pointer + offset);
+			EXECUTE_OR_ABORT(Bind(Duplicate(), [&var, this](MidoriValue*) -> MidoriResult::InterpreterResult
 				{
-					return Bind(Pop(), [&var, this](Value* value_copy) -> MidoriResult::InterpreterResult
+					return Bind(Pop(), [&var, this](MidoriValue* value_copy) -> MidoriResult::InterpreterResult
 						{
 							if (var.IsObjectPointer() && var.GetObjectPointer()->IsCellValue())
 							{
@@ -616,18 +616,18 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 		case OpCode::GET_CELL:
 		{
 			int offset = static_cast<int>(ReadByte());
-			Value value_copy = m_current_closure->m_cell_values[offset]->GetCellValue().m_value;
+			MidoriValue value_copy = m_current_closure->m_cell_values[offset]->GetCellValue().m_value;
 			EXECUTE_OR_ABORT(Push(std::move(value_copy)));
 			break;
 		}
 		case OpCode::SET_CELL:
 		{
 			int offset = static_cast<int>(ReadByte());
-			EXECUTE_OR_ABORT(Bind(Duplicate(), [offset, this](Value*) -> MidoriResult::InterpreterResult
+			EXECUTE_OR_ABORT(Bind(Duplicate(), [offset, this](MidoriValue*) -> MidoriResult::InterpreterResult
 				{
-					return Bind(Pop(), [offset, this](Value* value_copy) -> MidoriResult::InterpreterResult
+					return Bind(Pop(), [offset, this](MidoriValue* value_copy) -> MidoriResult::InterpreterResult
 						{
-							Value& var = m_current_closure->m_cell_values[offset]->GetCellValue().m_value;
+							MidoriValue& var = m_current_closure->m_cell_values[offset]->GetCellValue().m_value;
 							var = std::move(*value_copy);
 							return &var;
 						});
@@ -650,7 +650,7 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 			CallFrame& top_frame = *(--m_call_stack_pointer);
 
 			EXECUTE_OR_ABORT(Pop());
-			Value& return_val = *m_last_result.value();
+			MidoriValue& return_val = *m_last_result.value();
 
 			m_current_bytecode = top_frame.m_return_module;
 			m_base_pointer = top_frame.m_return_bp;

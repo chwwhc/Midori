@@ -32,5 +32,5 @@ namespace MidoriResult
 	using StaticAnalyzerResult = std::optional<std::vector<std::string>>;
 	using CodeGeneratorResult = std::expected<ExecutableModule, std::vector<std::string>>;
 	using CompilerResult = std::expected<ExecutableModule, std::vector<std::string>>;
-	using InterpreterResult = std::expected<Value*, std::string>;
+	using InterpreterResult = std::expected<MidoriValue*, std::string>;
 }

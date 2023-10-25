@@ -14,7 +14,7 @@
 
 class Traceable;
 
-class Value
+class MidoriValue
 {
 
 public:
@@ -33,15 +33,15 @@ private:
 
 public:
 
-	Value() : m_value(std::monostate()) {}
+	MidoriValue() : m_value(std::monostate()) {}
 
-	Value(double d) : m_value(d) {}
+	MidoriValue(double d) : m_value(d) {}
 
-	Value(bool b) : m_value(b) {}
+	MidoriValue(bool b) : m_value(b) {}
 
-	Value(NativeFunction f) : m_value(std::move(f)) {}
+	MidoriValue(NativeFunction f) : m_value(std::move(f)) {}
 
-	Value(Traceable* o) : m_value(o) {}
+	MidoriValue(Traceable* o) : m_value(o) {}
 
 	inline double GetNumber() const { return std::get<double>(m_value); }
 
@@ -63,11 +63,11 @@ public:
 
 	inline bool IsObjectPointer() const { return std::holds_alternative<Traceable*>(m_value); }
 
-	inline static bool AreSameType(const Value& lhs, const Value& rhs) { return lhs.m_value.index() == rhs.m_value.index(); }
+	inline static bool AreSameType(const MidoriValue& lhs, const MidoriValue& rhs) { return lhs.m_value.index() == rhs.m_value.index(); }
 
-	inline friend bool operator==(const Value& lhs, const Value& rhs) { return lhs.m_value == rhs.m_value; }
+	inline friend bool operator==(const MidoriValue& lhs, const MidoriValue& rhs) { return lhs.m_value == rhs.m_value; }
 
-	inline friend bool operator!=(const Value& lhs, const Value& rhs) { return !(lhs == rhs); }
+	inline friend bool operator!=(const MidoriValue& lhs, const MidoriValue& rhs) { return !(lhs == rhs); }
 
 	std::string ToString() const;
 };
@@ -83,7 +83,7 @@ public:
 
 	struct CellValue
 	{
-		Value m_value;
+		MidoriValue m_value;
 	};
 
 	struct Closure
@@ -94,7 +94,7 @@ public:
 	};
 
 private:
-	std::variant<std::string, std::vector<Value>, CellValue, Closure> m_value;
+	std::variant<std::string, std::vector<MidoriValue>, CellValue, Closure> m_value;
 	size_t m_size;
 	bool m_is_marked;
 
@@ -107,9 +107,9 @@ public:
 
 	inline bool IsString() const { return std::holds_alternative<std::string>(m_value); }
 
-	inline std::vector<Value>& GetArray() const { return const_cast<std::vector<Value>&>(std::get<std::vector<Value>>(m_value)); }
+	inline std::vector<MidoriValue>& GetArray() const { return const_cast<std::vector<MidoriValue>&>(std::get<std::vector<MidoriValue>>(m_value)); }
 
-	inline bool IsArray() const { return std::holds_alternative<std::vector<Value>>(m_value); }
+	inline bool IsArray() const { return std::holds_alternative<std::vector<MidoriValue>>(m_value); }
 
 	inline bool IsCellValue() const { return std::holds_alternative<CellValue>(m_value); }
 
@@ -164,7 +164,7 @@ private:
 
 	Traceable(std::string&& str) : m_value(std::move(str)) {}
 
-	Traceable(std::vector<Value>&& array) : m_value(std::move(array)) {}
+	Traceable(std::vector<MidoriValue>&& array) : m_value(std::move(array)) {}
 
 	Traceable(CellValue&& cell_value) : m_value(std::move(cell_value)) {}
 

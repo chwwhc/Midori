@@ -38,7 +38,7 @@ private:
 		EmitByte(static_cast<OpCode>(byte3), line);
 	}
 
-	inline void EmitConstant(Value&& value, int line)
+	inline void EmitConstant(MidoriValue&& value, int line)
 	{
 		if (value.IsObjectPointer())
 		{

@@ -32,18 +32,18 @@ private:
 	template <typename T, int Size>
 	using StackPointer = std::array<T, Size>::iterator;
 	using InstructionPointer = BytecodeStream::const_iterator;
-	using GlobalVariables = std::unordered_map<std::string, Value>;
+	using GlobalVariables = std::unordered_map<std::string, MidoriValue>;
 	friend class NativeFunction;
 
 	struct CallFrame
 	{
 		BytecodeStream* m_return_module;
-		StackPointer<Value, VALUE_STACK_MAX>  m_return_bp;
-		StackPointer<Value, VALUE_STACK_MAX>  m_return_sp;
+		StackPointer<MidoriValue, VALUE_STACK_MAX>  m_return_bp;
+		StackPointer<MidoriValue, VALUE_STACK_MAX>  m_return_sp;
 		InstructionPointer m_return_ip;
 	};
 
-	std::array<Value, VALUE_STACK_MAX> m_value_stack;
+	std::array<MidoriValue, VALUE_STACK_MAX> m_value_stack;
 	std::array<CallFrame, FRAME_STACK_MAX> m_call_stack;
 	MidoriResult::ExecutableModule m_executable_module;
 	GlobalVariables m_global_vars;
@@ -51,8 +51,8 @@ private:
 	Traceable::Closure* m_current_closure = nullptr;
 	MidoriResult::InterpreterResult m_last_result = nullptr;
 	BytecodeStream* m_current_bytecode;
-	StackPointer<Value, VALUE_STACK_MAX> m_base_pointer = m_value_stack.begin();
-	StackPointer<Value, VALUE_STACK_MAX> m_value_stack_pointer = m_value_stack.begin();
+	StackPointer<MidoriValue, VALUE_STACK_MAX> m_base_pointer = m_value_stack.begin();
+	StackPointer<MidoriValue, VALUE_STACK_MAX> m_value_stack_pointer = m_value_stack.begin();
 	StackPointer<CallFrame, FRAME_STACK_MAX> m_call_stack_pointer = m_call_stack.begin();
 	InstructionPointer m_instruction_pointer;
 
@@ -81,7 +81,7 @@ private:
 		return value;
 	}
 
-	inline const Value& ReadConstant(OpCode operand_length)
+	inline const MidoriValue& ReadConstant(OpCode operand_length)
 	{
 		int index = 0;
 
@@ -116,7 +116,7 @@ private:
 		return MidoriError::GenerateRuntimeError(message.data(), line);
 	}
 
-	inline MidoriResult::InterpreterResult Push(Value&& value)
+	inline MidoriResult::InterpreterResult Push(MidoriValue&& value)
 	{
 		if (m_value_stack_pointer == m_value_stack.end())
 		{
@@ -135,7 +135,7 @@ private:
 			return std::unexpected<std::string>(GenerateRuntimeError("Value stack overflow.", GetLine()));
 		}
 
-		Value top_value = *std::prev(m_value_stack_pointer);
+		MidoriValue top_value = *std::prev(m_value_stack_pointer);
 		*m_value_stack_pointer = std::move(top_value);
 		++m_value_stack_pointer;
 		return &(*std::prev(m_value_stack_pointer));
@@ -148,7 +148,7 @@ private:
 			return std::unexpected<std::string>(GenerateRuntimeError("Value stack underflow.", GetLine()));
 		}
 
-		Value& value = *(--m_value_stack_pointer);
+		MidoriValue& value = *(--m_value_stack_pointer);
 		if (value.IsObjectPointer() && value.GetObjectPointer()->IsCellValue())
 		{
 			return &value.GetObjectPointer()->GetCellValue().m_value;
@@ -159,7 +159,7 @@ private:
 		}
 	}
 
-	inline MidoriResult::InterpreterResult CheckIsArray(Value* val)
+	inline MidoriResult::InterpreterResult CheckIsArray(MidoriValue* val)
 	{
 		if (!val->IsObjectPointer() || !val->GetObjectPointer()->IsArray())
 		{
@@ -171,7 +171,7 @@ private:
 		}
 	}
 
-	inline MidoriResult::InterpreterResult CheckIsNumber(Value* val)
+	inline MidoriResult::InterpreterResult CheckIsNumber(MidoriValue* val)
 	{
 		if (!val->IsNumber())
 		{
@@ -183,7 +183,7 @@ private:
 		}
 	}
 
-	inline MidoriResult::InterpreterResult CheckIsInteger(Value* num)
+	inline MidoriResult::InterpreterResult CheckIsInteger(MidoriValue* num)
 	{
 		double val = num->GetNumber();
 		if (val != static_cast<int>(val))
@@ -196,7 +196,7 @@ private:
 		}
 	}
 
-	inline MidoriResult::InterpreterResult CheckIndexBounds(Value* index, int size)
+	inline MidoriResult::InterpreterResult CheckIndexBounds(MidoriValue* index, int size)
 	{
 		double val = index->GetNumber();
 		int val_int = static_cast<int>(val);
@@ -211,7 +211,7 @@ private:
 		}
 	}
 
-	inline MidoriResult::InterpreterResult CheckArrayMaxLength(Value* num)
+	inline MidoriResult::InterpreterResult CheckArrayMaxLength(MidoriValue* num)
 	{
 		double val = num->GetNumber();
 		if (val < 0 || val > THREE_BYTE_MAX)
@@ -225,13 +225,13 @@ private:
 		}
 	}
 
-	inline MidoriResult::InterpreterResult Bind(MidoriResult::InterpreterResult&& prev, std::function<MidoriResult::InterpreterResult(Value*)>&& function) { return !prev.has_value() ? std::move(prev) : function(prev.value()); }
+	inline MidoriResult::InterpreterResult Bind(MidoriResult::InterpreterResult&& prev, std::function<MidoriResult::InterpreterResult(MidoriValue*)>&& function) { return !prev.has_value() ? std::move(prev) : function(prev.value()); }
 
-	inline static bool AreSameType(const Value& left, const Value& right) { return Value::AreSameType(left, right); }
+	inline static bool AreSameType(const MidoriValue& left, const MidoriValue& right) { return MidoriValue::AreSameType(left, right); }
 
-	inline static bool AreNumerical(const Value& left, const Value& right) { return left.IsNumber() && right.IsNumber(); }
+	inline static bool AreNumerical(const MidoriValue& left, const MidoriValue& right) { return left.IsNumber() && right.IsNumber(); }
 
-	inline static bool AreConcatenatable(const Value& left, const Value& right)
+	inline static bool AreConcatenatable(const MidoriValue& left, const MidoriValue& right)
 	{
 		if (!left.IsObjectPointer() || !right.IsObjectPointer())
 		{
@@ -244,7 +244,7 @@ private:
 		return (left_value->IsString() && right_value->IsString()) || (left_value->IsArray() && right_value->IsArray());
 	}
 
-	inline static bool Are32BitIntegers(const Value& left, const Value& right)
+	inline static bool Are32BitIntegers(const MidoriValue& left, const MidoriValue& right)
 	{
 		if (!AreNumerical(left, right))
 		{
@@ -271,5 +271,5 @@ private:
 		return Traceable::AllocateObject(std::forward<T>(value));
 	}
 
-	MidoriResult::InterpreterResult BinaryOperation(std::function<Value(const Value&, const Value&)>&& op, bool (*type_checker)(const Value&, const Value&));
+	MidoriResult::InterpreterResult BinaryOperation(std::function<MidoriValue(const MidoriValue&, const MidoriValue&)>&& op, bool (*type_checker)(const MidoriValue&, const MidoriValue&));
 };

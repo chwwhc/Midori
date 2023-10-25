@@ -4,10 +4,10 @@
 
 void NativeFunction::InitializeNativeFunctions(VirtualMachine& vm)
 {
-	Value println = Value::NativeFunction([&vm]()
+	MidoriValue println = MidoriValue::NativeFunction([&vm]()
 		{
 			std::cout << vm.Pop().value()->ToString() << std::endl;
-			vm.Push(Value());
+			vm.Push(MidoriValue());
 		}, "PrintLine", 1);
 	vm.m_global_vars[std::string("PrintLine")] = println;
 }

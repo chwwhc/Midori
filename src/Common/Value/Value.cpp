@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <iostream>
 
-std::string Value::DoubleToStringWithoutTrailingZeros(double value)
+std::string MidoriValue::DoubleToStringWithoutTrailingZeros(double value)
 {
 	std::string str = std::to_string(value);
 
@@ -20,7 +20,7 @@ std::string Value::DoubleToStringWithoutTrailingZeros(double value)
 	return str;
 }
 
-std::string Value::ToString() const
+std::string MidoriValue::ToString() const
 {
 	return std::visit([](auto&& arg) -> std::string
 		{
@@ -62,10 +62,10 @@ std::string Traceable::ToString() const
 			{
 				return arg;
 			}
-			else if constexpr (std::is_same_v<T, std::vector<Value>>)
+			else if constexpr (std::is_same_v<T, std::vector<MidoriValue>>)
 			{
 				std::string result = "[";
-				for (const Value& value : arg)
+				for (const MidoriValue& value : arg)
 				{
 					result.append(value.ToString());
 					result.append(",");
@@ -116,7 +116,7 @@ void Traceable::Trace()
 	Mark();
 	if (IsArray())
 	{
-		std::for_each(GetArray().begin(), GetArray().end(), [](Value& value) -> void
+		std::for_each(GetArray().begin(), GetArray().end(), [](MidoriValue& value) -> void
 			{
 				if (value.IsObjectPointer())
 				{
@@ -138,7 +138,7 @@ void Traceable::Trace()
 	}
 	else if (IsCellValue())
 	{
-		Value& cellValue = GetCellValue().m_value;
+		MidoriValue& cellValue = GetCellValue().m_value;
 		if (cellValue.IsObjectPointer())
 		{
 			cellValue.GetObjectPointer()->Trace();
