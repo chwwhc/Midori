@@ -55,12 +55,20 @@ namespace
 		std::cout << name << " (# destination " << std::setfill('0') << std::setw(4) << std::hex << offset + sign * index << " #)" << std::endl;
 	}
 
-	void GlobalVariableInstruction(const char* name, const BytecodeStream& stream, const GlobalVariableTable& global_table, int& offset)
+	void NativeVariableInstruction(const char* name, const BytecodeStream& stream, const GlobalVariableTable& global_table, int& offset)
 	{
 		int index = static_cast<int>(stream.ReadByteCode(offset + 1));
 		offset += 2;
 
 		std::cout << name << " " << index << " {{ variable: " << global_table.GetGlobalVariable(index) << " }}" << std::endl;
+	}
+
+	void LocalOrCellVariableInstruction(const char* name, const BytecodeStream& stream, int& offset)
+	{
+		int index = static_cast<int>(stream.ReadByteCode(offset + 1));
+		offset += 2;
+
+		std::cout << name << " (* offset: " << index << " *)" << std::endl;
 	}
 
 	void ArrayInstruction(const char* name, const BytecodeStream& stream, int& offset)
@@ -80,12 +88,11 @@ namespace
 		std::cout << name << " (- num of elements: " << length << " -)" << std::endl;
 	}
 
-	void LocalVariableInstruction(const char* name, const BytecodeStream& stream, int& offset)
+	void ClosureCreateInstruction(const char* name, const BytecodeStream& stream, int& offset)
 	{
-		int index = static_cast<int>(stream.ReadByteCode(offset + 1));
+		int count = static_cast<int>(stream.ReadByteCode(offset + 1));
 		offset += 2;
-
-		std::cout << name << " (* offset: " << index << " *)" << std::endl;
+		std::cout << name << " (- num of captured variables: " << count << " -)" << std::endl;
 	}
 
 	void CallInstruction(const char* name, const BytecodeStream& stream, int& offset)
@@ -227,25 +234,22 @@ namespace Disassembler
 			CallInstruction("CALL", stream, offset);
 			break;
 		case OpCode::CREATE_CLOSURE:
-			SimpleInstruction("CREATE_CLOSURE", offset);
+			ClosureCreateInstruction("CREATE_CLOSURE", stream, offset);
 			break;
 		case OpCode::GET_NATIVE:
-			GlobalVariableInstruction("GET_NATIVE", stream, global_table, offset);
+			NativeVariableInstruction("GET_NATIVE", stream, global_table, offset);
 			break;
 		case OpCode::GET_LOCAL:
-			LocalVariableInstruction("GET_LOCAL", stream, offset);
+			LocalOrCellVariableInstruction("GET_LOCAL", stream, offset);
 			break;
 		case OpCode::SET_LOCAL:
-			LocalVariableInstruction("SET_LOCAL", stream, offset);
+			LocalOrCellVariableInstruction("SET_LOCAL", stream, offset);
 			break;
 		case OpCode::GET_CELL:
-			LocalVariableInstruction("GET_CELL", stream, offset);
+			LocalOrCellVariableInstruction("GET_CELL", stream, offset);
 			break;
 		case OpCode::SET_CELL:
-			LocalVariableInstruction("SET_CELL", stream, offset);
-			break;
-		case OpCode::DEFINE_NAME:
-			SimpleInstruction("DEFINE_NAME", offset);
+			LocalOrCellVariableInstruction("SET_CELL", stream, offset);
 			break;
 		case OpCode::POP:
 			SimpleInstruction("POP", offset);

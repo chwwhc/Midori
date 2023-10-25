@@ -66,7 +66,6 @@ enum class OpCode : uint8_t
     SET_LOCAL,
     GET_CELL,
     SET_CELL,
-    DEFINE_NAME,
 
     // Stack Operations
     POP,

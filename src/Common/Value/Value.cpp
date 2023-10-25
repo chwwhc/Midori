@@ -1,5 +1,6 @@
 #include "Value.h"
 
+#include <algorithm>
 #include <iostream>
 
 std::string Value::DoubleToStringWithoutTrailingZeros(double value)
@@ -91,10 +92,7 @@ std::string Traceable::ToString() const
 void Traceable::CleanUp()
 {
 	s_static_bytes_allocated = 0u;
-	for (Traceable* object : s_objects)
-	{
-		delete object;
-	}
+	std::for_each(s_objects.begin(), s_objects.end(), [](Traceable* object) { delete object; });
 	s_objects.clear();
 }
 
@@ -109,38 +107,39 @@ void Traceable::PrintMemoryTelemetry()
 	std::cout << "\n\t------------------------------\n\n";
 }
 
-void Traceable::Trace() 
+void Traceable::Trace()
 {
-	if (IsMarked()) 
+	if (IsMarked())
 	{
 		return;
 	}
 	Mark();
-	if (IsArray()) 
+	if (IsArray())
 	{
-		for (Value& v : GetArray()) 
-		{
-			if (v.IsObjectPointer()) 
+		std::for_each(GetArray().begin(), GetArray().end(), [](Value& value) -> void
 			{
-				v.GetObjectPointer()->Trace();
-			}
-		}
+				if (value.IsObjectPointer())
+				{
+					value.GetObjectPointer()->Trace();
+				}
+			});
 	}
-	else if (IsClosure()) 
+	else if (IsClosure())
 	{
 		Traceable::Closure& closure = GetClosure();
-		for (Traceable* obj : closure.m_cell_values) 
-		{
-			if (obj != nullptr)
+
+		std::for_each(closure.m_cell_values.begin(), closure.m_cell_values.end(), [](Traceable* captured) -> void
 			{
-				obj->Trace();
-			}
-		}
+				if (captured != nullptr)
+				{
+					captured->Trace();
+				}
+			});
 	}
-	else if (IsCellValue()) 
+	else if (IsCellValue())
 	{
 		Value& cellValue = GetCellValue().m_value;
-		if (cellValue.IsObjectPointer()) 
+		if (cellValue.IsObjectPointer())
 		{
 			cellValue.GetObjectPointer()->Trace();
 		}

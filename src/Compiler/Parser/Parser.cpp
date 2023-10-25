@@ -378,7 +378,7 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 		m_closure_depth -= 1;
 		m_total_locals = prev_total_locals;
 
-		return std::make_unique<Expression>(Closure(std::move(keyword), std::move(params), std::move(closure_body)));
+		return std::make_unique<Expression>(Closure(std::move(keyword), std::move(params), std::move(closure_body), std::make_unique<Type>(AnyType()), m_total_variables));
 	}
 	else if (Match(Token::Type::TRUE, Token::Type::FALSE))
 	{

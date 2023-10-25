@@ -3,8 +3,6 @@
 #include "Common/Error/Error.h"
 #include "Common/Result/Result.h"
 
-#include <unordered_map>
-
 class CodeGenerator
 {
 public:

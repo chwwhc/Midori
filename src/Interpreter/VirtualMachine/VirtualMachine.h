@@ -35,30 +35,24 @@ private:
 	using GlobalVariables = std::unordered_map<std::string, Value>;
 	friend class NativeFunction;
 
-	struct ValueSlot
-	{
-		Value m_value;
-		bool m_is_named = false;
-	};
-
 	struct CallFrame
 	{
 		BytecodeStream* m_return_module;
-		StackPointer<ValueSlot, VALUE_STACK_MAX>  m_return_bp;
-		StackPointer<ValueSlot, VALUE_STACK_MAX>  m_return_sp;
+		StackPointer<Value, VALUE_STACK_MAX>  m_return_bp;
+		StackPointer<Value, VALUE_STACK_MAX>  m_return_sp;
 		InstructionPointer m_return_ip;
 	};
 
-	std::array<ValueSlot, VALUE_STACK_MAX> m_value_stack;
+	std::array<Value, VALUE_STACK_MAX> m_value_stack;
 	std::array<CallFrame, FRAME_STACK_MAX> m_call_stack;
 	MidoriResult::ExecutableModule m_executable_module;
 	GlobalVariables m_global_vars;
 	GarbageCollector m_garbage_collector;
-	std::vector<Traceable::Closure*> m_closures;
+	Traceable::Closure* m_current_closure = nullptr;
 	MidoriResult::InterpreterResult m_last_result = nullptr;
 	BytecodeStream* m_current_bytecode;
-	StackPointer<ValueSlot, VALUE_STACK_MAX> m_base_pointer = m_value_stack.begin();
-	StackPointer<ValueSlot, VALUE_STACK_MAX> m_value_stack_pointer = m_value_stack.begin();
+	StackPointer<Value, VALUE_STACK_MAX> m_base_pointer = m_value_stack.begin();
+	StackPointer<Value, VALUE_STACK_MAX> m_value_stack_pointer = m_value_stack.begin();
 	StackPointer<CallFrame, FRAME_STACK_MAX> m_call_stack_pointer = m_call_stack.begin();
 	InstructionPointer m_instruction_pointer;
 
@@ -129,9 +123,9 @@ private:
 			return std::unexpected<std::string>(GenerateRuntimeError("Value stack overflow.", GetLine()));
 		}
 
-		m_value_stack_pointer->m_value = std::move(value);
+		*m_value_stack_pointer = std::move(value);
 		++m_value_stack_pointer;
-		return &(m_value_stack_pointer - 1)->m_value;
+		return &(*std::prev(m_value_stack_pointer));
 	}
 
 	inline MidoriResult::InterpreterResult Duplicate()
@@ -141,10 +135,10 @@ private:
 			return std::unexpected<std::string>(GenerateRuntimeError("Value stack overflow.", GetLine()));
 		}
 
-		Value top_value = std::prev(m_value_stack_pointer)->m_value;
-		m_value_stack_pointer->m_value = std::move(top_value);
+		Value top_value = *std::prev(m_value_stack_pointer);
+		*m_value_stack_pointer = std::move(top_value);
 		++m_value_stack_pointer;
-		return &(m_value_stack_pointer - 1)->m_value;
+		return &(*std::prev(m_value_stack_pointer));
 	}
 
 	inline MidoriResult::InterpreterResult Pop()
@@ -154,7 +148,7 @@ private:
 			return std::unexpected<std::string>(GenerateRuntimeError("Value stack underflow.", GetLine()));
 		}
 
-		Value& value = (--m_value_stack_pointer)->m_value;
+		Value& value = *(--m_value_stack_pointer);
 		if (value.IsObjectPointer() && value.GetObjectPointer()->IsCellValue())
 		{
 			return &value.GetObjectPointer()->GetCellValue().m_value;

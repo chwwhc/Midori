@@ -43,7 +43,6 @@ void CodeGenerator::operator()(Simple& simple)
 
 void CodeGenerator::operator()(Define& def)
 {
-	EmitByte(OpCode::DEFINE_NAME, def.m_name.m_line);
 	std::visit([this](auto&& arg) { (*this)(arg); }, *def.m_value);
 }
 
@@ -276,11 +275,7 @@ void CodeGenerator::operator()(Call& call)
 		return;
 	}
 
-	std::for_each(call.m_arguments.begin(), call.m_arguments.end(), [&line, this](std::unique_ptr<Expression>& arg)
-		{
-			EmitByte(OpCode::DEFINE_NAME, line);
-			std::visit([this](auto&& arg) {(*this)(arg); }, *arg);
-		});
+	std::for_each(call.m_arguments.begin(), call.m_arguments.end(), [&line, this](std::unique_ptr<Expression>& arg) { std::visit([this](auto&& arg) {(*this)(arg); }, *arg); });
 	std::visit([this](auto&& arg) {(*this)(arg); }, *call.m_callee);
 
 	EmitByte(OpCode::CALL, line);
@@ -371,9 +366,15 @@ void CodeGenerator::operator()(Closure& closure)
 {
 	int line = closure.m_closure_keyword.m_line;
 	int arity = static_cast<int>(closure.m_params.size());
+	int captured_count = static_cast<int>(closure.m_captured_count);
 	if (arity > UINT8_MAX)
 	{
 		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too many arguments (max 255).", line));
+		return;
+	}
+	if (captured_count > UINT8_MAX)
+	{
+		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too many captured variables (max 255).", line));
 		return;
 	}
 
@@ -383,10 +384,12 @@ void CodeGenerator::operator()(Closure& closure)
 	std::visit([this](auto&& arg) {(*this)(arg); }, *closure.m_body);
 
 	Traceable* closure_ptr = Traceable::AllocateObject(Traceable::Closure(std::vector<Traceable*>(), m_current_module_index, arity));
+
 	m_current_module_index = prev_index;
 
 	EmitConstant(std::move(closure_ptr), line);
 	EmitByte(OpCode::CREATE_CLOSURE, line);
+	EmitByte(static_cast<OpCode>(closure.m_captured_count), line);
 }
 
 void CodeGenerator::operator()(Array& array)

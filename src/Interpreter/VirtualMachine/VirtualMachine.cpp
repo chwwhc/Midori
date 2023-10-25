@@ -43,11 +43,11 @@ Traceable::GarbageCollectionRoots VirtualMachine::GetValueStackGarbageCollection
 {
 	Traceable::GarbageCollectionRoots roots;
 
-	std::for_each_n(m_value_stack.begin(), std::distance(m_value_stack.begin(), m_value_stack_pointer), [&roots](VirtualMachine::ValueSlot& valueSlot) -> void
+	std::for_each_n(m_value_stack.begin(), std::distance(m_value_stack.begin(), m_value_stack_pointer), [&roots](Value& value) -> void
 		{
-			if (valueSlot.m_is_named && valueSlot.m_value.IsObjectPointer())
+			if (value.IsObjectPointer())
 			{
-				roots.emplace(static_cast<Traceable*>(valueSlot.m_value.GetObjectPointer()));
+				roots.emplace(static_cast<Traceable*>(value.GetObjectPointer()));
 			}
 		});
 
@@ -91,9 +91,9 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 	{
 #ifdef DEBUG
 		std::cout << "          ";
-		for (StackPointer<VirtualMachine::ValueSlot, VALUE_STACK_MAX> it = m_base_pointer; it < m_value_stack_pointer; ++it)
+		for (StackPointer<Value, VALUE_STACK_MAX> it = m_base_pointer; it < m_value_stack_pointer; ++it)
 		{
-			std::cout << "[ " << it->m_value.ToString() << " | " << (it->m_is_named ? 'L' : 'R') << " ]";
+			std::cout << "[ " << it->ToString() << " ]";
 		}
 		std::cout << std::endl;
 		int dbg_instruction_pointer = static_cast<int>(std::distance(m_current_bytecode->cbegin(), m_instruction_pointer));
@@ -506,19 +506,18 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 					return std::unexpected<std::string>(GenerateRuntimeError("Incorrect arity", GetLine()));
 				}
 
-				m_closures.emplace_back(&closure);
+				m_current_closure = &closure;
 
 				// Return address := pop all the arguments and the callee
 				*m_call_stack_pointer++ = { m_current_bytecode , m_base_pointer, m_value_stack_pointer - arity, m_instruction_pointer };
-
 				m_current_bytecode = &m_executable_module.m_modules[closure.m_bytecode_index];
 				m_instruction_pointer = m_current_bytecode->cbegin();
 				m_base_pointer = m_value_stack_pointer - arity;
-				std::for_each_n(m_base_pointer, std::distance(m_base_pointer, m_value_stack_pointer), [](VirtualMachine::ValueSlot& valueSlot) -> void
+				std::for_each_n(m_base_pointer, std::distance(m_base_pointer, m_value_stack_pointer), [](Value& value) -> void
 					{
-						if (valueSlot.m_value.IsObjectPointer() && valueSlot.m_value.GetObjectPointer()->IsCellValue())
+						if (value.IsObjectPointer() && value.GetObjectPointer()->IsCellValue())
 						{
-							valueSlot.m_value = valueSlot.m_value.GetObjectPointer()->GetCellValue().m_value;
+							value = value.GetObjectPointer()->GetCellValue().m_value;
 						}
 					});
 			}
@@ -527,11 +526,12 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 		}
 		case OpCode::CREATE_CLOSURE:
 		{
+			int count = static_cast<int>(ReadByte());
 			EXECUTE_OR_ABORT(Bind(Pop(), [this](Value* value) -> MidoriResult::InterpreterResult
 				{
 					if (value->IsObjectPointer() && value->GetObjectPointer()->IsClosure())
 					{
-						return Push(std::move(*value));
+						return value;
 					}
 					else
 					{
@@ -544,40 +544,33 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 			Traceable* old_closure = closure_value.GetObjectPointer();
 			Traceable::Closure& new_closure_ref = new_closure->GetClosure();
 			Traceable::Closure& old_closure_ref = old_closure->GetClosure();
-			new_closure_ref.m_cell_values.clear();
-			old_closure_ref.m_cell_values.clear();
 			std::vector<Traceable*>& new_captured_variables = new_closure_ref.m_cell_values;
 			std::vector<Traceable*>& old_captured_variables = old_closure_ref.m_cell_values;
 
-			if (!m_closures.empty())
+			if (m_current_closure != nullptr)
 			{
-				std::for_each(m_closures.back()->m_cell_values.begin(), m_closures.back()->m_cell_values.end(), [&new_captured_variables, &old_captured_variables](Traceable* enclosed_cell_value) -> void
-					{
-						new_captured_variables.emplace_back(enclosed_cell_value);
-						old_captured_variables.emplace_back(enclosed_cell_value);
-					});
+				new_captured_variables = m_current_closure->m_cell_values;
+				old_captured_variables = m_current_closure->m_cell_values;
+				count -= static_cast<int>(m_current_closure->m_cell_values.size());
 			}
 
-			std::for_each_n(m_base_pointer, std::distance(m_base_pointer, m_value_stack_pointer), [&new_captured_variables, &old_captured_variables, this](VirtualMachine::ValueSlot& valueSlot) -> void
+			for (StackPointer<Value, VALUE_STACK_MAX> it = m_base_pointer; it < m_base_pointer + count; ++it)
+			{
+				if (it->IsObjectPointer() && it->GetObjectPointer()->IsCellValue())
 				{
-					if (valueSlot.m_is_named)
-					{
-						if (valueSlot.m_value.IsObjectPointer() && valueSlot.m_value.GetObjectPointer()->IsCellValue())
-						{
-							new_captured_variables.emplace_back(valueSlot.m_value.GetObjectPointer());
-							old_captured_variables.emplace_back(valueSlot.m_value.GetObjectPointer());
-						}
-						else
-						{
-							Traceable* cell_value = RuntimeAllocateObject(Traceable::CellValue(std::move(valueSlot.m_value)));
-							valueSlot.m_value = Value(cell_value);
-							new_captured_variables.emplace_back(cell_value);
-							old_captured_variables.emplace_back(cell_value);
-						}
-					}
-				});
+					new_captured_variables.emplace_back(it->GetObjectPointer());
+					old_captured_variables.emplace_back(it->GetObjectPointer());
+				}
+				else
+				{
+					Traceable* cell_value = RuntimeAllocateObject(Traceable::CellValue(std::move(*it)));
+					*it = Value(cell_value);
+					new_captured_variables.emplace_back(cell_value);
+					old_captured_variables.emplace_back(cell_value);
+				}
+			}
 
-			closure_value = Value(new_closure);
+			EXECUTE_OR_ABORT(Push(Value(new_closure)));
 			break;
 		}
 		case OpCode::GET_NATIVE:
@@ -588,20 +581,20 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 			{
 				return std::unexpected<std::string>(GenerateRuntimeError("Undefined variable '" + name + "'.", GetLine()));
 			}
-			Push(Value(it->second));
+			EXECUTE_OR_ABORT(Push(Value(it->second)));
 			break;
 		}
 		case OpCode::GET_LOCAL:
 		{
 			int offset = static_cast<int>(ReadByte());
-			Value value_copy = (m_base_pointer + offset)->m_value;
-			Push(std::move(value_copy));
+			Value value_copy = *(m_base_pointer + offset);
+			EXECUTE_OR_ABORT(Push(std::move(value_copy)));
 			break;
 		}
 		case OpCode::SET_LOCAL:
 		{
 			int offset = static_cast<int>(ReadByte());
-			Value& var = (m_base_pointer + offset)->m_value;
+			Value& var = *(m_base_pointer + offset);
 			EXECUTE_OR_ABORT(Bind(Duplicate(), [&var, this](Value*) -> MidoriResult::InterpreterResult
 				{
 					return Bind(Pop(), [&var, this](Value* value_copy) -> MidoriResult::InterpreterResult
@@ -623,8 +616,8 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 		case OpCode::GET_CELL:
 		{
 			int offset = static_cast<int>(ReadByte());
-			Value value_copy = m_closures.back()->m_cell_values[offset]->GetCellValue().m_value;
-			Push(std::move(value_copy));
+			Value value_copy = m_current_closure->m_cell_values[offset]->GetCellValue().m_value;
+			EXECUTE_OR_ABORT(Push(std::move(value_copy)));
 			break;
 		}
 		case OpCode::SET_CELL:
@@ -634,29 +627,16 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 				{
 					return Bind(Pop(), [offset, this](Value* value_copy) -> MidoriResult::InterpreterResult
 						{
-							if (value_copy->IsObjectPointer() && value_copy->GetObjectPointer()->IsCellValue())
-							{
-								Value& var = m_closures.back()->m_cell_values[offset]->GetCellValue().m_value;
-								var = std::move(*value_copy);
-								return &var;
-							}
-							else
-							{
-								return std::unexpected<std::string>(GenerateRuntimeError("Operand must be a cell value.", GetLine()));
-							}
+							Value& var = m_current_closure->m_cell_values[offset]->GetCellValue().m_value;
+							var = std::move(*value_copy);
+							return &var;
 						});
 				}));
-
-			break;
-		}
-		case OpCode::DEFINE_NAME:
-		{
-			m_value_stack_pointer->m_is_named = true;
 			break;
 		}
 		case OpCode::POP:
 		{
-			Pop();
+			EXECUTE_OR_ABORT(Pop());
 			break;
 		}
 		case OpCode::POP_MULTIPLE:
@@ -668,7 +648,6 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 		case OpCode::RETURN:
 		{
 			CallFrame& top_frame = *(--m_call_stack_pointer);
-			m_closures.pop_back();
 
 			EXECUTE_OR_ABORT(Pop());
 			Value& return_val = *m_last_result.value();
@@ -678,12 +657,12 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 			m_instruction_pointer = top_frame.m_return_ip;
 			m_value_stack_pointer = top_frame.m_return_sp;
 
-			Push(std::move(return_val));
+			EXECUTE_OR_ABORT(Push(std::move(return_val)));
 			break;
 		}
 		case OpCode::HALT:
 		{
-			return nullptr;
+			return std::unexpected<std::string>(GenerateRuntimeError("Program halted.", GetLine()));
 		}
 		default:
 		{

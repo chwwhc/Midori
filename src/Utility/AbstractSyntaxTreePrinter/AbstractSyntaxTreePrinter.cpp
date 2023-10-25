@@ -99,6 +99,7 @@ void PrintAbstractSyntaxTree::operator()(const Return& return_stmt, int depth) c
 {
 	PrintWithIndentation(depth, "Return {");
 	PrintWithIndentation(depth + 1, "Value: ");
+	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *return_stmt.m_value);
 	PrintWithIndentation(depth, "}");
 }
 
@@ -199,9 +200,14 @@ void PrintAbstractSyntaxTree::operator()(const Variable& variable, int depth) co
 		{
 			using T = std::decay_t<decltype(arg)>;
 
-			if constexpr (std::is_same_v<T, VariableSemantic::Local> || std::is_same_v<T, VariableSemantic::Cell>)
+			if constexpr (std::is_same_v<T, VariableSemantic::Local>)
 			{
 				PrintWithIndentation(depth + 2, "Local");
+				PrintWithIndentation(depth + 2, "Index: " + std::to_string(arg.m_index));
+			}
+			else if constexpr (std::is_same_v<T, VariableSemantic::Cell>)
+			{
+				PrintWithIndentation(depth + 2, "Cell");
 				PrintWithIndentation(depth + 2, "Index: " + std::to_string(arg.m_index));
 			}
 			else if constexpr (std::is_same_v<T, VariableSemantic::Global>)
@@ -223,9 +229,14 @@ void PrintAbstractSyntaxTree::operator()(const Assign& assign, int depth) const
 		{
 			using T = std::decay_t<decltype(arg)>;
 
-			if constexpr (std::is_same_v<T, VariableSemantic::Local> || std::is_same_v<T, VariableSemantic::Cell>)
+			if constexpr (std::is_same_v<T, VariableSemantic::Local>)
 			{
 				PrintWithIndentation(depth + 2, "Local");
+				PrintWithIndentation(depth + 2, "Index: " + std::to_string(arg.m_index));
+			}
+			else if constexpr (std::is_same_v<T, VariableSemantic::Cell>)
+			{
+				PrintWithIndentation(depth + 2, "Cell");
 				PrintWithIndentation(depth + 2, "Index: " + std::to_string(arg.m_index));
 			}
 			else if constexpr (std::is_same_v<T, VariableSemantic::Global>)

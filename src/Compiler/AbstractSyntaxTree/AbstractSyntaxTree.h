@@ -167,6 +167,7 @@ struct Closure
 	std::vector<Token> m_params;
 	std::unique_ptr<Statement> m_body;
 	std::unique_ptr<Type> m_type = std::make_unique<Type>(AnyType());
+	int m_captured_count = 0;
 };
 
 struct Ternary
