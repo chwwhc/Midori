@@ -1,6 +1,7 @@
 #include "NativeFunction.h"
 #include "Interpreter/VirtualMachine/VirtualMachine.h"
 
+#include <iostream>
 
 void NativeFunction::InitializeNativeFunctions(VirtualMachine& vm)
 {

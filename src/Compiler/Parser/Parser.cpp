@@ -74,7 +74,7 @@ MidoriResult::ExpressionResult Parser::ParseAssignment()
 				if (find_result != scope_it->end())
 				{
 					// local
-					if (m_closure_depth == 0 || scope_it == m_scopes.rbegin())
+					if (m_closure_depth == 0 || find_result->second.m_closure_depth == m_closure_depth)
 					{
 						return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Local(find_result->second.m_relative_index)));
 					}
@@ -291,7 +291,7 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 			if (find_result != scope_it->end())
 			{
 				// local
-				if (m_closure_depth == 0 || scope_it == m_scopes.rbegin())
+				if (m_closure_depth == 0 || find_result->second.m_closure_depth == m_closure_depth)
 				{
 					return std::make_unique<Expression>(Variable(std::move(Previous()), VariableSemantic::Local(find_result->second.m_relative_index)));
 				}

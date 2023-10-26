@@ -1,16 +1,36 @@
-var x = closure(x)
+fixed factorial = closure(n)
 {
-    return closure(){ return x; };
+	var result = 1;
+	for (var i = 1; i <= n; i = i + 1)
+	{
+		result = result * i;
+	}
+	return result;
 };
 
-var A = closure(k, x1, x2, x3, x4, x5)
+fixed pow = closure(x, n)
 {
-    var B = closure()
-    {
-        k = k - 1;
-        return A(k, B, x1, x2, x3, x4); 
-    };
-    return k > 0 ? B() : x4() + x5();
+	var result = 1;
+	for (var i = 0; i < n; i = i + 1)
+	{
+		result = result * x;
+	}
+	return result;
 };
 
-PrintLine(A(4, x(1), x(-1), x(-1), x(1), x(0)));
+fixed sin = closure(x)
+{
+	var sine = 0;
+	for (var i = 0; i < 50; i = i + 1)
+	{
+		fixed coefficient = 1 % 2 == 0 ? 1 : -1;
+		fixed power = 2 * i + 1;
+		sine = sine + coefficient * pow(x, power) / factorial(power);
+	}
+	return sine;
+};
+
+for (var i = 0; i < 10; i = i + 1)
+{
+	PrintLine(sin(i));
+}

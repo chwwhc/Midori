@@ -4,6 +4,10 @@
 #include <cmath>
 #include <algorithm>
 
+#ifdef DEBUG
+#include <iostream>
+#endif
+
 #define EXECUTE_OR_ABORT(operation)  \
     m_last_result = operation;       \
     if (!m_last_result.has_value())	 \
@@ -506,7 +510,7 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 					return std::unexpected<std::string>(GenerateRuntimeError("Incorrect arity", GetLine()));
 				}
 
-				m_current_closure = &closure;
+				m_closure_stack.emplace(&closure);
 
 				if (std::next(m_call_stack_pointer) == m_call_stack.end())
 				{
@@ -554,11 +558,11 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 			std::vector<Traceable*>& new_captured_variables = new_closure_ref.m_cell_values;
 			std::vector<Traceable*>& old_captured_variables = old_closure_ref.m_cell_values;
 
-			if (m_current_closure != nullptr)
+			if (!m_closure_stack.empty())
 			{
-				new_captured_variables = m_current_closure->m_cell_values;
-				old_captured_variables = m_current_closure->m_cell_values;
-				count -= static_cast<int>(m_current_closure->m_cell_values.size());
+				new_captured_variables = m_closure_stack.top()->m_cell_values;
+				old_captured_variables = m_closure_stack.top()->m_cell_values;
+				count -= static_cast<int>(m_closure_stack.top()->m_cell_values.size());
 			}
 
 			for (StackPointer<MidoriValue, VALUE_STACK_MAX> it = m_base_pointer; it < m_base_pointer + count; ++it)
@@ -623,7 +627,7 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 		case OpCode::GET_CELL:
 		{
 			int offset = static_cast<int>(ReadByte());
-			MidoriValue value_copy = m_current_closure->m_cell_values[offset]->GetCellValue().m_value;
+			MidoriValue value_copy = m_closure_stack.top()->m_cell_values[offset]->GetCellValue().m_value;
 			EXECUTE_OR_ABORT(Push(std::move(value_copy)));
 			break;
 		}
@@ -634,7 +638,7 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 				{
 					return Bind(Pop(), [offset, this](MidoriValue* value_copy) -> MidoriResult::InterpreterResult
 						{
-							MidoriValue& var = m_current_closure->m_cell_values[offset]->GetCellValue().m_value;
+							MidoriValue& var = m_closure_stack.top()->m_cell_values[offset]->GetCellValue().m_value;
 							var = std::move(*value_copy);
 							return &var;
 						});
@@ -659,6 +663,7 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 				return std::unexpected<std::string>(GenerateRuntimeError("Call stack underflow.", GetLine()));
 			}
 			CallFrame& top_frame = *(--m_call_stack_pointer);
+			m_closure_stack.pop();
 
 			EXECUTE_OR_ABORT(Pop());
 			MidoriValue& return_val = *m_last_result.value();

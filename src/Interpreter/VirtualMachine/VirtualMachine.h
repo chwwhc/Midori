@@ -12,8 +12,7 @@
 #include <array>
 #include <functional>
 #include <unordered_map>
-#include <utility>
-#include <iostream>
+#include <stack>
 
 #define VALUE_STACK_MAX 512
 #define FRAME_STACK_MAX 256
@@ -48,7 +47,7 @@ private:
 	MidoriResult::ExecutableModule m_executable_module;
 	GlobalVariables m_global_vars;
 	GarbageCollector m_garbage_collector;
-	Traceable::Closure* m_current_closure = nullptr;
+	std::stack<Traceable::Closure*> m_closure_stack;
 	MidoriResult::InterpreterResult m_last_result = nullptr;
 	BytecodeStream* m_current_bytecode;
 	StackPointer<MidoriValue, VALUE_STACK_MAX> m_base_pointer = m_value_stack.begin();

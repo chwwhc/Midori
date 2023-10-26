@@ -13,8 +13,9 @@ public:
 private:
 	struct VariableContext
 	{
-		int m_relative_index = 0;
-		int m_absolute_index = 0;
+		int m_relative_index = -1;
+		int m_absolute_index = -1;
+		int m_closure_depth = -1;
 	};
 
 	using Scope = std::unordered_map<std::string, VariableContext>;
@@ -124,7 +125,7 @@ private:
 		}
 		else
 		{
-			m_scopes.back()[name.m_lexeme] = { -1, -1 };
+			m_scopes.back()[name.m_lexeme] = VariableContext();
 		}
 
 		return name;
@@ -132,7 +133,7 @@ private:
 
 	inline int GetLocalVariableIndex(const std::string& name)
 	{
-		m_scopes.back()[name] = { m_total_locals++, m_total_variables++ };
+		m_scopes.back()[name] = { m_total_locals++, m_total_variables++, m_closure_depth };
 
 		return m_scopes.back()[name].m_relative_index;
 	}
