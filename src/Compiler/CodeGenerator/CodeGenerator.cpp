@@ -72,7 +72,7 @@ void CodeGenerator::operator()(Define& def)
 
 	if (is_global)
 	{
-		EmitVariable(index.value(), OpCode::SET_GLOBAL, def.m_name.m_line);
+		EmitVariable(index.value(), OpCode::DEFINE_GLOBAL, def.m_name.m_line);
 	}
 }
 

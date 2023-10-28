@@ -61,6 +61,7 @@ enum class OpCode : uint8_t
 
     // Variable Operations
     CREATE_CLOSURE,
+    DEFINE_GLOBAL,
     GET_GLOBAL,
     SET_GLOBAL,
     GET_LOCAL,

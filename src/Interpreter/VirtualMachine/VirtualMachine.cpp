@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <algorithm>
+#include <numeric>
 
 #ifdef DEBUG
 #include <iostream>
@@ -45,17 +46,15 @@ MidoriResult::InterpreterResult VirtualMachine::BinaryOperation(std::function<Mi
 
 Traceable::GarbageCollectionRoots VirtualMachine::GetValueStackGarbageCollectionRoots()
 {
-	Traceable::GarbageCollectionRoots roots;
-
-	std::for_each_n(m_value_stack.begin(), std::distance(m_value_stack.begin(), m_value_stack_pointer), [&roots](MidoriValue& value) -> void
+	return std::accumulate(m_value_stack.begin(), m_value_stack.begin() + std::distance(m_value_stack.begin(), m_value_stack_pointer), Traceable::GarbageCollectionRoots(),
+		[](Traceable::GarbageCollectionRoots acc, MidoriValue& value) -> Traceable::GarbageCollectionRoots
 		{
 			if (value.IsObjectPointer())
 			{
-				roots.emplace(static_cast<Traceable*>(value.GetObjectPointer()));
+				acc.emplace(static_cast<Traceable*>(value.GetObjectPointer()));
 			}
+			return acc;
 		});
-
-	return roots;
 }
 
 Traceable::GarbageCollectionRoots VirtualMachine::GetGarbageCollectionRoots()
@@ -582,6 +581,18 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 			}
 
 			EXECUTE_OR_ABORT(Push(MidoriValue(new_closure)));
+			break;
+		}
+		case OpCode::DEFINE_GLOBAL:
+		{
+			const std::string& name = ReadGlobalVariable();
+			GlobalVariables::iterator it = m_global_vars.find(name);
+			MidoriValue& var = m_global_vars[name];
+			EXECUTE_OR_ABORT(Bind(Pop(), [&var, this](MidoriValue* value_copy) -> MidoriResult::InterpreterResult
+				{
+					var = std::move(*value_copy);
+					return &var;
+				}));
 			break;
 		}
 		case OpCode::GET_GLOBAL:
