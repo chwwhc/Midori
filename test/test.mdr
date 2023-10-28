@@ -1,4 +1,4 @@
-fixed factorial = closure(n)
+fixed factorial = closure(fixed n)
 {
 	var result = 1;
 	for (var i = 1; i <= n; i = i + 1)
@@ -8,7 +8,7 @@ fixed factorial = closure(n)
 	return result;
 };
 
-fixed pow = closure(x, n)
+fixed pow = closure(fixed x, fixed n)
 {
 	var result = 1;
 	for (var i = 0; i < n; i = i + 1)
@@ -18,7 +18,7 @@ fixed pow = closure(x, n)
 	return result;
 };
 
-fixed sin = closure(x)
+fixed sin = closure(fixed x)
 {
 	var sine = 0;
 	for (var i = 0; i < 10; i = i + 1)
@@ -32,9 +32,10 @@ fixed sin = closure(x)
 
 fixed three = 3;
 
-
 fixed main = closure()
 {
+	//fixed three = 2;
+	//three = 3.13;
 	for (var i = 0; i < 10; i = i + 1)
 	{
 		PrintLine(sin(i));
@@ -44,4 +45,4 @@ fixed main = closure()
 	return 0;
 };
 
-fixed f = main();
+//fixed f = main();

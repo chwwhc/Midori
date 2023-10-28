@@ -34,7 +34,6 @@ void PrintAbstractSyntaxTree::operator()(const Define& def, int depth) const
 {
 	PrintWithIndentation(depth, "Define {");
 	PrintWithIndentation(depth + 1, "Name: " + def.m_name.m_lexeme);
-	PrintWithIndentation(depth + 1, std::string("IsFixed: ") + (def.m_is_fixed ? "true" : "false"));
 	PrintWithIndentation(depth + 1, "Value: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *def.m_value);
 	PrintWithIndentation(depth, "}");

@@ -65,7 +65,7 @@ MidoriResult::ExpressionResult Parser::ParseAssignment()
 			// native function
 			if (m_native_functions.find(variable_expr.m_name.m_lexeme) != m_native_functions.end())
 			{
-				return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Global()));
+				return std::unexpected<std::string>(GenerateParserError("Cannot assign to a native function.", variable_expr.m_name));
 			}
 
 			for (std::vector<Scope>::reverse_iterator scope_it = m_scopes.rbegin(); scope_it != m_scopes.rend(); ++scope_it)
@@ -73,13 +73,18 @@ MidoriResult::ExpressionResult Parser::ParseAssignment()
 				Scope::const_iterator find_result = scope_it->find(variable_expr.m_name.m_lexeme);
 				if (find_result != scope_it->end())
 				{
+					if (find_result->second.m_is_fixed)
+					{
+						return std::unexpected<std::string>(GenerateParserError("Cannot assign to a fixed name binding.", variable_expr.m_name));
+					}
+
 					// global 
 					if (scope_it == std::prev(m_scopes.rend()))
 					{
 						return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Global()));
 					}
 					// local
-					if (m_closure_depth == 0 || find_result->second.m_closure_depth == m_closure_depth)
+					else if (m_closure_depth == 0 || find_result->second.m_closure_depth == m_closure_depth)
 					{
 						return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Local(find_result->second.m_relative_index)));
 					}
@@ -301,7 +306,7 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 					return std::make_unique<Expression>(Variable(std::move(Previous()), VariableSemantic::Global()));
 				}
 				// local
-				if (m_closure_depth == 0 || find_result->second.m_closure_depth == m_closure_depth)
+				else if (m_closure_depth == 0 || find_result->second.m_closure_depth == m_closure_depth)
 				{
 					return std::make_unique<Expression>(Variable(std::move(Previous()), VariableSemantic::Local(find_result->second.m_relative_index)));
 				}
@@ -333,17 +338,31 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 		{
 			do
 			{
+				bool is_fixed = false;
+				if (Match(Token::Type::VAR))
+				{
+					is_fixed = false;
+				}
+				else if (Match(Token::Type::FIXED))
+				{
+					is_fixed = true;
+				}
+				else
+				{
+					return std::unexpected<std::string>(std::unexpected<std::string>(GenerateParserError("Expected access modifier before parameter name.", Previous())));
+				}
+
 				MidoriResult::TokenResult name = Consume(Token::Type::IDENTIFIER, "Expected parameter name.");
 				if (!name.has_value())
 				{
 					return std::unexpected<std::string>(std::move(name.error()));
 				}
 
-				MidoriResult::TokenResult param_name = DefineName(name.value());
+				MidoriResult::TokenResult param_name = DefineName(name.value(), is_fixed);
 				if (param_name.has_value())
 				{
 					params.emplace_back(param_name.value());
-					GetLocalVariableIndex(param_name.value().m_lexeme);
+					GetLocalVariableIndex(param_name.value().m_lexeme, is_fixed);
 				}
 				else
 				{
@@ -570,14 +589,14 @@ MidoriResult::StatementResult Parser::ParseDefineStatement()
 		return std::unexpected<std::string>(std::move(var_name.error()));
 	}
 
-	MidoriResult::TokenResult define_name_result = DefineName(var_name.value());
+	MidoriResult::TokenResult define_name_result = DefineName(var_name.value(), is_fixed);
 	if (!define_name_result.has_value())
 	{
 		return std::unexpected<std::string>(std::move(define_name_result.error()));
 	}
 	Token& name = define_name_result.value();
 
-	std::optional<int> local_index = GetLocalVariableIndex(name.m_lexeme);
+	std::optional<int> local_index = GetLocalVariableIndex(name.m_lexeme, is_fixed);
 
 	if (Match(Token::Type::SINGLE_EQUAL))
 	{
@@ -595,7 +614,7 @@ MidoriResult::StatementResult Parser::ParseDefineStatement()
 			}
 			else
 			{
-				return std::make_unique<Statement>(Define(std::move(name), std::move(expr.value()), std::move(local_index), std::move(is_fixed)));
+				return std::make_unique<Statement>(Define(std::move(name), std::move(expr.value()), std::move(local_index)));
 			}
 		}
 	}

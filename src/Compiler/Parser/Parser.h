@@ -16,6 +16,11 @@ private:
 		int m_relative_index = -1;
 		int m_absolute_index = -1;
 		int m_closure_depth = -1;
+		bool m_is_fixed = true;
+
+		VariableContext() = default;
+
+		VariableContext(int relative_index, int absolute_index, int closure_depth, bool is_fixed) : m_relative_index(relative_index), m_absolute_index(absolute_index), m_closure_depth(closure_depth), m_is_fixed(is_fixed) {}
 	};
 
 	using Scope = std::unordered_map<std::string, VariableContext>;
@@ -116,7 +121,7 @@ private:
 		return block_local_count;
 	}
 
-	inline MidoriResult::TokenResult DefineName(const Token& name)
+	inline MidoriResult::TokenResult DefineName(const Token& name, bool is_fixed)
 	{
 		Scope::const_iterator it = m_scopes.back().find(name.m_lexeme);
 		if (it != m_scopes.back().end())
@@ -125,20 +130,23 @@ private:
 		}
 		else
 		{
-			m_scopes.back()[name.m_lexeme] = VariableContext();
+			constexpr int relative_index = -1;
+			constexpr int absolute_index = -1;
+			constexpr int closure_depth = -1;
+			m_scopes.back()[name.m_lexeme] = VariableContext(relative_index, absolute_index, closure_depth, is_fixed);
 		}
 
 		return name;
 	}
 
-	inline std::optional<int> GetLocalVariableIndex(const std::string& name)
+	inline std::optional<int> GetLocalVariableIndex(const std::string& name, bool is_fixed)
 	{
 		bool is_global = m_scopes.size() == 1u;
 		std::optional<int> local_index = std::nullopt;
 
 		if (!is_global)
 		{
-			m_scopes.back()[name] = { m_total_locals++, m_total_variables++, m_closure_depth };
+			m_scopes.back()[name] = VariableContext(m_total_locals++, m_total_variables++, m_closure_depth, is_fixed);
 			local_index.emplace(m_scopes.back()[name].m_relative_index);
 		}
 

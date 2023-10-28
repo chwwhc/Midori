@@ -1,6 +1,6 @@
 var arr = [@3];
 for (var i = 0; i < 3; i = i + 1) {
-  (closure(i) {
+  (closure(fixed i) {
     arr[i] = closure() { return i; };
     return #;
   })(i);

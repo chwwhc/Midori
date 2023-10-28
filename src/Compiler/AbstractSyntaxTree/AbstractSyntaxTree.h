@@ -241,7 +241,6 @@ struct Define
 	Token m_name;
 	std::unique_ptr<Expression> m_value;
 	std::optional<int> m_local_index;
-	bool m_is_fixed;
 };
 
 struct If
