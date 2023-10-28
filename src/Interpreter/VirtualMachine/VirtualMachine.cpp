@@ -94,10 +94,10 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 	{
 #ifdef DEBUG
 		std::cout << "          ";
-		for (StackPointer<MidoriValue, VALUE_STACK_MAX> it = m_base_pointer; it < m_value_stack_pointer; ++it)
-		{
-			std::cout << "[ " << it->ToString() << " ]";
-		}
+		std::for_each(m_base_pointer, m_value_stack_pointer, [](MidoriValue& value) -> void
+			{
+				std::cout << "[ " << value.ToString() << " ]";
+			});
 		std::cout << std::endl;
 		int dbg_instruction_pointer = static_cast<int>(std::distance(m_current_bytecode->cbegin(), m_instruction_pointer));
 		Disassembler::DisassembleInstruction(*m_current_bytecode, m_executable_module.m_static_data, m_executable_module.m_global_table, dbg_instruction_pointer);
@@ -111,22 +111,22 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 		case OpCode::CONSTANT_LONG_LONG:
 		{
 			MidoriValue constant = ReadConstant(instruction);
-			Push(std::move(constant));
+			EXECUTE_OR_ABORT(Push(std::move(constant)));
 			break;
 		}
 		case OpCode::UNIT:
 		{
-			Push(MidoriValue());
+			EXECUTE_OR_ABORT(Push(MidoriValue()));
 			break;
 		}
 		case OpCode::TRUE:
 		{
-			Push(MidoriValue(true));
+			EXECUTE_OR_ABORT(Push(MidoriValue(true)));
 			break;
 		}
 		case OpCode::FALSE:
 		{
-			Push(MidoriValue(false));
+			EXECUTE_OR_ABORT(Push(MidoriValue(false)));
 			break;
 		}
 		case OpCode::CREATE_ARRAY:

@@ -68,31 +68,34 @@ MidoriResult::ExpressionResult Parser::ParseAssignment()
 				return std::unexpected<std::string>(GenerateParserError("Cannot assign to a native function.", variable_expr.m_name));
 			}
 
-			for (std::vector<Scope>::reverse_iterator scope_it = m_scopes.rbegin(); scope_it != m_scopes.rend(); ++scope_it)
-			{
-				Scope::const_iterator find_result = scope_it->find(variable_expr.m_name.m_lexeme);
-				if (find_result != scope_it->end())
+			std::vector<Scope>::reverse_iterator found_scope_it = std::find_if(m_scopes.rbegin(), m_scopes.rend(), [&variable_expr](const Scope& scope)
 				{
-					if (find_result->second.m_is_fixed)
-					{
-						return std::unexpected<std::string>(GenerateParserError("Cannot assign to a fixed name binding.", variable_expr.m_name));
-					}
+					return scope.find(variable_expr.m_name.m_lexeme) != scope.end();
+				});
 
-					// global 
-					if (scope_it == std::prev(m_scopes.rend()))
-					{
-						return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Global()));
-					}
-					// local
-					else if (m_closure_depth == 0 || find_result->second.m_closure_depth == m_closure_depth)
-					{
-						return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Local(find_result->second.m_relative_index)));
-					}
-					// cell
-					else
-					{
-						return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Cell(find_result->second.m_absolute_index)));
-					}
+			if (found_scope_it != m_scopes.rend())
+			{
+				Scope::const_iterator find_result = found_scope_it->find(variable_expr.m_name.m_lexeme);
+
+				if (find_result->second.m_is_fixed)
+				{
+					return std::unexpected<std::string>(GenerateParserError("Cannot assign to a fixed name binding.", variable_expr.m_name));
+				}
+
+				// global
+				if (found_scope_it == std::prev(m_scopes.rend()))
+				{
+					return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Global()));
+				}
+				// local
+				else if (m_closure_depth == 0 || find_result->second.m_closure_depth == m_closure_depth)
+				{
+					return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Local(find_result->second.m_relative_index)));
+				}
+				// cell
+				else
+				{
+					return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Cell(find_result->second.m_absolute_index)));
 				}
 			}
 
@@ -289,32 +292,35 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 	else if (Match(Token::Type::IDENTIFIER))
 	{
 		Token& variable = Previous();
-		// native function
+
 		if (m_native_functions.find(variable.m_lexeme) != m_native_functions.end())
 		{
 			return std::make_unique<Expression>(Variable(std::move(Previous()), VariableSemantic::Global()));
 		}
 
-		for (std::vector<Scope>::reverse_iterator scope_it = m_scopes.rbegin(); scope_it != m_scopes.rend(); ++scope_it)
-		{
-			Scope::const_iterator find_result = scope_it->find(variable.m_lexeme);
-			if (find_result != scope_it->end())
+		std::vector<Scope>::reverse_iterator found_scope_it = std::find_if(m_scopes.rbegin(), m_scopes.rend(), [&variable](const Scope& scope) 
 			{
-				// global 
-				if (scope_it == std::prev(m_scopes.rend()))
-				{
-					return std::make_unique<Expression>(Variable(std::move(Previous()), VariableSemantic::Global()));
-				}
-				// local
-				else if (m_closure_depth == 0 || find_result->second.m_closure_depth == m_closure_depth)
-				{
-					return std::make_unique<Expression>(Variable(std::move(Previous()), VariableSemantic::Local(find_result->second.m_relative_index)));
-				}
-				// cell
-				else
-				{
-					return std::make_unique<Expression>(Variable(std::move(Previous()), VariableSemantic::Cell(find_result->second.m_absolute_index)));
-				}
+				return scope.find(variable.m_lexeme) != scope.end();
+			});
+
+		if (found_scope_it != m_scopes.rend())
+		{
+			Scope::const_iterator find_result = found_scope_it->find(variable.m_lexeme);
+
+			// global
+			if (found_scope_it == std::prev(m_scopes.rend()))
+			{
+				return std::make_unique<Expression>(Variable(std::move(Previous()), VariableSemantic::Global()));
+			}
+			// local
+			else if (m_closure_depth == 0 || find_result->second.m_closure_depth == m_closure_depth)
+			{
+				return std::make_unique<Expression>(Variable(std::move(Previous()), VariableSemantic::Local(find_result->second.m_relative_index)));
+			}
+			// cell
+			else
+			{
+				return std::make_unique<Expression>(Variable(std::move(Previous()), VariableSemantic::Cell(find_result->second.m_absolute_index)));
 			}
 		}
 
@@ -940,7 +946,7 @@ MidoriResult::ParserResult Parser::Parse()
 {
 	ProgramTree programTree;
 	std::vector<std::string> errors;
-	
+
 	BeginScope();
 	while (!IsAtEnd())
 	{

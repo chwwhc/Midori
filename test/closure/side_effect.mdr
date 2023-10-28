@@ -1,6 +1,13 @@
-var counter = (closure() {
-  var privateCounter = 0;
-  return closure() { privateCounter = privateCounter + 1; return privateCounter; };
-})();
-PrintLine(counter());  // Should print 1
-PrintLine(counter());  // Should print 2
+fixed main = closure()
+{
+	var counter = (closure() 
+	{
+		var privateCounter = 0;
+		return closure() { privateCounter = privateCounter + 1; return privateCounter; };
+	})();
+
+	PrintLine(counter());  // Should print 1
+	PrintLine(counter());  // Should print 2
+
+	return 0;
+};

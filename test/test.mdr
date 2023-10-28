@@ -1,48 +1,11 @@
-fixed factorial = closure(fixed n)
-{
-	var result = 1;
-	for (var i = 1; i <= n; i = i + 1)
-	{
-		result = result * i;
-	}
-	return result;
-};
-
-fixed pow = closure(fixed x, fixed n)
-{
-	var result = 1;
-	for (var i = 0; i < n; i = i + 1)
-	{
-		result = result * x;
-	}
-	return result;
-};
-
-fixed sin = closure(fixed x)
-{
-	var sine = 0;
-	for (var i = 0; i < 10; i = i + 1)
-	{
-		fixed coefficient = 1 % 2 == 0 ? 1 : -1;
-		fixed power = 2 * i + 1;
-		sine = sine + coefficient * pow(x, power) / factorial(power);
-	}
-	return sine;
-};
-
-fixed three = 3;
-
 fixed main = closure()
 {
-	//fixed three = 2;
-	//three = 3.13;
-	for (var i = 0; i < 10; i = i + 1)
+	var x = closure(var y) 
 	{
-		PrintLine(sin(i));
-	}
+		return closure() { return y; };
+	};
+	var f = x(5);
+	PrintLine(f()); // Should print 5
 
-	PrintLine(sin(three));
 	return 0;
 };
-
-fixed f = main();

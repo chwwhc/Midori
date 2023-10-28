@@ -1,7 +1,23 @@
-var arr = [@3];
-for (var i = 0; i < 3; i = i + 1) {
-  arr[i] = closure() { return i; };
-}
-PrintLine(arr[0]());  // Should print 3, due to late binding
-PrintLine(arr[1]());  // Should print 3
-PrintLine(arr[2]());  // Should print 3
+fixed foo = closure()
+{
+	var arr = [@3];
+	for (var i = 0; i < 3; i = i + 1)
+	{
+		arr[i] = closure()
+		{
+			return i;
+		};
+	}
+
+	PrintLine(arr[0]());  // Should print 3, due to late binding
+	PrintLine(arr[1]());  // Should print 3
+	PrintLine(arr[2]());  // Should print 3
+	
+	return #;
+};
+
+fixed main = closure()
+{
+	foo();
+	return 0;
+};

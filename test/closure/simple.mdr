@@ -1,5 +1,11 @@
-var x = closure(y) {
-  return closure() { return y; };
+fixed main = closure()
+{
+	var x = closure(var y) 
+	{
+		return closure() { return y; };
+	};
+	var f = x(5);
+	PrintLine(f()); // Should print 5
+
+	return 0;
 };
-var f = x(5);
-PrintLine(f()); // Should print 5

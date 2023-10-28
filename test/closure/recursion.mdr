@@ -1,5 +1,11 @@
-var factorial = closure(n) {
+var factorial = closure(var n) 
+{
   if (n <= 1) return 1;
   return n * factorial(n-1);
 };
-PrintLine(factorial(5));  // Should print 120
+
+fixed main = closure()
+{
+	PrintLine(factorial(5));  // Should print 120
+	return 0;
+};

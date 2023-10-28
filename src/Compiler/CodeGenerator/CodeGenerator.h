@@ -8,9 +8,17 @@ class CodeGenerator
 public:
 
 private:
+	struct MainModuleContext
+	{
+		int m_main_module_index = 0;
+		int m_main_module_global_table_index = 0;
+		int m_main_module_arity = 0;
+		int m_main_module_line = 0;
+	};
+
 	std::vector<BytecodeStream> m_modules = { BytecodeStream() };
 #ifdef DEBUG
-std::vector<std::string> m_module_names = { "setup" };
+std::vector<std::string> m_module_names = { "runtime startup" };
 #endif
 	std::vector<std::string> m_errors;
 	std::unordered_map<std::string, int> m_global_variables;
@@ -18,6 +26,7 @@ std::vector<std::string> m_module_names = { "setup" };
 	StaticData m_static_data;
 	GlobalVariableTable m_global_table;
 	Traceable::GarbageCollectionRoots m_traceable_constants;
+	std::optional<MainModuleContext> m_main_module_ctx = std::nullopt;
 	int m_current_module_index = 0;
 
 public:

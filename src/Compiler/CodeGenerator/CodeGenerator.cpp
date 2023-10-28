@@ -8,21 +8,25 @@ MidoriResult::CodeGeneratorResult CodeGenerator::GenerateCode(ProgramTree&& prog
 
 	std::for_each(program_tree.begin(), program_tree.end(), [this](std::unique_ptr<Statement>& statement)
 		{
-#ifdef DEBUG
-			const Define& def = std::get<Define>(*statement);
-			if (std::holds_alternative<Closure>(*def.m_value))
-			{
-				std::string variable_name = std::get<Define>(*statement).m_name.m_lexeme;
-				m_module_names.emplace_back(std::move(variable_name));
-			 }
-#endif
 			std::visit([this](auto&& arg) { (*this)(arg); }, *statement);
 		});
+
+	if (!m_main_module_ctx.has_value())
+	{
+		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Program entry (\"main\") not found.", 0));
+	}
 
 	if (!m_errors.empty())
 	{
 		return std::unexpected<std::vector<std::string>>(std::move(m_errors));
 	}
+
+	// invoke the program entry (main)
+	const CodeGenerator::MainModuleContext& main_module_ctx = m_main_module_ctx.value();
+	m_current_module_index = main_module_ctx.m_main_module_index;
+	EmitVariable(main_module_ctx.m_main_module_global_table_index, OpCode::GET_GLOBAL, main_module_ctx.m_main_module_line);
+	EmitByte(OpCode::CALL, main_module_ctx.m_main_module_line);
+	EmitByte(static_cast<OpCode>(0), main_module_ctx.m_main_module_line);
 
 #ifdef DEBUG
 	return MidoriResult::ExecutableModule(std::move(m_modules), std::move(m_module_names), std::move(m_traceable_constants), std::move(m_static_data), std::move(m_global_table));
@@ -59,6 +63,7 @@ void CodeGenerator::operator()(Simple& simple)
 
 void CodeGenerator::operator()(Define& def)
 {
+	int line = def.m_name.m_line;
 	bool is_global = !def.m_local_index.has_value();
 	std::optional<int> index = std::nullopt;
 	if (is_global)
@@ -72,7 +77,19 @@ void CodeGenerator::operator()(Define& def)
 
 	if (is_global)
 	{
-		EmitVariable(index.value(), OpCode::DEFINE_GLOBAL, def.m_name.m_line);
+		EmitVariable(index.value(), OpCode::DEFINE_GLOBAL, line);
+		if (def.m_name.m_lexeme == "main")
+		{
+			if (m_main_module_ctx.has_value())
+			{
+				m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Cannot re-define program entry (\"main\").", line));
+			}
+			else
+			{
+				constexpr int main_module_arity = 0;
+				m_main_module_ctx.emplace(m_current_module_index, index.value(), main_module_arity, line);
+			}
+		}
 	}
 }
 
@@ -418,6 +435,10 @@ void CodeGenerator::operator()(Closure& closure)
 	std::visit([this](auto&& arg) {(*this)(arg); }, *closure.m_body);
 
 	Traceable* closure_ptr = Traceable::AllocateObject(Traceable::Closure(std::vector<Traceable*>(), m_current_module_index, arity));
+#ifdef DEBUG
+		std::string closure_line = "Closure at line: " + std::to_string(line);
+		m_module_names.emplace_back(std::move(closure_line));
+#endif
 
 	m_current_module_index = prev_index;
 

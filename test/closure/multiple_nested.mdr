@@ -1,9 +1,19 @@
-var makeAdder = closure(a) {
-  return closure(b) {
-    return closure(c) {
-      return a + b + c;
+var makeAdder = closure(var a) 
+{
+  return closure(var b) 
+  {
+    return closure(var c) 
+    {
+        return a + b + c;
     };
   };
 };
+
 var adder = makeAdder(3)(4);
-PrintLine(adder(5));  // Should print 12
+
+fixed main = closure()
+{
+    PrintLine(adder(5));  // Should print 12
+
+    return 0;
+};

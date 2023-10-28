@@ -1,6 +1,16 @@
-var getFunc = #;
-if (true) {
-  var y = 5;
-  getFunc = closure() { return y; };
-}
-PrintLine(getFunc());  // Should print 5
+fixed foo = closure()
+{
+	var getFunc = #;
+	if (true)
+	{
+		var y = 5;
+		getFunc = closure() { return y; };
+	}
+	return getFunc();
+};
+
+fixed main = closure()
+{
+	PrintLine(foo());  // Should print 5
+	return 0;
+};

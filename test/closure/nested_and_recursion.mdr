@@ -1,10 +1,19 @@
-var createCounter = closure(initial) {
-  var counter = closure(value) {
+var createCounter = closure(var initial) 
+{
+  var counter = closure(var value) 
+  {
     initial = initial + value;
     return closure() { return initial; };
   };
   return counter;
 };
+
 var counter = createCounter(5);
 var next = counter(3);
-PrintLine(next());  // Should print 8
+
+fixed main = closure()
+{
+    PrintLine(next());  // Should print 8
+
+    return 0;
+};
