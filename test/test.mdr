@@ -45,4 +45,4 @@ fixed main = closure()
 	return 0;
 };
 
-//fixed f = main();
+fixed f = main();

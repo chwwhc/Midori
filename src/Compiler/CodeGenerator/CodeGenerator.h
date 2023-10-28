@@ -9,6 +9,9 @@ public:
 
 private:
 	std::vector<BytecodeStream> m_modules = { BytecodeStream() };
+#ifdef DEBUG
+std::vector<std::string> m_module_names = { "setup" };
+#endif
 	std::vector<std::string> m_errors;
 	std::unordered_map<std::string, int> m_global_variables;
 
@@ -176,5 +179,5 @@ private:
 
 	void operator()(Ternary& ternary);
 
-	void SetUpGlobalVariables();
+	void SetUpNativeFunctions();
 };

@@ -17,11 +17,18 @@ namespace MidoriResult
 	struct ExecutableModule
 	{
 		std::vector<BytecodeStream> m_modules;
+#ifdef DEBUG
+		std::vector<std::string> m_module_names;
+#endif
 		Traceable::GarbageCollectionRoots m_constant_roots;
 		StaticData m_static_data;
 		GlobalVariableTable m_global_table;
 
+#ifdef DEBUG
+		ExecutableModule(std::vector<BytecodeStream>&& bytecode_vector, std::vector<std::string>&& module_names, Traceable::GarbageCollectionRoots&& roots, StaticData&& static_data, GlobalVariableTable&& global_table) : m_modules(std::move(bytecode_vector)), m_module_names(std::move(module_names)), m_constant_roots(std::move(roots)), m_static_data(std::move(static_data)), m_global_table(std::move(global_table)) {}
+#else
 		ExecutableModule(std::vector<BytecodeStream>&& bytecode_vector, Traceable::GarbageCollectionRoots&& roots, StaticData&& static_data, GlobalVariableTable&& global_table) : m_modules(std::move(bytecode_vector)), m_constant_roots(std::move(roots)), m_static_data(std::move(static_data)), m_global_table(std::move(global_table)) {}
+#endif
 	};
 
 	using TokenResult = std::expected<Token, std::string>;

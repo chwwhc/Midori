@@ -4,10 +4,18 @@
 
 MidoriResult::CodeGeneratorResult CodeGenerator::GenerateCode(ProgramTree&& program_tree)
 {
-	SetUpGlobalVariables();
+	SetUpNativeFunctions();
 
 	std::for_each(program_tree.begin(), program_tree.end(), [this](std::unique_ptr<Statement>& statement)
 		{
+#ifdef DEBUG
+			const Define& def = std::get<Define>(*statement);
+			if (std::holds_alternative<Closure>(*def.m_value))
+			{
+				std::string variable_name = std::get<Define>(*statement).m_name.m_lexeme;
+				m_module_names.emplace_back(std::move(variable_name));
+			 }
+#endif
 			std::visit([this](auto&& arg) { (*this)(arg); }, *statement);
 		});
 
@@ -16,7 +24,11 @@ MidoriResult::CodeGeneratorResult CodeGenerator::GenerateCode(ProgramTree&& prog
 		return std::unexpected<std::vector<std::string>>(std::move(m_errors));
 	}
 
+#ifdef DEBUG
+	return MidoriResult::ExecutableModule(std::move(m_modules), std::move(m_module_names), std::move(m_traceable_constants), std::move(m_static_data), std::move(m_global_table));
+#else
 	return MidoriResult::ExecutableModule(std::move(m_modules), std::move(m_traceable_constants), std::move(m_static_data), std::move(m_global_table));
+#endif
 }
 
 void CodeGenerator::operator()(Block& block)
@@ -503,7 +515,7 @@ void CodeGenerator::operator()(Ternary& ternary)
 	PatchJump(jump, line);
 }
 
-void CodeGenerator::SetUpGlobalVariables()
+void CodeGenerator::SetUpNativeFunctions()
 {
 	std::string variable_name = "PrintLine";
 	int index = m_global_table.AddGlobalVariable(std::move(variable_name));
