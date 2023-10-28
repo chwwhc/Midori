@@ -21,7 +21,7 @@ fixed pow = closure(x, n)
 fixed sin = closure(x)
 {
 	var sine = 0;
-	for (var i = 0; i < 50; i = i + 1)
+	for (var i = 0; i < 10; i = i + 1)
 	{
 		fixed coefficient = 1 % 2 == 0 ? 1 : -1;
 		fixed power = 2 * i + 1;
@@ -30,7 +30,18 @@ fixed sin = closure(x)
 	return sine;
 };
 
-for (var i = 0; i < 10; i = i + 1)
+fixed three = 3;
+
+
+fixed main = closure()
 {
-	PrintLine(sin(i));
-}
+	for (var i = 0; i < 10; i = i + 1)
+	{
+		PrintLine(sin(i));
+	}
+
+	PrintLine(sin(three));
+	return 0;
+};
+
+fixed f = main();

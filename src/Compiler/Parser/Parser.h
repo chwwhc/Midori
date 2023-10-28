@@ -64,7 +64,7 @@ private:
 			return Advance();
 		}
 
-		return std::unexpected<std::string>(MidoriError::GenerateParserError(message, Peek(0)));
+		return std::unexpected<std::string>(MidoriError::GenerateParserError(message, Previous()));
 	}
 
 	template <typename... T>
@@ -131,11 +131,18 @@ private:
 		return name;
 	}
 
-	inline int GetLocalVariableIndex(const std::string& name)
+	inline std::optional<int> GetLocalVariableIndex(const std::string& name)
 	{
-		m_scopes.back()[name] = { m_total_locals++, m_total_variables++, m_closure_depth };
+		bool is_global = m_scopes.size() == 1u;
+		std::optional<int> local_index = std::nullopt;
 
-		return m_scopes.back()[name].m_relative_index;
+		if (!is_global)
+		{
+			m_scopes.back()[name] = { m_total_locals++, m_total_variables++, m_closure_depth };
+			local_index.emplace(m_scopes.back()[name].m_relative_index);
+		}
+
+		return local_index;
 	}
 
 	MidoriResult::ExpressionResult ParseExpression();
@@ -177,6 +184,8 @@ private:
 	MidoriResult::ExpressionResult ParseLogicalOr();
 
 	MidoriResult::StatementResult ParseDeclaration();
+
+	MidoriResult::StatementResult ParseDeclarationHelper();
 
 	MidoriResult::StatementResult ParseBlockStatement();
 

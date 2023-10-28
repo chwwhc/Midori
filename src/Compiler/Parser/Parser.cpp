@@ -62,7 +62,7 @@ MidoriResult::ExpressionResult Parser::ParseAssignment()
 		if (std::holds_alternative<Variable>(*expr.value()))
 		{
 			Variable& variable_expr = std::get<Variable>(*expr.value());
-			// global native
+			// native function
 			if (m_native_functions.find(variable_expr.m_name.m_lexeme) != m_native_functions.end())
 			{
 				return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Global()));
@@ -73,6 +73,11 @@ MidoriResult::ExpressionResult Parser::ParseAssignment()
 				Scope::const_iterator find_result = scope_it->find(variable_expr.m_name.m_lexeme);
 				if (find_result != scope_it->end())
 				{
+					// global 
+					if (scope_it == std::prev(m_scopes.rend()))
+					{
+						return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Global()));
+					}
 					// local
 					if (m_closure_depth == 0 || find_result->second.m_closure_depth == m_closure_depth)
 					{
@@ -279,7 +284,7 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 	else if (Match(Token::Type::IDENTIFIER))
 	{
 		Token& variable = Previous();
-		// global native
+		// native function
 		if (m_native_functions.find(variable.m_lexeme) != m_native_functions.end())
 		{
 			return std::make_unique<Expression>(Variable(std::move(Previous()), VariableSemantic::Global()));
@@ -290,6 +295,11 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 			Scope::const_iterator find_result = scope_it->find(variable.m_lexeme);
 			if (find_result != scope_it->end())
 			{
+				// global 
+				if (scope_it == std::prev(m_scopes.rend()))
+				{
+					return std::make_unique<Expression>(Variable(std::move(Previous()), VariableSemantic::Global()));
+				}
 				// local
 				if (m_closure_depth == 0 || find_result->second.m_closure_depth == m_closure_depth)
 				{
@@ -501,9 +511,24 @@ MidoriResult::StatementResult Parser::ParseDeclaration()
 	}
 	else if (Match(Token::Type::NAMESPACE))
 	{
-		return ParseNamespaceDeclaration();
+		return std::unexpected<std::string>(GenerateParserError("Namespace is not yet implemented!!!", Peek(0)));
+		//return ParseNamespaceDeclaration();
 	}
 	return ParseStatement();
+}
+
+MidoriResult::StatementResult Parser::ParseDeclarationHelper()
+{
+	if (Match(Token::Type::VAR, Token::Type::FIXED))
+	{
+		return ParseDefineStatement();
+	}
+	else if (Match(Token::Type::NAMESPACE))
+	{
+		return std::unexpected<std::string>(GenerateParserError("Namespace is not yet implemented!!!", Peek(0)));
+		//return ParseNamespaceDeclaration();
+	}
+	return std::unexpected<std::string>(GenerateParserError("Expected declaration.", Peek(0)));
 }
 
 MidoriResult::StatementResult Parser::ParseBlockStatement()
@@ -552,7 +577,7 @@ MidoriResult::StatementResult Parser::ParseDefineStatement()
 	}
 	Token& name = define_name_result.value();
 
-	int local_index = GetLocalVariableIndex(name.m_lexeme);
+	std::optional<int> local_index = GetLocalVariableIndex(name.m_lexeme);
 
 	if (Match(Token::Type::SINGLE_EQUAL))
 	{
@@ -900,7 +925,7 @@ MidoriResult::ParserResult Parser::Parse()
 	BeginScope();
 	while (!IsAtEnd())
 	{
-		MidoriResult::StatementResult result = ParseDeclaration();
+		MidoriResult::StatementResult result = ParseDeclarationHelper();
 		if (result.has_value())
 		{
 			programTree.emplace_back(std::move(result.value()));

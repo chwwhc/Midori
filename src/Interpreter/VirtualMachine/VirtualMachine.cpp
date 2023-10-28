@@ -584,15 +584,26 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 			EXECUTE_OR_ABORT(Push(MidoriValue(new_closure)));
 			break;
 		}
-		case OpCode::GET_NATIVE:
+		case OpCode::GET_GLOBAL:
 		{
 			const std::string& name = ReadGlobalVariable();
 			GlobalVariables::iterator it = m_global_vars.find(name);
-			if (it == m_global_vars.end())
-			{
-				return std::unexpected<std::string>(GenerateRuntimeError("Undefined variable '" + name + "'.", GetLine()));
-			}
-			EXECUTE_OR_ABORT(Push(MidoriValue(it->second)));
+			EXECUTE_OR_ABORT(Push(MidoriValue(m_global_vars[name])));
+			break;
+		}
+		case OpCode::SET_GLOBAL:
+		{
+			const std::string& name = ReadGlobalVariable();
+			GlobalVariables::iterator it = m_global_vars.find(name);
+			MidoriValue& var = m_global_vars[name];
+			EXECUTE_OR_ABORT(Bind(Duplicate(), [&var, this](MidoriValue*) -> MidoriResult::InterpreterResult
+				{
+					return Bind(Pop(), [&var, this](MidoriValue* value_copy) -> MidoriResult::InterpreterResult
+						{
+							var = std::move(*value_copy);
+							return &var;
+						});
+				}));
 			break;
 		}
 		case OpCode::GET_LOCAL:

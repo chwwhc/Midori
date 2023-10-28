@@ -55,12 +55,12 @@ namespace
 		std::cout << name << " (# destination " << std::setfill('0') << std::setw(4) << std::hex << offset + sign * index << " #)" << std::endl;
 	}
 
-	void NativeVariableInstruction(const char* name, const BytecodeStream& stream, const GlobalVariableTable& global_table, int& offset)
+	void GlobalVariableInstruction(const char* name, const BytecodeStream& stream, const GlobalVariableTable& global_table, int& offset)
 	{
 		int index = static_cast<int>(stream.ReadByteCode(offset + 1));
 		offset += 2;
 
-		std::cout << name << " " << index << " {{ variable: " << global_table.GetGlobalVariable(index) << " }}" << std::endl;
+		std::cout << name << " " << index << " {{ global variable: " << global_table.GetGlobalVariable(index) << " }}" << std::endl;
 	}
 
 	void LocalOrCellVariableInstruction(const char* name, const BytecodeStream& stream, int& offset)
@@ -236,8 +236,11 @@ namespace Disassembler
 		case OpCode::CREATE_CLOSURE:
 			ClosureCreateInstruction("CREATE_CLOSURE", stream, offset);
 			break;
-		case OpCode::GET_NATIVE:
-			NativeVariableInstruction("GET_NATIVE", stream, global_table, offset);
+		case OpCode::GET_GLOBAL:
+			GlobalVariableInstruction("GET_GLOBAL", stream, global_table, offset);
+			break;
+		case OpCode::SET_GLOBAL:
+			GlobalVariableInstruction("SET_GLOBAL", stream, global_table, offset);
 			break;
 		case OpCode::GET_LOCAL:
 			LocalOrCellVariableInstruction("GET_LOCAL", stream, offset);

@@ -25,6 +25,10 @@ void CodeGenerator::operator()(Block& block)
 		{
 			std::visit([this](auto&& arg) { (*this)(arg); }, *statement);
 		});
+	if (m_modules[m_current_module_index].ReadByteCode(m_modules[m_current_module_index].GetByteCodeSize() - 1) == OpCode::RETURN)
+	{
+		return;
+	}
 
 	while (block.m_local_count > 0)
 	{
@@ -43,7 +47,21 @@ void CodeGenerator::operator()(Simple& simple)
 
 void CodeGenerator::operator()(Define& def)
 {
+	bool is_global = !def.m_local_index.has_value();
+	std::optional<int> index = std::nullopt;
+	if (is_global)
+	{
+		std::string variable_name = def.m_name.m_lexeme;
+		index.emplace(m_global_table.AddGlobalVariable(std::move(variable_name)));
+		m_global_variables[def.m_name.m_lexeme] = index.value();
+	}
+
 	std::visit([this](auto&& arg) { (*this)(arg); }, *def.m_value);
+
+	if (is_global)
+	{
+		EmitVariable(index.value(), OpCode::SET_GLOBAL, def.m_name.m_line);
+	}
 }
 
 void CodeGenerator::operator()(If& if_stmt)
@@ -304,7 +322,7 @@ void CodeGenerator::operator()(Variable& variable)
 			}
 			else if constexpr (std::is_same_v<T, VariableSemantic::Global>)
 			{
-				EmitVariable(m_global_variables[variable.m_name.m_lexeme], OpCode::GET_NATIVE, variable.m_name.m_line);
+				EmitVariable(m_global_variables[variable.m_name.m_lexeme], OpCode::GET_GLOBAL, variable.m_name.m_line);
 			}
 			else if constexpr (std::is_same_v<T, VariableSemantic::Cell>)
 			{
@@ -329,6 +347,10 @@ void CodeGenerator::operator()(Assign& assign)
 			if constexpr (std::is_same_v<T, VariableSemantic::Local>)
 			{
 				EmitVariable(arg.m_index, OpCode::SET_LOCAL, assign.m_name.m_line);
+			}
+			else if constexpr (std::is_same_v<T, VariableSemantic::Global>)
+			{
+				EmitVariable(m_global_variables[assign.m_name.m_lexeme], OpCode::SET_GLOBAL, assign.m_name.m_line);
 			}
 			else if constexpr (std::is_same_v<T, VariableSemantic::Cell>)
 			{
@@ -388,8 +410,11 @@ void CodeGenerator::operator()(Closure& closure)
 	m_current_module_index = prev_index;
 
 	EmitConstant(std::move(closure_ptr), line);
-	EmitByte(OpCode::CREATE_CLOSURE, line);
-	EmitByte(static_cast<OpCode>(closure.m_captured_count), line);
+	if (closure.m_captured_count > 0)
+	{
+		EmitByte(OpCode::CREATE_CLOSURE, line);
+		EmitByte(static_cast<OpCode>(closure.m_captured_count), line);
+	}
 }
 
 void CodeGenerator::operator()(Array& array)
