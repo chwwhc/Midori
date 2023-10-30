@@ -67,8 +67,11 @@ void PrintAbstractSyntaxTree::operator()(const While& while_stmt, int depth) con
 void PrintAbstractSyntaxTree::operator()(const For& for_stmt, int depth) const
 {
 	PrintWithIndentation(depth, "For {");
-	PrintWithIndentation(depth + 1, "ConditionInitializer: ");
-	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *for_stmt.m_condition_intializer);
+	if (for_stmt.m_condition_intializer.has_value())
+	{
+		PrintWithIndentation(depth + 1, "ConditionInitializer: ");
+		std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *for_stmt.m_condition_intializer.value());
+	}
 	if (for_stmt.m_condition.has_value())
 	{
 		PrintWithIndentation(depth + 1, "Condition: ");

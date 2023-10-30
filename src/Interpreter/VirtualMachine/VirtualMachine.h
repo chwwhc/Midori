@@ -259,6 +259,8 @@ private:
 
 	Traceable::GarbageCollectionRoots GetValueStackGarbageCollectionRoots();
 
+	Traceable::GarbageCollectionRoots GetGlobalTableGarbageCollectionRoots();
+
 	Traceable::GarbageCollectionRoots GetGarbageCollectionRoots();
 
 	void CollectGarbage();

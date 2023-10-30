@@ -5,6 +5,7 @@
 
 #include <unordered_map>
 #include <expected>
+#include <stack>
 
 class Parser
 {
@@ -27,10 +28,11 @@ private:
 
 	TokenStream m_tokens;
 	std::vector<Scope> m_scopes;
+	std::stack<int> m_local_count_before_loop;
 	std::unordered_set<std::string> m_native_functions;
 	int m_closure_depth = 0;
-	int m_current = 0;
-	int m_total_locals = 0;
+	int m_current_token_index = 0;
+	int m_total_locals_in_curr_scope = 0;
 	int m_total_variables = 0;
 	bool m_error = false;
 
@@ -52,17 +54,17 @@ private:
 		return MidoriError::GenerateParserError(message, token);
 	}
 
-	inline bool IsAtEnd() { return Peek(0).m_token_type == Token::Type::END_OF_FILE; }
+	inline bool IsAtEnd() { return Peek(0).m_token_type == Token::Name::END_OF_FILE; }
 
-	inline bool Check(Token::Type type, int offset) { return !IsAtEnd() && Peek(offset).m_token_type == type; }
+	inline bool Check(Token::Name type, int offset) { return !IsAtEnd() && Peek(offset).m_token_type == type; }
 
-	inline Token& Peek(int offset) { return m_current + offset < m_tokens.Size() ? m_tokens[m_current + offset] : m_tokens[m_tokens.Size() - 1]; }
+	inline Token& Peek(int offset) { return m_current_token_index + offset < m_tokens.Size() ? m_tokens[m_current_token_index + offset] : m_tokens[m_tokens.Size() - 1]; }
 
-	inline Token& Previous() { return m_tokens[m_current - 1]; }
+	inline Token& Previous() { return m_tokens[m_current_token_index - 1]; }
 
-	inline Token& Advance() { if (!IsAtEnd()) { m_current += 1; } return Previous(); }
+	inline Token& Advance() { if (!IsAtEnd()) { m_current_token_index += 1; } return Previous(); }
 
-	inline MidoriResult::TokenResult Consume(Token::Type type, const char* message)
+	inline MidoriResult::TokenResult Consume(Token::Name type, const char* message)
 	{
 		if (Check(type, 0))
 		{
@@ -115,7 +117,7 @@ private:
 	inline int EndScope()
 	{
 		int block_local_count = static_cast<int>(m_scopes.back().size());
-		m_total_locals -= block_local_count;
+		m_total_locals_in_curr_scope -= block_local_count;
 		m_total_variables -= block_local_count;
 		m_scopes.pop_back();
 		return block_local_count;
@@ -146,7 +148,7 @@ private:
 
 		if (!is_global)
 		{
-			m_scopes.back()[name] = VariableContext(m_total_locals++, m_total_variables++, m_closure_depth, is_fixed);
+			m_scopes.back()[name] = VariableContext(m_total_locals_in_curr_scope++, m_total_variables++, m_closure_depth, is_fixed);
 			local_index.emplace(m_scopes.back()[name].m_relative_index);
 		}
 

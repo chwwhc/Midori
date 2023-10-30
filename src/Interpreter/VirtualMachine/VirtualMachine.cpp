@@ -30,7 +30,7 @@ MidoriResult::InterpreterResult VirtualMachine::BinaryOperation(std::function<Mi
 							{
 								return Bind(Push(std::move(*right)), [&op, &right, this](MidoriValue*) -> MidoriResult::InterpreterResult
 									{
-										return Bind(Pop(), [&op, &right, this](MidoriValue* right) -> MidoriResult::InterpreterResult
+										return Bind(Pop(), [&op, this](MidoriValue* right) -> MidoriResult::InterpreterResult
 											{
 												return Bind(Pop(), [&op, &right, this](MidoriValue* left) -> MidoriResult::InterpreterResult
 													{
@@ -44,22 +44,43 @@ MidoriResult::InterpreterResult VirtualMachine::BinaryOperation(std::function<Mi
 		});
 }
 
+Traceable::GarbageCollectionRoots VirtualMachine::GetGlobalTableGarbageCollectionRoots()
+{
+	Traceable::GarbageCollectionRoots roots;
+
+	std::for_each(m_global_vars.cbegin(), m_global_vars.cend(), [&roots](const GlobalVariables::value_type& pair) -> void
+		{
+			if (pair.second.IsObjectPointer())
+			{
+				roots.emplace(static_cast<Traceable*>(pair.second.GetObjectPointer()));
+			}
+		});
+
+	return roots;
+}
+
 Traceable::GarbageCollectionRoots VirtualMachine::GetValueStackGarbageCollectionRoots()
 {
-	return std::accumulate(m_value_stack.begin(), m_value_stack.begin() + std::distance(m_value_stack.begin(), m_value_stack_pointer), Traceable::GarbageCollectionRoots(),
-		[](Traceable::GarbageCollectionRoots acc, MidoriValue& value) -> Traceable::GarbageCollectionRoots
+	Traceable::GarbageCollectionRoots roots;
+
+	std::for_each_n(m_value_stack.begin(), std::distance(m_value_stack.begin(), m_value_stack_pointer), [&roots](MidoriValue& value) -> void
 		{
 			if (value.IsObjectPointer())
 			{
-				acc.emplace(static_cast<Traceable*>(value.GetObjectPointer()));
+				roots.emplace(static_cast<Traceable*>(value.GetObjectPointer()));
 			}
-			return acc;
 		});
+
+	return roots;
 }
 
 Traceable::GarbageCollectionRoots VirtualMachine::GetGarbageCollectionRoots()
 {
-	return GetValueStackGarbageCollectionRoots();
+	Traceable::GarbageCollectionRoots stack_roots = GetValueStackGarbageCollectionRoots();
+	Traceable::GarbageCollectionRoots global_roots = GetGlobalTableGarbageCollectionRoots();
+
+	stack_roots.insert(global_roots.begin(), global_roots.end());
+	return stack_roots;
 }
 
 void VirtualMachine::CollectGarbage()

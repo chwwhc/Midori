@@ -1,11 +1,38 @@
-fixed main = closure()
+
+
+fixed amain = closure(var x)
 {
-	var x = closure(var y) 
+	fixed fib = closure(var x)
 	{
-		return closure() { return y; };
+		return x < 2 ? x : fib(x - 1) + fib(x - 2);
 	};
-	var f = x(5);
-	PrintLine(f()); // Should print 5
+
+	PrintLine(fib(x));
 
 	return 0;
+};
+
+
+
+fixed main = closure()
+{
+	for (var i = 0; i < 1024; i = i + 1)
+	{
+		var x = 333;
+		if (i % 2 == 0)
+		{
+			var x = 222;
+			fixed t = "asdasd" ++ "!!!asdasdasd" ++ ("s" ++ "22");
+			while (true)
+			{
+				fixed t = "123" ++ "456" ++ ("789" ++ "0-=");
+				break;
+			}
+			continue;
+		}
+		PrintLine(i);
+	}
+
+
+	return amain(10);
 };

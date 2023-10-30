@@ -1,370 +1,372 @@
 #include "Lexer.h"
 
-const std::unordered_map<std::string, Token::Type> Lexer::s_keywords = 
+const std::unordered_map<std::string, Token::Name> Lexer::s_keywords =
 {
-    // reserved keywords
-    {"else", Token::Type::ELSE},
-    {"false", Token::Type::FALSE},
-    {"for", Token::Type::FOR},
-    {"if", Token::Type::IF},
-    {"return", Token::Type::RETURN},
-    {"true", Token::Type::TRUE},
-	{"var", Token::Type::VAR},
-    {"fixed", Token::Type::FIXED},
-    {"closure", Token::Type::CLOSURE},
-    {"while", Token::Type::WHILE},
-    {"do", Token::Type::DO},
-    {"break", Token::Type::BREAK},
-    {"continue", Token::Type::CONTINUE},
-    {"import", Token::Type::IMPORT},
-    {"namespace", Token::Type::NAMESPACE}, 
+	// reserved keywords
+	{"else", Token::Name::ELSE},
+	{"false", Token::Name::FALSE},
+	{"for", Token::Name::FOR},
+	{"if", Token::Name::IF},
+	{"return", Token::Name::RETURN},
+	{"true", Token::Name::TRUE},
+	{"var", Token::Name::VAR},
+	{"fixed", Token::Name::FIXED},
+	{"closure", Token::Name::CLOSURE},
+	{"while", Token::Name::WHILE},
+	{"do", Token::Name::DO},
+	{"break", Token::Name::BREAK},
+	{"continue", Token::Name::CONTINUE},
+	{"import", Token::Name::IMPORT},
+	{"namespace", Token::Name::NAMESPACE},
 };
 
 std::optional<std::string> Lexer::SkipWhitespaceAndComments()
 {
-    while (true)
-    {
-        char c = LookAhead(0);
+	while (!IsAtEnd(0))
+	{
+		char c = LookAhead(0);
 
-        switch (c)
-        {
-        case ' ':
-        case '\r':
-        case '\t':
-            Advance();
-            break;
-        case '\n':
-            m_line++;
-            Advance();
-            break;
-        case '/':
-            if (LookAhead(1) == '/')
-            {
-                // A comment goes until the end of the line.
-                while (LookAhead(0) != '\n' && !IsAtEnd(0))
-                {
-                    Advance();
-                }
-            }
-            else if (LookAhead(1) == '*')
-            {
-                // A block comment goes until the closing "*/".
-                Advance();
-                Advance();
+		switch (c)
+		{
+		case ' ':
+		case '\r':
+		case '\t':
+			Advance();
+			break;
+		case '\n':
+			m_line++;
+			Advance();
+			break;
+		case '/':
+			if (LookAhead(1) == '/')
+			{
+				// A comment goes until the end of the line.
+				while (LookAhead(0) != '\n' && !IsAtEnd(0))
+				{
+					Advance();
+				}
+				break;
+			}
+			else if (LookAhead(1) == '*')
+			{
+				// A block comment goes until the closing "*/".
+				Advance();
+				Advance();
 
-                while (LookAhead(0) != '*' && LookAhead(1) != '/' && !IsAtEnd(0))
-                {
-                    if (LookAhead(0) == '\n')
-                    {
-                        m_line += 1;
-                    }
-                    Advance();
-                }
+				while (LookAhead(0) != '*' && LookAhead(1) != '/' && !IsAtEnd(0))
+				{
+					if (LookAhead(0) == '\n')
+					{
+						m_line += 1;
+					}
+					Advance();
+				}
 
-                if (IsAtEnd(0))
-                {
-                    return MidoriError::GenerateLexerError("Unterminated block comment.", m_line);
-                }
+				if (IsAtEnd(0))
+				{
+					return MidoriError::GenerateLexerError("Unterminated block comment.", m_line);
+				}
 
-                // The closing "*/".
-                Advance();
-                Advance();
-            }
-            else
-            {
-                return std::nullopt;
-            }
-            break;
-        default:
-            return std::nullopt;
-        }
-    }
+				// The closing "*/".
+				Advance();
+				Advance();
+
+				break;
+			}
+			break;
+		default:
+			return std::nullopt;
+		}
+	}
+
+	return std::nullopt;
 }
 
 MidoriResult::TokenResult Lexer::MatchString()
 {
-    std::string result;
+	std::string result;
 
-    while (LookAhead(0) != '"' && !IsAtEnd(0))
-    {
-        if (LookAhead(0) == '\n')
-        {
-            m_line += 1;
-        }
+	while (LookAhead(0) != '"' && !IsAtEnd(0))
+	{
+		if (LookAhead(0) == '\n')
+		{
+			m_line += 1;
+		}
 
-        if (LookAhead(0) == '\\' && !IsAtEnd(1))
-        {
-            switch (LookAhead(1))
-            {
-            case 't':
-                result += '\t';
-                break;
-            case 'n':
-                result += '\n';
-                break;
-            case 'b':
-                result += '\b';
-                break;
-            case 'f':
-                result += '\f'; 
-                break;
-            case '"':
-                result += '"';
-                break;
-            case '\\':
-                result += '\\';
-                break;
-            default:
-                break;
-            }
+		if (LookAhead(0) == '\\' && !IsAtEnd(1))
+		{
+			switch (LookAhead(1))
+			{
+			case 't':
+				result += '\t';
+				break;
+			case 'n':
+				result += '\n';
+				break;
+			case 'b':
+				result += '\b';
+				break;
+			case 'f':
+				result += '\f';
+				break;
+			case '"':
+				result += '"';
+				break;
+			case '\\':
+				result += '\\';
+				break;
+			default:
+				break;
+			}
 
-            Advance();
-            Advance();
-            continue;
-        }
+			Advance();
+			Advance();
+			continue;
+		}
 
-        result += Advance();
-    }
+		result += Advance();
+	}
 
-    if (IsAtEnd(0))
-    {
-        return std::unexpected<std::string>(MidoriError::GenerateLexerError("Unterminated string.", m_line));
-    }
-    else
-    {
-        Advance();
-    }
+	if (IsAtEnd(0))
+	{
+		return std::unexpected<std::string>(MidoriError::GenerateLexerError("Unterminated string.", m_line));
+	}
+	else
+	{
+		Advance();
+	}
 
-    return MakeToken(Token::Type::STRING, std::move(result));  
+	return MakeToken(Token::Name::STRING, std::move(result));
 }
 
 Token Lexer::MatchNumber()
 {
-    while (IsDigit(LookAhead(0)))
-    {
-        Advance();
-    }
+	while (IsDigit(LookAhead(0)))
+	{
+		Advance();
+	}
 
-    // Look for a fractional part.
-    if (LookAhead(0) == '.' && IsDigit(LookAhead(1)))
-    {
-        // Consume the ".".
-        Advance();
+	// Look for a fractional part.
+	if (LookAhead(0) == '.' && IsDigit(LookAhead(1)))
+	{
+		// Consume the ".".
+		Advance();
 
-        while (IsDigit(LookAhead(0)))
-        {
-            Advance();
-        }
-    }
+		while (IsDigit(LookAhead(0)))
+		{
+			Advance();
+		}
+	}
 
-    return MakeToken(Token::Type::NUMBER);
+	return MakeToken(Token::Name::NUMBER);
 }
 
 Token Lexer::MatchIdentifierOrReserved()
 {
-    while (IsAlphaNumeric(LookAhead(0)))
-    {
-        Advance();
-    }
+	while (IsAlphaNumeric(LookAhead(0)))
+	{
+		Advance();
+	}
 
-    std::string identifier = m_source_code.substr(m_begin, static_cast<size_t>(m_current - m_begin));
+	std::string identifier = m_source_code.substr(m_begin, static_cast<size_t>(m_current - m_begin));
 
-    std::unordered_map<std::string, Token::Type>::const_iterator it = s_keywords.find(identifier);
+	std::unordered_map<std::string, Token::Name>::const_iterator it = s_keywords.find(identifier);
 
-    if (it != s_keywords.cend())
-    {
-        return MakeToken(it->second);
-    }
-    else
-    {
-        return MakeToken(Token::Type::IDENTIFIER);
-    }
+	if (it != s_keywords.cend())
+	{
+		return MakeToken(it->second);
+	}
+	else
+	{
+		return MakeToken(Token::Name::IDENTIFIER);
+	}
 }
 
 MidoriResult::TokenResult Lexer::LexOneToken()
 {
-    if (SkipWhitespaceAndComments().has_value())
-    {
-        return std::unexpected<std::string>(SkipWhitespaceAndComments().value());
-    }
-
-    if (IsAtEnd(0))
-    {
-		return MakeToken(Token::Type::END_OF_FILE);
+	std::optional<std::string> error = SkipWhitespaceAndComments();
+	if (error.has_value())
+	{
+		return std::unexpected<std::string>(std::move(error.value()));
 	}
 
-    m_begin = m_current;
+	if (IsAtEnd(0))
+	{
+		return MakeToken(Token::Name::END_OF_FILE);
+	}
 
-    char next_char = Advance();
-    switch (next_char)
-    {
-    case '(':
-        return MakeToken(Token::Type::LEFT_PAREN);
-    case ')':
-        return MakeToken(Token::Type::RIGHT_PAREN);
-    case '{':
-        return MakeToken(Token::Type::LEFT_BRACE);
-    case '}':
-        return MakeToken(Token::Type::RIGHT_BRACE);
-    case '[':
-        return MakeToken(Token::Type::LEFT_BRACKET);
-    case '@':
-        return MakeToken(Token::Type::AT);
-    case '#':
-        return MakeToken(Token::Type::HASH);
-    case ']':
-        return MakeToken(Token::Type::RIGHT_BRACKET);
-    case ',':
-        return MakeToken(Token::Type::COMMA);
-    case '.':
-        if (IsDigit(LookAhead(0)))
-        {
-            return MatchNumber();
-        }
-        else
-        {
-            return MakeToken(Token::Type::DOT);
-        }
-    case ';':
-        return MakeToken(Token::Type::SINGLE_SEMICOLON);
-    case '+':
-        if (MatchNext('+'))
-        {
-            return MakeToken(Token::Type::DOUBLE_PLUS);
-        }
-        else
-        {
-            return MakeToken(Token::Type::SINGLE_PLUS);
-        }
-    case '-':
-        return MakeToken(Token::Type::MINUS);
-    case '?':
-        return MakeToken(Token::Type::QUESTION);
-    case ':':
-        return MakeToken(Token::Type::SINGLE_COLON);
-    case '%':
-        return MakeToken(Token::Type::PERCENT);
-    case '*':
-        return MakeToken(Token::Type::STAR);
-    case '/':
-        return MakeToken(Token::Type::SLASH);
-    case '|':
-        if (MatchNext('|'))
-        {
-            return MakeToken(Token::Type::DOUBLE_BAR);
-        }
-        else
-        {
-           return MakeToken(Token::Type::SINGLE_BAR);
-        }
-    case '^':
-        return MakeToken(Token::Type::CARET);
-    case '&':
-        if (MatchNext('&'))
-        {
-			return MakeToken(Token::Type::DOUBLE_AMPERSAND);
+	m_begin = m_current;
+
+	char next_char = Advance();
+	switch (next_char)
+	{
+	case '(':
+		return MakeToken(Token::Name::LEFT_PAREN);
+	case ')':
+		return MakeToken(Token::Name::RIGHT_PAREN);
+	case '{':
+		return MakeToken(Token::Name::LEFT_BRACE);
+	case '}':
+		return MakeToken(Token::Name::RIGHT_BRACE);
+	case '[':
+		return MakeToken(Token::Name::LEFT_BRACKET);
+	case '@':
+		return MakeToken(Token::Name::AT);
+	case '#':
+		return MakeToken(Token::Name::HASH);
+	case ']':
+		return MakeToken(Token::Name::RIGHT_BRACKET);
+	case ',':
+		return MakeToken(Token::Name::COMMA);
+	case '.':
+		if (IsDigit(LookAhead(0)))
+		{
+			return MatchNumber();
 		}
-        else
-        {
-            return MakeToken(Token::Type::SINGLE_AMPERSAND);
-        }
-    case '!':
-        if (MatchNext('='))
-        {
-            return MakeToken(Token::Type::BANG_EQUAL);
-        }
-        else
-        {
-            return MakeToken(Token::Type::BANG);
-        }
-    case '=':
-        if (MatchNext('='))
-        {
-            return MakeToken(Token::Type::DOUBLE_EQUAL);
-        }
-        else
-        {
-            return MakeToken(Token::Type::SINGLE_EQUAL);
-        }
-    case '>':
-        if (MatchNext('='))
-        {
-            return MakeToken(Token::Type::GREATER_EQUAL);
-        }
-        else if (MatchNext('>'))
-        {
-            return MakeToken(Token::Type::RIGHT_SHIFT);
-        }
-        else
-        {
-            return MakeToken(Token::Type::GREATER);
-        }
-    case '<':
-        if (MatchNext('='))
-        {
-            return MakeToken(Token::Type::LESS_EQUAL);
-        }
-        else if (MatchNext('<'))
-        {
-            return MakeToken(Token::Type::LEFT_SHIFT);
-        }
-        else
-        {
-            return MakeToken(Token::Type::LESS);
-        }
-    case ' ':
-    case '\r':
-    case '\t':
-        Advance();
-        return LexOneToken();
-    case '"':
-        return MatchString();
-    case '\n':
-        m_line += 1;
-        return LexOneToken();
-    default:
-        if (IsDigit(next_char))
-        {
-            return MatchNumber();
-        }
-        else if (IsAlpha(next_char))
-        {
-            return MatchIdentifierOrReserved();
-        }
-        else
-        {
-            return std::unexpected<std::string>(MidoriError::GenerateLexerError("Invalid character.", m_line));
-        }
-    }
+		else
+		{
+			return MakeToken(Token::Name::DOT);
+		}
+	case ';':
+		return MakeToken(Token::Name::SINGLE_SEMICOLON);
+	case '+':
+		if (MatchNext('+'))
+		{
+			return MakeToken(Token::Name::DOUBLE_PLUS);
+		}
+		else
+		{
+			return MakeToken(Token::Name::SINGLE_PLUS);
+		}
+	case '-':
+		return MakeToken(Token::Name::MINUS);
+	case '?':
+		return MakeToken(Token::Name::QUESTION);
+	case ':':
+		return MakeToken(Token::Name::SINGLE_COLON);
+	case '%':
+		return MakeToken(Token::Name::PERCENT);
+	case '*':
+		return MakeToken(Token::Name::STAR);
+	case '/':
+		return MakeToken(Token::Name::SLASH);
+	case '|':
+		if (MatchNext('|'))
+		{
+			return MakeToken(Token::Name::DOUBLE_BAR);
+		}
+		else
+		{
+			return MakeToken(Token::Name::SINGLE_BAR);
+		}
+	case '^':
+		return MakeToken(Token::Name::CARET);
+	case '&':
+		if (MatchNext('&'))
+		{
+			return MakeToken(Token::Name::DOUBLE_AMPERSAND);
+		}
+		else
+		{
+			return MakeToken(Token::Name::SINGLE_AMPERSAND);
+		}
+	case '!':
+		if (MatchNext('='))
+		{
+			return MakeToken(Token::Name::BANG_EQUAL);
+		}
+		else
+		{
+			return MakeToken(Token::Name::BANG);
+		}
+	case '=':
+		if (MatchNext('='))
+		{
+			return MakeToken(Token::Name::DOUBLE_EQUAL);
+		}
+		else
+		{
+			return MakeToken(Token::Name::SINGLE_EQUAL);
+		}
+	case '>':
+		if (MatchNext('='))
+		{
+			return MakeToken(Token::Name::GREATER_EQUAL);
+		}
+		else if (MatchNext('>'))
+		{
+			return MakeToken(Token::Name::RIGHT_SHIFT);
+		}
+		else
+		{
+			return MakeToken(Token::Name::GREATER);
+		}
+	case '<':
+		if (MatchNext('='))
+		{
+			return MakeToken(Token::Name::LESS_EQUAL);
+		}
+		else if (MatchNext('<'))
+		{
+			return MakeToken(Token::Name::LEFT_SHIFT);
+		}
+		else
+		{
+			return MakeToken(Token::Name::LESS);
+		}
+	case ' ':
+	case '\r':
+	case '\t':
+		Advance();
+		return LexOneToken();
+	case '"':
+		return MatchString();
+	case '\n':
+		m_line += 1;
+		return LexOneToken();
+	default:
+		if (IsDigit(next_char))
+		{
+			return MatchNumber();
+		}
+		else if (IsAlpha(next_char))
+		{
+			return MatchIdentifierOrReserved();
+		}
+		else
+		{
+			return std::unexpected<std::string>(MidoriError::GenerateLexerError("Invalid character.", m_line));
+		}
+	}
 }
 
 MidoriResult::LexerResult Lexer::Lex()
 {
-    TokenStream token_stream;
-    std::vector<std::string> errors;
+	TokenStream token_stream;
+	std::vector<std::string> errors;
 
-    while (!IsAtEnd(0))
-    {
-        std::expected<Token, std::string> result = LexOneToken();
-        if (result.has_value())
-        {
+	while (!IsAtEnd(0))
+	{
+		std::expected<Token, std::string> result = LexOneToken();
+		if (result.has_value())
+		{
 			token_stream.AddToken(std::move(result.value()));
 		}
-        else
-        {
+		else
+		{
 			errors.emplace_back(result.error());
 		}
-    }
+	}
 
-    if (!errors.empty())
-    {
-        return std::unexpected<std::vector<std::string>>(errors);
-    }
+	if (!errors.empty())
+	{
+		return std::unexpected<std::vector<std::string>>(errors);
+	}
 
-    if (std::prev(token_stream.cend())->m_token_type != Token::Type::END_OF_FILE)
-    {
-        token_stream.AddToken(MakeToken(Token::Type::END_OF_FILE));
-    }
-    
-    return token_stream;
+	if (std::prev(token_stream.cend())->m_token_type != Token::Name::END_OF_FILE)
+	{
+		token_stream.AddToken(MakeToken(Token::Name::END_OF_FILE));
+	}
+
+	return token_stream;
 }

@@ -6,7 +6,7 @@ void GarbageCollector::Mark(Traceable::GarbageCollectionRoots&& roots)
 {
 	roots.insert(m_constant_roots.begin(), m_constant_roots.end());
 
-	std::for_each(Traceable::s_objects.begin(), Traceable::s_objects.end(), [](Traceable* obj) { obj->Trace(); });
+	std::for_each(roots.begin(), roots.end(), [](Traceable* obj) { obj->Trace(); });
 }
 
 void GarbageCollector::Sweep()

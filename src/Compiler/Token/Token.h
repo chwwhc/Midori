@@ -5,7 +5,7 @@
 
 struct Token
 {
-	enum class Type
+	enum class Name
 	{
 		// symbol
 		LEFT_PAREN,
@@ -70,7 +70,7 @@ struct Token
 		END_OF_FILE,
 	};
 
-	Type m_token_type;
+	Name m_token_type;
 	std::string m_lexeme;
 	int m_line = 0;
 };

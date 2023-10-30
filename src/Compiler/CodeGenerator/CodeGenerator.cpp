@@ -1,7 +1,5 @@
 #include "CodeGenerator.h"
 
-#include <algorithm>
-
 MidoriResult::CodeGeneratorResult CodeGenerator::GenerateCode(ProgramTree&& program_tree)
 {
 	SetUpNativeFunctions();
@@ -116,6 +114,7 @@ void CodeGenerator::operator()(If& if_stmt)
 void CodeGenerator::operator()(While& while_stmt)
 {
 	int loop_start = m_modules[m_current_module_index].GetByteCodeSize();
+	BeginLoop(loop_start);
 
 	std::visit([this](auto&& arg) {(*this)(arg); }, *while_stmt.m_condition);
 
@@ -126,41 +125,51 @@ void CodeGenerator::operator()(While& while_stmt)
 	std::visit([this](auto&& arg) {(*this)(arg); }, *while_stmt.m_body);
 
 	EmitLoop(loop_start, line);
-
 	PatchJump(jump_if_false, line);
+
 	EmitByte(OpCode::POP, line);
+
+	EndLoop(line);
 }
 
 void CodeGenerator::operator()(For& for_stmt)
 {
-	std::visit([this](auto&& arg) {(*this)(arg); }, *for_stmt.m_condition_intializer);
+	if (for_stmt.m_condition_intializer.has_value())
+	{
+		std::visit([this](auto&& arg) {(*this)(arg); }, *for_stmt.m_condition_intializer.value());
+	}
 
 	int loop_start = m_modules[m_current_module_index].GetByteCodeSize();
-
 	int line = for_stmt.m_for_keyword.m_line;
+
+	int exit_jump = -1;
 	if (for_stmt.m_condition.has_value())
 	{
 		std::visit([this](auto&& arg) {(*this)(arg); }, *for_stmt.m_condition.value());
+		exit_jump = EmitJump(OpCode::JUMP_IF_FALSE, line);
+		EmitByte(OpCode::POP, line);
 	}
-	else
-	{
-		EmitByte(OpCode::TRUE, line);
-	}
-
-	int jump_if_false = EmitJump(OpCode::JUMP_IF_FALSE, line);
-	EmitByte(OpCode::POP, line);
-
-	std::visit([this](auto&& arg) {(*this)(arg); }, *for_stmt.m_body);
-
 	if (for_stmt.m_condition_incrementer.has_value())
 	{
+		int body_jump = EmitJump(OpCode::JUMP, line);
+		int incrementer_start = m_modules[m_current_module_index].GetByteCodeSize();
 		std::visit([this](auto&& arg) {(*this)(arg); }, *for_stmt.m_condition_incrementer.value());
+
+		EmitLoop(loop_start, line);
+		loop_start = incrementer_start;
+		PatchJump(body_jump, line);
 	}
 
-	EmitLoop(loop_start, line);
+	BeginLoop(loop_start);
+	std::visit([this](auto&& arg) {(*this)(arg); }, *for_stmt.m_body);
 
-	PatchJump(jump_if_false, line);
-	EmitByte(OpCode::POP, line);
+	EmitLoop(loop_start, line);
+	if (exit_jump != -1)
+	{
+		PatchJump(exit_jump, line);
+		EmitByte(OpCode::POP, line);
+	}
+
 	while (for_stmt.m_control_block_local_count > 0)
 	{
 		int count_to_pop = std::min(for_stmt.m_control_block_local_count, static_cast<int>(UINT8_MAX));
@@ -168,16 +177,37 @@ void CodeGenerator::operator()(For& for_stmt)
 		EmitByte(static_cast<OpCode>(count_to_pop), line);
 		for_stmt.m_control_block_local_count -= count_to_pop;
 	}
+	EndLoop(line);
 }
 
-void CodeGenerator::operator()(Break&)
+void CodeGenerator::operator()(Break& break_stmt)
 {
-	return;
+	int line = break_stmt.m_keyword.m_line;
+
+	while (break_stmt.m_number_to_pop > 0)
+	{
+		int count_to_pop = std::min(break_stmt.m_number_to_pop, static_cast<int>(UINT8_MAX));
+		EmitByte(OpCode::POP_MULTIPLE, line);
+		EmitByte(static_cast<OpCode>(count_to_pop), line);
+		break_stmt.m_number_to_pop -= count_to_pop;
+	}
+
+	m_loop_contexts.top().m_break_positions.emplace_back(EmitJump(OpCode::JUMP, line));
 }
 
-void CodeGenerator::operator()(Continue&)
+void CodeGenerator::operator()(Continue& continue_stmt)
 {
-	return;
+	int line = continue_stmt.m_keyword.m_line;
+
+	while (continue_stmt.m_number_to_pop > 0)
+	{
+		int count_to_pop = std::min(continue_stmt.m_number_to_pop, static_cast<int>(UINT8_MAX));
+		EmitByte(OpCode::POP_MULTIPLE, line);
+		EmitByte(static_cast<OpCode>(count_to_pop), line);
+		continue_stmt.m_number_to_pop -= count_to_pop;
+	}
+
+	EmitLoop(m_loop_contexts.top().m_loop_start, line);
 }
 
 void CodeGenerator::operator()(Return& return_stmt)
@@ -206,55 +236,55 @@ void CodeGenerator::operator()(Binary& binary)
 
 	switch (binary.m_op.m_token_type)
 	{
-	case Token::Type::SINGLE_PLUS:
+	case Token::Name::SINGLE_PLUS:
 		EmitByte(OpCode::ADD, binary.m_op.m_line);
 		break;
-	case Token::Type::DOUBLE_PLUS:
+	case Token::Name::DOUBLE_PLUS:
 		EmitByte(OpCode::CONCAT, binary.m_op.m_line);
 		break;
-	case Token::Type::MINUS:
+	case Token::Name::MINUS:
 		EmitByte(OpCode::SUBTRACT, binary.m_op.m_line);
 		break;
-	case Token::Type::STAR:
+	case Token::Name::STAR:
 		EmitByte(OpCode::MULTIPLY, binary.m_op.m_line);
 		break;
-	case Token::Type::SLASH:
+	case Token::Name::SLASH:
 		EmitByte(OpCode::DIVIDE, binary.m_op.m_line);
 		break;
-	case Token::Type::PERCENT:
+	case Token::Name::PERCENT:
 		EmitByte(OpCode::MODULO, binary.m_op.m_line);
 		break;
-	case Token::Type::LEFT_SHIFT:
+	case Token::Name::LEFT_SHIFT:
 		EmitByte(OpCode::LEFT_SHIFT, binary.m_op.m_line);
 		break;
-	case Token::Type::RIGHT_SHIFT:
+	case Token::Name::RIGHT_SHIFT:
 		EmitByte(OpCode::RIGHT_SHIFT, binary.m_op.m_line);
 		break;
-	case Token::Type::LESS:
+	case Token::Name::LESS:
 		EmitByte(OpCode::LESS, binary.m_op.m_line);
 		break;
-	case Token::Type::LESS_EQUAL:
+	case Token::Name::LESS_EQUAL:
 		EmitByte(OpCode::LESS_EQUAL, binary.m_op.m_line);
 		break;
-	case Token::Type::GREATER:
+	case Token::Name::GREATER:
 		EmitByte(OpCode::GREATER, binary.m_op.m_line);
 		break;
-	case Token::Type::GREATER_EQUAL:
+	case Token::Name::GREATER_EQUAL:
 		EmitByte(OpCode::GREATER_EQUAL, binary.m_op.m_line);
 		break;
-	case Token::Type::BANG_EQUAL:
+	case Token::Name::BANG_EQUAL:
 		EmitByte(OpCode::NOT_EQUAL, binary.m_op.m_line);
 		break;
-	case Token::Type::DOUBLE_EQUAL:
+	case Token::Name::DOUBLE_EQUAL:
 		EmitByte(OpCode::EQUAL, binary.m_op.m_line);
 		break;
-	case Token::Type::SINGLE_AMPERSAND:
+	case Token::Name::SINGLE_AMPERSAND:
 		EmitByte(OpCode::BITWISE_AND, binary.m_op.m_line);
 		break;
-	case Token::Type::SINGLE_BAR:
+	case Token::Name::SINGLE_BAR:
 		EmitByte(OpCode::BITWISE_OR, binary.m_op.m_line);
 		break;
-	case Token::Type::CARET:
+	case Token::Name::CARET:
 		EmitByte(OpCode::BITWISE_XOR, binary.m_op.m_line);
 		break;
 	default:
@@ -266,7 +296,7 @@ void CodeGenerator::operator()(Binary& binary)
 void CodeGenerator::operator()(Logical& logical)
 {
 	int line = logical.m_op.m_line;
-	if (logical.m_op.m_token_type == Token::Type::DOUBLE_BAR)
+	if (logical.m_op.m_token_type == Token::Name::DOUBLE_BAR)
 	{
 		std::visit([this](auto&& arg) {(*this)(arg); }, *logical.m_left);
 		int jump_if_true = EmitJump(OpCode::JUMP_IF_TRUE, line);
@@ -274,7 +304,7 @@ void CodeGenerator::operator()(Logical& logical)
 		std::visit([this](auto&& arg) {(*this)(arg); }, *logical.m_right);
 		PatchJump(jump_if_true, line);
 	}
-	else if (logical.m_op.m_token_type == Token::Type::DOUBLE_AMPERSAND)
+	else if (logical.m_op.m_token_type == Token::Name::DOUBLE_AMPERSAND)
 	{
 		std::visit([this](auto&& arg) {(*this)(arg); }, *logical.m_left);
 		int jump_if_false = EmitJump(OpCode::JUMP_IF_FALSE, line);
@@ -299,10 +329,10 @@ void CodeGenerator::operator()(Unary& unary)
 
 	switch (unary.m_op.m_token_type)
 	{
-	case Token::Type::MINUS:
+	case Token::Name::MINUS:
 		EmitByte(OpCode::NEGATE, unary.m_op.m_line);
 		break;
-	case Token::Type::BANG:
+	case Token::Name::BANG:
 		EmitByte(OpCode::NOT, unary.m_op.m_line);
 		break;
 	default:
@@ -436,8 +466,8 @@ void CodeGenerator::operator()(Closure& closure)
 
 	Traceable* closure_ptr = Traceable::AllocateObject(Traceable::Closure(std::vector<Traceable*>(), m_current_module_index, arity));
 #ifdef DEBUG
-		std::string closure_line = "Closure at line: " + std::to_string(line);
-		m_module_names.emplace_back(std::move(closure_line));
+	std::string closure_line = "Closure at line: " + std::to_string(line);
+	m_module_names.emplace_back(std::move(closure_line));
 #endif
 
 	m_current_module_index = prev_index;

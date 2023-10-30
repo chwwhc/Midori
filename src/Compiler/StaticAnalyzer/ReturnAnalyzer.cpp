@@ -105,7 +105,10 @@ namespace ReturnAnalyzer
 				}
 				else if constexpr (std::is_same_v<ST, For>)
 				{
-					AnalyzeReturn(*arg.m_condition_intializer, errors);
+					if (arg.m_condition_intializer.has_value())
+					{
+						AnalyzeReturn(*arg.m_condition_intializer.value(), errors);
+					}
 					AnalyzeReturn(*arg.m_body, errors);
 				}
 			}, stmt);

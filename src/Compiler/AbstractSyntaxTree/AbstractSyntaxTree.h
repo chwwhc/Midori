@@ -70,17 +70,17 @@ struct AnyType {};
 struct ArrayType;
 struct FunctionType;
 
-using Type = std::variant<NumberType, StringType, BoolType, UnitType, AnyType, ArrayType, FunctionType>;
+using Name = std::variant<NumberType, StringType, BoolType, UnitType, AnyType, ArrayType, FunctionType>;
 
 struct ArrayType
 {
-	std::unique_ptr<Type> m_element_type;
+	std::unique_ptr<Name> m_element_type;
 };
 
 struct FunctionType
 {
-	std::vector<std::unique_ptr<Type>> m_param_types;
-	std::unique_ptr<Type> m_return_type;
+	std::vector<std::unique_ptr<Name>> m_param_types;
+	std::unique_ptr<Name> m_return_type;
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -90,7 +90,7 @@ struct Binary
 	Token m_op;
 	std::unique_ptr<Expression> m_left;
 	std::unique_ptr<Expression> m_right;
-	std::unique_ptr<Type> m_type = std::make_unique<Type>(AnyType());
+	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
 };
 
 struct Logical
@@ -98,44 +98,44 @@ struct Logical
 	Token m_op;
 	std::unique_ptr<Expression> m_left;
 	std::unique_ptr<Expression> m_right;
-	std::unique_ptr<Type> m_type = std::make_unique<Type>(AnyType());
+	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
 };
 
 struct Group
 {
 	std::unique_ptr<Expression> m_expr_in;
-	std::unique_ptr<Type> m_type = std::make_unique<Type>(AnyType());
+	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
 };
 
 struct String
 {
 	Token m_token;
-	std::unique_ptr<Type> m_type = std::make_unique<Type>(StringType());
+	std::unique_ptr<Name> m_type = std::make_unique<Name>(StringType());
 };
 
 struct Bool
 {
 	Token m_token;
-	std::unique_ptr<Type> m_type = std::make_unique<Type>(BoolType());
+	std::unique_ptr<Name> m_type = std::make_unique<Name>(BoolType());
 };
 
 struct Number
 {
 	Token m_token;
-	std::unique_ptr<Type> m_type = std::make_unique<Type>(NumberType());
+	std::unique_ptr<Name> m_type = std::make_unique<Name>(NumberType());
 };
 
 struct Unit
 {
 	Token m_token;
-	std::unique_ptr<Type> m_type = std::make_unique<Type>(UnitType());
+	std::unique_ptr<Name> m_type = std::make_unique<Name>(UnitType());
 };
 
 struct Unary
 {
 	Token m_op;
 	std::unique_ptr<Expression> m_right;
-	std::unique_ptr<Type> m_type = std::make_unique<Type>(AnyType());
+	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
 };
 
 struct Assign
@@ -143,14 +143,14 @@ struct Assign
 	Token m_name;
 	std::unique_ptr<Expression> m_value;
 	std::variant<VariableSemantic::Local, VariableSemantic::Global, VariableSemantic::Cell> m_semantic;
-	std::unique_ptr<Type> m_type = std::make_unique<Type>(AnyType());
+	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
 };
 
 struct Variable
 {
 	Token m_name;
 	std::variant<VariableSemantic::Local, VariableSemantic::Global, VariableSemantic::Cell> m_semantic;
-	std::unique_ptr<Type> m_type = std::make_unique<Type>(AnyType());
+	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
 };
 
 struct Call
@@ -158,7 +158,7 @@ struct Call
 	Token m_paren;
 	std::unique_ptr<Expression> m_callee;
 	std::vector<std::unique_ptr<Expression>> m_arguments;
-	std::unique_ptr<Type> m_type = std::make_unique<Type>(AnyType());
+	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
 };
 
 struct Closure
@@ -166,7 +166,7 @@ struct Closure
 	Token m_closure_keyword;
 	std::vector<Token> m_params;
 	std::unique_ptr<Statement> m_body;
-	std::unique_ptr<Type> m_type = std::make_unique<Type>(AnyType());
+	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
 	int m_captured_count = 0;
 };
 
@@ -177,14 +177,14 @@ struct Ternary
 	std::unique_ptr<Expression> m_condition;
 	std::unique_ptr<Expression> m_true_branch;
 	std::unique_ptr<Expression> m_else_branch;
-	std::unique_ptr<Type> m_type = std::make_unique<Type>(AnyType());
+	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
 };
 
 struct Get
 {
 	Token m_name;
 	std::unique_ptr<Expression> m_object;
-	std::unique_ptr<Type> m_type = std::make_unique<Type>(AnyType());
+	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
 };
 
 struct Set
@@ -192,7 +192,7 @@ struct Set
 	Token m_name;
 	std::unique_ptr<Expression> m_object;
 	std::unique_ptr<Expression> m_value;
-	std::unique_ptr<Type> m_type = std::make_unique<Type>(AnyType());
+	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
 };
 
 struct Array
@@ -200,7 +200,7 @@ struct Array
 	Token m_op;
 	std::vector<std::unique_ptr<Expression>> m_elems;
 	std::optional<std::unique_ptr<Expression>> m_allocated_size;
-	std::unique_ptr<Type> m_type = std::make_unique<Type>(AnyType());
+	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
 };
 
 struct ArrayGet
@@ -208,7 +208,7 @@ struct ArrayGet
 	Token m_op;
 	std::unique_ptr<Expression> m_arr_var;
 	std::vector<std::unique_ptr<Expression>> m_indices;
-	std::unique_ptr<Type> m_type = std::make_unique<Type>(AnyType());
+	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
 };
 
 struct ArraySet
@@ -217,7 +217,7 @@ struct ArraySet
 	std::unique_ptr<Expression> m_arr_var;
 	std::vector<std::unique_ptr<Expression>> m_indices;
 	std::unique_ptr<Expression> m_value;
-	std::unique_ptr<Type> m_type = std::make_unique<Type>(AnyType());
+	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -264,7 +264,7 @@ struct For
 	Token m_for_keyword;
 	std::optional<std::unique_ptr<Expression>> m_condition;
 	std::optional<std::unique_ptr<Statement>> m_condition_incrementer;
-	std::unique_ptr<Statement> m_condition_intializer;
+	std::optional<std::unique_ptr<Statement>> m_condition_intializer;
 	std::unique_ptr<Statement> m_body;
 	int m_control_block_local_count = 0;
 };
@@ -272,11 +272,13 @@ struct For
 struct Break
 {
 	Token m_keyword;
+	int m_number_to_pop = 0;
 };
 
 struct Continue
 {
 	Token m_keyword;
+	int m_number_to_pop = 0;
 };
 
 struct Return

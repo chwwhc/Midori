@@ -3,6 +3,9 @@
 #include "Common/Error/Error.h"
 #include "Common/Result/Result.h"
 
+#include <algorithm>
+#include <stack>
+
 class CodeGenerator
 {
 public:
@@ -16,11 +19,18 @@ private:
 		int m_main_module_line = 0;
 	};
 
+	struct LoopContext
+	{
+		std::vector<int> m_break_positions;
+		int m_loop_start = 0;
+	};
+
 	std::vector<BytecodeStream> m_modules = { BytecodeStream() };
 #ifdef DEBUG
-std::vector<std::string> m_module_names = { "runtime startup" };
+	std::vector<std::string> m_module_names = { "runtime startup" };
 #endif
 	std::vector<std::string> m_errors;
+	std::stack<LoopContext> m_loop_contexts;
 	std::unordered_map<std::string, int> m_global_variables;
 
 	StaticData m_static_data;
@@ -130,6 +140,15 @@ private:
 		EmitByte(static_cast<OpCode>((offset >> 8) & 0xff), line);
 	}
 
+	inline void BeginLoop(int loop_start) { m_loop_contexts.emplace(std::vector<int>(), loop_start); }
+
+	inline void EndLoop(int line)
+	{
+		LoopContext loop = m_loop_contexts.top();
+		m_loop_contexts.pop();
+		std::for_each(loop.m_break_positions.begin(), loop.m_break_positions.end(), [line, this](int break_position) { PatchJump(break_position, line); });
+	}
+
 	void operator()(Block& block);
 
 	void operator()(Simple& simple);
@@ -142,13 +161,13 @@ private:
 
 	void operator()(For& for_stmt);
 
-	void operator()(Break&);
+	void operator()(Break& break_stmt);
 
-	void operator()(Continue&);
+	void operator()(Continue& continue_stmt);
 
 	void operator()(Return& return_stmt);
 
-	void operator()(Import& import);
+	void operator()(Import & import);
 
 	void operator()(Namespace& namespace_stmt);
 
