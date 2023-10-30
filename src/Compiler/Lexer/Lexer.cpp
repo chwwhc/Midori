@@ -73,7 +73,7 @@ std::optional<std::string> Lexer::SkipWhitespaceAndComments()
 
 				break;
 			}
-			break;
+			return std::nullopt;
 		default:
 			return std::nullopt;
 		}
