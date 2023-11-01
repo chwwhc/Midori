@@ -8,7 +8,7 @@ private:
 	Traceable::GarbageCollectionRoots m_constant_roots;
 
 public:
-	explicit GarbageCollector(Traceable::GarbageCollectionRoots&& roots) : m_constant_roots(roots) {}
+	explicit GarbageCollector(Traceable::GarbageCollectionRoots&& roots) : m_constant_roots(std::move(roots)) {}
 
 	inline void ReclaimMemory(Traceable::GarbageCollectionRoots&& roots)
 	{

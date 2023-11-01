@@ -76,15 +76,11 @@ class Traceable
 {
 public:
 	using GarbageCollectionRoots = std::unordered_set<Traceable*>;
+	using CellValue = MidoriValue;
 
 	static inline size_t s_total_bytes_allocated;
 	static inline size_t s_static_bytes_allocated;
 	static inline std::list<Traceable*> s_objects;
-
-	struct CellValue
-	{
-		MidoriValue m_value;
-	};
 
 	struct Closure
 	{

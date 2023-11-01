@@ -80,7 +80,7 @@ private:
 		return value;
 	}
 
-	inline const MidoriValue& ReadConstant(OpCode operand_length)
+	inline MidoriValue ReadConstant(OpCode operand_length)
 	{
 		int index = 0;
 
@@ -140,17 +140,12 @@ private:
 		return &(*std::prev(m_value_stack_pointer));
 	}
 
-	inline MidoriResult::InterpreterResult Pop()
+	inline MidoriResult::InterpreterResult Pop() noexcept
 	{
-		if (m_value_stack_pointer == m_base_pointer)
-		{
-			return std::unexpected<std::string>(GenerateRuntimeError("Value stack underflow.", GetLine()));
-		}
-
 		MidoriValue& value = *(--m_value_stack_pointer);
 		if (value.IsObjectPointer() && value.GetObjectPointer()->IsCellValue())
 		{
-			return &value.GetObjectPointer()->GetCellValue().m_value;
+			return &value.GetObjectPointer()->GetCellValue();
 		}
 		else
 		{

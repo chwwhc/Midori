@@ -76,7 +76,7 @@ std::string Traceable::ToString() const
 			}
 			else if constexpr (std::is_same_v<T, CellValue>)
 			{
-				return "Cell(" + arg.m_value.ToString() + ")";
+				return "Cell(" + arg.ToString() + ")";
 			}
 			else if constexpr (std::is_same_v<T, Closure>)
 			{
@@ -114,6 +114,7 @@ void Traceable::Trace()
 		return;
 	}
 	Mark();
+
 	if (IsArray())
 	{
 		std::for_each(GetArray().begin(), GetArray().end(), [](MidoriValue& value) -> void
@@ -138,10 +139,10 @@ void Traceable::Trace()
 	}
 	else if (IsCellValue())
 	{
-		MidoriValue& cellValue = GetCellValue().m_value;
-		if (cellValue.IsObjectPointer())
+		MidoriValue& cell_value = GetCellValue();
+		if (cell_value.IsObjectPointer())
 		{
-			cellValue.GetObjectPointer()->Trace();
+			cell_value.GetObjectPointer()->Trace();
 		}
 	}
 }
