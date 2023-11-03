@@ -220,12 +220,12 @@ void PrintAbstractSyntaxTree::operator()(const Variable& variable, int depth) co
 	PrintWithIndentation(depth, "}");
 }
 
-void PrintAbstractSyntaxTree::operator()(const Assign& assign, int depth) const
+void PrintAbstractSyntaxTree::operator()(const Bind& bind, int depth) const
 {
-	PrintWithIndentation(depth, "Assign {");
-	PrintWithIndentation(depth + 1, "Name: " + assign.m_name.m_lexeme);
+	PrintWithIndentation(depth, "Bind {");
+	PrintWithIndentation(depth + 1, "Name: " + bind.m_name.m_lexeme);
 	PrintWithIndentation(depth + 1, "Value: ");
-	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *assign.m_value);
+	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *bind.m_value);
 	PrintWithIndentation(depth + 1, "VariableSemantic: ");
 	std::visit([depth, this]([[maybe_unused]] auto&& arg)
 		{
@@ -245,7 +245,7 @@ void PrintAbstractSyntaxTree::operator()(const Assign& assign, int depth) const
 			{
 				PrintWithIndentation(depth + 2, "Global");
 			}
-		}, assign.m_semantic);
+		}, bind.m_semantic);
 	PrintWithIndentation(depth, "}");
 }
 

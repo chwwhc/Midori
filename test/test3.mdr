@@ -15,7 +15,7 @@ var A = closure(var k, var x1, var x2, var x3, var x4, var x5)
     };
     return k > 0 ? B() : x4() + x5();
 };
-    PrintLine(A(10, x(1), x(-1), x(-1), x(1), x(0)));   
+    PrintLine(A(3, x(1), x(-1), x(-1), x(1), x(0)));   
     
     var fib = closure(var x)
     {

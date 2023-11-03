@@ -173,7 +173,7 @@ private:
 
 	MidoriResult::ExpressionResult ParseBitwiseOr();
 
-	MidoriResult::ExpressionResult ParseAssignment();
+	MidoriResult::ExpressionResult ParseBind();
 
 	MidoriResult::ExpressionResult ParseUnary();
 

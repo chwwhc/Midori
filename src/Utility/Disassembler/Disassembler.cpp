@@ -111,12 +111,15 @@ namespace
 
 	void ClosureCreateInstruction(const char* name, const BytecodeStream& stream, int& offset)
 	{
-		int operand = static_cast<int>(stream.ReadByteCode(offset + 1));
-		offset += 2;
+		// TODO: fix this	
+		int captured_count = static_cast<int>(stream.ReadByteCode(offset + 1));
+		int arity = static_cast<int>(stream.ReadByteCode(offset + 2));
+		int index = static_cast<int>(stream.ReadByteCode(offset + 3));
+		offset += 4;
 
 		std::cout << std::left << std::setw(instr_width) << name;
-		std::cout << ' ' << std::dec << operand;
-		std::cout << two_tabs << std::setw(comment_width) << " // number of captured variables: " << std::dec << operand << std::setfill(' ') << std::endl;
+		std::cout << ' ' << std::dec << captured_count << ", " << std::dec << arity << ", " << std::dec << index;
+		std::cout << std::setw(comment_width) << " // number of captured variables: " << std::dec << captured_count << std::setfill(' ') << std::endl;
 	}
 
 	void CallInstruction(const char* name, const BytecodeStream& stream, int& offset)

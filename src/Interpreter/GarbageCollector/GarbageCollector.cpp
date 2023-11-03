@@ -15,7 +15,7 @@ void GarbageCollector::Sweep()
 	while (it != Traceable::s_objects.end())
 	{
 		Traceable* obj = *it;
-		if (obj->IsMarked())
+		if (obj->Marked())
 		{
 			obj->Unmark();
 			++it;

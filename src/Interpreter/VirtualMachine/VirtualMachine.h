@@ -14,8 +14,8 @@
 #include <unordered_map>
 #include <stack>
 
-#define VALUE_STACK_MAX 512
-#define FRAME_STACK_MAX 256
+#define VALUE_STACK_MAX 7200
+#define FRAME_STACK_MAX 2050
 #define GARBAGE_COLLECTION_THRESHOLD 1024
 
 class VirtualMachine
@@ -48,7 +48,6 @@ private:
 	GlobalVariables m_global_vars;
 	GarbageCollector m_garbage_collector;
 	std::stack<Traceable::Closure*> m_closure_stack;
-	MidoriResult::InterpreterResult m_last_result = nullptr;
 	BytecodeStream* m_current_bytecode;
 	StackPointer<MidoriValue, VALUE_STACK_MAX> m_base_pointer = m_value_stack.begin();
 	StackPointer<MidoriValue, VALUE_STACK_MAX> m_value_stack_pointer = m_value_stack.begin();
@@ -261,9 +260,15 @@ private:
 	void CollectGarbage();
 
 	template<typename T>
-	Traceable* RuntimeAllocateObject(T&& value)
+	Traceable* CollectGarbageThenAllocateObject(T&& value)
 	{
 		CollectGarbage();
+		return Traceable::AllocateObject(std::forward<T>(value));
+	}
+
+	template<typename T>
+	Traceable* AllocateObject(T&& value)
+	{
 		return Traceable::AllocateObject(std::forward<T>(value));
 	}
 

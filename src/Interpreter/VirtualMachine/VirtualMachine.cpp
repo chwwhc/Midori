@@ -158,7 +158,7 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 				{
 					value = std::move(*Pop().value());
 				});
-			Push(RuntimeAllocateObject(std::move(arr)));
+			Push(CollectGarbageThenAllocateObject(std::move(arr)));
 			break;
 		}
 		case OpCode::GET_ARRAY:
@@ -249,7 +249,7 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 						{
 							return Bind(CheckArrayMaxLength(value), [this](MidoriValue* value) -> MidoriResult::InterpreterResult
 								{
-									return Push(RuntimeAllocateObject(std::vector<MidoriValue>(static_cast<size_t>(value->GetNumber()))));
+									return Push(CollectGarbageThenAllocateObject(std::vector<MidoriValue>(static_cast<size_t>(value->GetNumber()))));
 								});
 						});
 				}));
@@ -341,7 +341,7 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 							right_value_vector_ref.begin(),
 							right_value_vector_ref.end());
 
-						return RuntimeAllocateObject(std::move(new_value_vector));
+						return CollectGarbageThenAllocateObject(std::move(new_value_vector));
 					}
 					else {
 						const std::string& left_value_string_ref = left_value->GetString();
@@ -349,7 +349,7 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 
 						std::string new_value_string = left_value_string_ref + right_value_string_ref;
 
-						return RuntimeAllocateObject(std::move(new_value_string));
+						return CollectGarbageThenAllocateObject(std::move(new_value_string));
 					}
 				},
 				AreConcatenatable));
@@ -518,7 +518,7 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 
 							// Return address := pop all the arguments and the callee
 							*m_call_stack_pointer++ = { m_current_bytecode , m_base_pointer, m_value_stack_pointer - arity, m_instruction_pointer };
-							m_current_bytecode = &m_executable_module.m_modules[closure.m_bytecode_index];
+							m_current_bytecode = &m_executable_module.m_modules[closure.m_module_index];
 							m_instruction_pointer = m_current_bytecode->cbegin();
 							m_base_pointer = m_value_stack_pointer - arity;
 
@@ -544,50 +544,39 @@ MidoriResult::InterpreterResult VirtualMachine::Execute()
 		}
 		case OpCode::CREATE_CLOSURE:
 		{
-			EXECUTE_OR_ABORT(Bind(Pop(), [this](MidoriValue* value) -> MidoriResult::InterpreterResult
+			int captured_count = static_cast<int>(ReadByte());
+			int arity = static_cast<int>(ReadByte());
+			int module_index = static_cast<int>(ReadByte());
+
+			EXECUTE_OR_ABORT(Push(MidoriValue(AllocateObject(Traceable::Closure(std::vector<Traceable*>(), module_index, arity)))));
+
+			if (captured_count == 0)
+			{
+				break;
+			}
+
+			std::vector<Traceable*>& captured_variables = std::prev(m_value_stack_pointer)->GetObjectPointer()->GetClosure().m_cell_values;
+
+			if (!m_closure_stack.empty())
+			{
+				captured_variables = m_closure_stack.top()->m_cell_values;
+				captured_count -= static_cast<int>(m_closure_stack.top()->m_cell_values.size());
+			}
+
+			for (StackPointer<MidoriValue, VALUE_STACK_MAX> it = m_base_pointer; it < m_base_pointer + captured_count; ++it)
+			{
+				if (it->IsObjectPointer() && it->GetObjectPointer()->IsCellValue())
 				{
-					if (value->IsObjectPointer() && value->GetObjectPointer()->IsClosure())
-					{
-						int count = static_cast<int>(ReadByte());
-						
-						MidoriValue& closure_value = *value;
-						Traceable* new_closure = Traceable::AllocateObject(Traceable::Closure(closure_value.GetObjectPointer()->GetClosure()));
-						Traceable* old_closure = closure_value.GetObjectPointer();
-						Traceable::Closure& new_closure_ref = new_closure->GetClosure();
-						Traceable::Closure& old_closure_ref = old_closure->GetClosure();
-						std::vector<Traceable*>& new_captured_variables = new_closure_ref.m_cell_values;
-						std::vector<Traceable*>& old_captured_variables = old_closure_ref.m_cell_values;
+					captured_variables.emplace_back(it->GetObjectPointer());
+				}
+				else
+				{
+					Traceable* cell_value = AllocateObject(Traceable::CellValue(std::move(*it)));
+					*it = MidoriValue(cell_value);
+					captured_variables.emplace_back(cell_value);
+				}
+			}
 
-						if (!m_closure_stack.empty())
-						{
-							new_captured_variables = m_closure_stack.top()->m_cell_values;
-							old_captured_variables = m_closure_stack.top()->m_cell_values;
-							count -= static_cast<int>(m_closure_stack.top()->m_cell_values.size());
-						}
-
-						for (StackPointer<MidoriValue, VALUE_STACK_MAX> it = m_base_pointer; it < m_base_pointer + count; ++it)
-						{
-							if (it->IsObjectPointer() && it->GetObjectPointer()->IsCellValue())
-							{
-								new_captured_variables.emplace_back(it->GetObjectPointer());
-								old_captured_variables.emplace_back(it->GetObjectPointer());
-							}
-							else
-							{
-								Traceable* cell_value = Traceable::AllocateObject(Traceable::CellValue(std::move(*it)));
-								*it = MidoriValue(cell_value);
-								new_captured_variables.emplace_back(cell_value);
-								old_captured_variables.emplace_back(cell_value);
-							}
-						}
-
-						return Push(MidoriValue(new_closure));
-					}
-					else
-					{
-						return std::unexpected<std::string>(GenerateRuntimeError("Operand must be a closure.", GetLine()));
-					}
-				}));
 			break;
 		}
 		case OpCode::DEFINE_GLOBAL:

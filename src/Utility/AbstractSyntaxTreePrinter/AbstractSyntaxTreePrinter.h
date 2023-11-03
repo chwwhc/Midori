@@ -44,7 +44,7 @@ struct PrintAbstractSyntaxTree
 
 	void operator()(const Variable& variable, int depth = 0) const;
 
-	void operator()(const Assign& assign, int depth = 0) const;
+	void operator()(const Bind& bind, int depth = 0) const;
 
 	void operator()(const String& string, int depth = 0) const;
 

@@ -15,7 +15,7 @@ struct Bool;
 struct Number;
 struct Unit;
 struct Unary;
-struct Assign;
+struct Bind;
 struct Variable;
 struct Call;
 struct Closure;
@@ -26,7 +26,7 @@ struct Array;
 struct ArrayGet;
 struct ArraySet;
 
-using Expression = std::variant < Binary, Logical, Group, String, Bool, Number, Unit, Unary, Assign, Variable, Call, Closure, Ternary, Get, Set, Array, ArrayGet, ArraySet>;
+using Expression = std::variant < Binary, Logical, Group, String, Bool, Number, Unit, Unary, Bind, Variable, Call, Closure, Ternary, Get, Set, Array, ArrayGet, ArraySet>;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -138,7 +138,7 @@ struct Unary
 	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
 };
 
-struct Assign
+struct Bind
 {
 	Token m_name;
 	std::unique_ptr<Expression> m_value;

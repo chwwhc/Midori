@@ -395,32 +395,32 @@ void CodeGenerator::operator()(Variable& variable)
 		}, variable.m_semantic);
 }
 
-void CodeGenerator::operator()(Assign& assign)
+void CodeGenerator::operator()(Bind& bind)
 {
-	std::visit([this](auto&& arg) { (*this)(arg); }, *assign.m_value);
+	std::visit([this](auto&& arg) { (*this)(arg); }, *bind.m_value);
 
-	std::visit([&assign, this](auto&& arg)
+	std::visit([&bind, this](auto&& arg)
 		{
 			using T = std::decay_t<decltype(arg)>;
 
 			if constexpr (std::is_same_v<T, VariableSemantic::Local>)
 			{
-				EmitVariable(arg.m_index, OpCode::SET_LOCAL, assign.m_name.m_line);
+				EmitVariable(arg.m_index, OpCode::SET_LOCAL, bind.m_name.m_line);
 			}
 			else if constexpr (std::is_same_v<T, VariableSemantic::Global>)
 			{
-				EmitVariable(m_global_variables[assign.m_name.m_lexeme], OpCode::SET_GLOBAL, assign.m_name.m_line);
+				EmitVariable(m_global_variables[bind.m_name.m_lexeme], OpCode::SET_GLOBAL, bind.m_name.m_line);
 			}
 			else if constexpr (std::is_same_v<T, VariableSemantic::Cell>)
 			{
-				EmitVariable(arg.m_index, OpCode::SET_CELL, assign.m_name.m_line);
+				EmitVariable(arg.m_index, OpCode::SET_CELL, bind.m_name.m_line);
 			}
 			else
 			{
-				m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Bad Assign Expression.", assign.m_name.m_line));
+				m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Bad Bind Expression.", bind.m_name.m_line));
 				return;
 			}
-		}, assign.m_semantic);
+		}, bind.m_semantic);
 }
 
 void CodeGenerator::operator()(String& string)
@@ -464,20 +464,16 @@ void CodeGenerator::operator()(Closure& closure)
 	m_current_module_index = static_cast<int>(m_modules.size() - 1u);
 	std::visit([this](auto&& arg) {(*this)(arg); }, *closure.m_body);
 
-	Traceable* closure_ptr = Traceable::AllocateObject(Traceable::Closure(std::vector<Traceable*>(), m_current_module_index, arity));
+	int closure_module_index = m_current_module_index;
 #ifdef DEBUG
-	std::string closure_line = "Closure at line: " + std::to_string(line);
+	std::string closure_line = "Closure at line: " + std::to_string(line) + "(index: " + std::to_string(closure_module_index) + ")";
 	m_module_names.emplace_back(std::move(closure_line));
 #endif
 
 	m_current_module_index = prev_index;
 
-	EmitConstant(std::move(closure_ptr), line);
-	if (closure.m_captured_count > 0)
-	{
-		EmitByte(OpCode::CREATE_CLOSURE, line);
-		EmitByte(static_cast<OpCode>(closure.m_captured_count), line);
-	}
+	EmitByte(OpCode::CREATE_CLOSURE, line);
+	EmitThreeBytes(static_cast<int>(closure.m_captured_count), static_cast<int>(arity), static_cast<int>(closure_module_index), line);
 }
 
 void CodeGenerator::operator()(Array& array)

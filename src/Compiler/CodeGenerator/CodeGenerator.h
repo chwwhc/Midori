@@ -187,7 +187,7 @@ private:
 
 	void operator()(Variable& variable);
 
-	void operator()(Assign& assign);
+	void operator()(Bind& bind);
 
 	void operator()(String& string);
 

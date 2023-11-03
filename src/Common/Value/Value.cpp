@@ -109,7 +109,7 @@ void Traceable::PrintMemoryTelemetry()
 
 void Traceable::Trace()
 {
-	if (IsMarked())
+	if (Marked())
 	{
 		return;
 	}

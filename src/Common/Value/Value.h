@@ -85,7 +85,7 @@ public:
 	struct Closure
 	{
 		std::vector<Traceable*> m_cell_values;
-		int m_bytecode_index;
+		int m_module_index;
 		int m_arity;
 	};
 
@@ -121,7 +121,7 @@ public:
 
 	inline void Unmark() { m_is_marked = false; }
 
-	inline bool IsMarked() const { return m_is_marked; }
+	inline bool Marked() const { return m_is_marked; }
 
 	static inline void* operator new(size_t size)
 	{

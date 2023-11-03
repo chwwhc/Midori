@@ -42,7 +42,7 @@ MidoriResult::ExpressionResult Parser::ParseBitwiseOr()
 	return ParseBinary(&Parser::ParseBitwiseXor, Token::Name::SINGLE_BAR);
 }
 
-MidoriResult::ExpressionResult Parser::ParseAssignment()
+MidoriResult::ExpressionResult Parser::ParseBind()
 {
 	MidoriResult::ExpressionResult expr = ParseTernary();
 	if (!expr.has_value())
@@ -53,7 +53,7 @@ MidoriResult::ExpressionResult Parser::ParseAssignment()
 	if (Match(Token::Name::SINGLE_EQUAL))
 	{
 		Token& equal = Previous();
-		MidoriResult::ExpressionResult value = ParseAssignment();
+		MidoriResult::ExpressionResult value = ParseBind();
 		if (!value.has_value())
 		{
 			return std::unexpected<std::string>(std::move(value.error()));
@@ -65,7 +65,7 @@ MidoriResult::ExpressionResult Parser::ParseAssignment()
 			// native function
 			if (m_native_functions.find(variable_expr.m_name.m_lexeme) != m_native_functions.end())
 			{
-				return std::unexpected<std::string>(GenerateParserError("Cannot assign to a native function.", variable_expr.m_name));
+				return std::unexpected<std::string>(GenerateParserError("Cannot bind to a native function.", variable_expr.m_name));
 			}
 
 			std::vector<Scope>::reverse_iterator found_scope_it = std::find_if(m_scopes.rbegin(), m_scopes.rend(), [&variable_expr](const Scope& scope)
@@ -79,23 +79,23 @@ MidoriResult::ExpressionResult Parser::ParseAssignment()
 
 				if (find_result->second.m_is_fixed)
 				{
-					return std::unexpected<std::string>(GenerateParserError("Cannot assign to a fixed name binding.", variable_expr.m_name));
+					return std::unexpected<std::string>(GenerateParserError("Cannot break a fixed name binding.", variable_expr.m_name));
 				}
 
 				// global
 				if (found_scope_it == std::prev(m_scopes.rend()))
 				{
-					return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Global()));
+					return std::make_unique<Expression>(Bind(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Global()));
 				}
 				// local
 				else if (m_closure_depth == 0 || find_result->second.m_closure_depth == m_closure_depth)
 				{
-					return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Local(find_result->second.m_relative_index)));
+					return std::make_unique<Expression>(Bind(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Local(find_result->second.m_relative_index)));
 				}
 				// cell
 				else
 				{
-					return std::make_unique<Expression>(Assign(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Cell(find_result->second.m_absolute_index)));
+					return std::make_unique<Expression>(Bind(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Cell(find_result->second.m_absolute_index)));
 				}
 			}
 
@@ -112,7 +112,7 @@ MidoriResult::ExpressionResult Parser::ParseAssignment()
 			return std::make_unique<Expression>(ArraySet(std::move(access_expr.m_op), std::move(access_expr.m_arr_var), std::move(access_expr.m_indices), std::move(value.value())));
 		}
 
-		return std::unexpected<std::string>(GenerateParserError("Invalid assignment target.", equal));
+		return std::unexpected<std::string>(GenerateParserError("Invalid binding target.", equal));
 	}
 
 	return expr;
@@ -174,7 +174,7 @@ MidoriResult::ExpressionResult Parser::ParseTernary()
 
 MidoriResult::ExpressionResult Parser::ParseExpression()
 {
-	return ParseAssignment();
+	return ParseBind();
 }
 
 MidoriResult::ExpressionResult Parser::ParseArrayAccessHelper(std::unique_ptr<Expression>&& arr_var)
@@ -184,13 +184,13 @@ MidoriResult::ExpressionResult Parser::ParseArrayAccessHelper(std::unique_ptr<Ex
 
 	while (Match(Token::Name::LEFT_BRACKET))
 	{
-		MidoriResult::ExpressionResult assignment = ParseAssignment();
-		if (!assignment.has_value())
+		MidoriResult::ExpressionResult binding = ParseBind();
+		if (!binding.has_value())
 		{
-			return std::unexpected<std::string>(std::move(assignment.error()));
+			return std::unexpected<std::string>(std::move(binding.error()));
 		}
 
-		indices.emplace_back(std::move(assignment.value()));
+		indices.emplace_back(std::move(binding.value()));
 		Consume(Token::Name::RIGHT_BRACKET, "Expected ']' after index.");
 	}
 
