@@ -219,11 +219,6 @@ void CodeGenerator::operator()(Return& return_stmt)
 	EmitByte(OpCode::RETURN, line);
 }
 
-void CodeGenerator::operator()(Import & import)
-{
-	return;
-}
-
 void CodeGenerator::operator()(Namespace& namespace_stmt)
 {
 	return;

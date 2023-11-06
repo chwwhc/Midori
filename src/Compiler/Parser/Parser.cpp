@@ -417,7 +417,7 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 		m_closure_depth -= 1;
 		m_total_locals_in_curr_scope = prev_total_locals;
 
-		return std::make_unique<Expression>(Closure(std::move(keyword), std::move(params), std::move(closure_body), std::make_unique<Name>(AnyType()), m_total_variables));
+		return std::make_unique<Expression>(Closure(std::move(keyword), std::move(params), std::move(closure_body), std::make_unique<MidoriType>(UndecidedType()), m_total_variables));
 	}
 	else if (Match(Token::Name::TRUE, Token::Name::FALSE))
 	{
@@ -878,24 +878,6 @@ MidoriResult::StatementResult Parser::ParseSimpleStatement()
 	return std::make_unique<Statement>(Simple(std::move(semi_colon.value()), std::move(expr.value())));
 }
 
-MidoriResult::StatementResult Parser::ParseImportStatement()
-{
-	Token& keyword = Previous();
-	MidoriResult::ExpressionResult path = ParseExpression();
-	if (!path.has_value())
-	{
-		return std::unexpected<std::string>(std::move(path.error()));
-	}
-
-	MidoriResult::TokenResult semi_colon = Consume(Token::Name::SINGLE_SEMICOLON, "Expected ';' after script path.");
-	if (!semi_colon.has_value())
-	{
-		return std::unexpected<std::string>(std::move(semi_colon.error()));
-	}
-
-	return std::make_unique<Statement>(Import(std::move(keyword), std::move(path.value())));
-}
-
 MidoriResult::StatementResult Parser::ParseReturnStatement()
 {
 	Token& keyword = Previous();
@@ -949,10 +931,6 @@ MidoriResult::StatementResult Parser::ParseStatement()
 	else if (Match(Token::Name::RETURN))
 	{
 		return ParseReturnStatement();
-	}
-	else if (Match(Token::Name::IMPORT))
-	{
-		return ParseImportStatement();
 	}
 	else
 	{

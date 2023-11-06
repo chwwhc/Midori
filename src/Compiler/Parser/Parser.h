@@ -128,7 +128,7 @@ private:
 		Scope::const_iterator it = m_scopes.back().find(name.m_lexeme);
 		if (it != m_scopes.back().end())
 		{
-			return std::unexpected<std::string>(MidoriError::GenerateParserError("Name already declared in this scope.", name));
+			return std::unexpected<std::string>(MidoriError::GenerateParserError("MidoriType already declared in this scope.", name));
 		}
 		else
 		{
@@ -216,8 +216,6 @@ private:
 	MidoriResult::StatementResult ParseContinueStatement();
 
 	MidoriResult::StatementResult ParseSimpleStatement();
-
-	MidoriResult::StatementResult ParseImportStatement();
 
 	MidoriResult::StatementResult ParseReturnStatement();
 

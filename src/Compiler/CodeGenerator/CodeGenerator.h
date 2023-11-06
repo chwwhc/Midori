@@ -167,8 +167,6 @@ private:
 
 	void operator()(Return& return_stmt);
 
-	void operator()(Import & import);
-
 	void operator()(Namespace& namespace_stmt);
 
 	void operator()(Binary& binary);

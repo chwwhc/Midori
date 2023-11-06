@@ -38,10 +38,9 @@ struct For;
 struct Break;
 struct Continue;
 struct Return;
-struct Import;
 struct Namespace;
 
-using Statement = std::variant<Block, Simple, Define, If, While, For, Break, Continue, Return, Import, Namespace>;
+using Statement = std::variant<Block, Simple, Define, If, While, For, Break, Continue, Return, Namespace>;
 using ProgramTree = std::vector<std::unique_ptr<Statement>>;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -61,25 +60,25 @@ namespace VariableSemantic
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct NumberType {};
-struct StringType {};
-struct BoolType {};
+struct FractionalType {};
+struct TextType {};
+struct LogicalType {};
 struct UnitType {};
-struct AnyType {};
+struct UndecidedType {};
 struct ArrayType;
 struct FunctionType;
 
-using Name = std::variant<NumberType, StringType, BoolType, UnitType, AnyType, ArrayType, FunctionType>;
+using MidoriType = std::variant<FractionalType, TextType, LogicalType, UnitType, UndecidedType, ArrayType, FunctionType>;
 
 struct ArrayType
 {
-	std::unique_ptr<Name> m_element_type;
+	std::unique_ptr<MidoriType> m_element_type;
 };
 
 struct FunctionType
 {
-	std::vector<std::unique_ptr<Name>> m_param_types;
-	std::unique_ptr<Name> m_return_type;
+	std::vector<std::unique_ptr<MidoriType>> m_param_types;
+	std::unique_ptr<MidoriType> m_return_type;
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -89,44 +88,44 @@ struct Binary
 	Token m_op;
 	std::unique_ptr<Expression> m_left;
 	std::unique_ptr<Expression> m_right;
-	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
+	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
 };
 
 struct Group
 {
 	std::unique_ptr<Expression> m_expr_in;
-	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
+	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
 };
 
 struct String
 {
 	Token m_token;
-	std::unique_ptr<Name> m_type = std::make_unique<Name>(StringType());
+	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(TextType());
 };
 
 struct Bool
 {
 	Token m_token;
-	std::unique_ptr<Name> m_type = std::make_unique<Name>(BoolType());
+	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(LogicalType());
 };
 
 struct Number
 {
 	Token m_token;
-	std::unique_ptr<Name> m_type = std::make_unique<Name>(NumberType());
+	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(FractionalType());
 };
 
 struct Unit
 {
 	Token m_token;
-	std::unique_ptr<Name> m_type = std::make_unique<Name>(UnitType());
+	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UnitType());
 };
 
 struct Unary
 {
 	Token m_op;
 	std::unique_ptr<Expression> m_right;
-	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
+	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
 };
 
 struct Bind
@@ -134,14 +133,14 @@ struct Bind
 	Token m_name;
 	std::unique_ptr<Expression> m_value;
 	std::variant<VariableSemantic::Local, VariableSemantic::Global, VariableSemantic::Cell> m_semantic;
-	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
+	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
 };
 
 struct Variable
 {
 	Token m_name;
 	std::variant<VariableSemantic::Local, VariableSemantic::Global, VariableSemantic::Cell> m_semantic;
-	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
+	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
 };
 
 struct Call
@@ -149,7 +148,7 @@ struct Call
 	Token m_paren;
 	std::unique_ptr<Expression> m_callee;
 	std::vector<std::unique_ptr<Expression>> m_arguments;
-	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
+	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
 };
 
 struct Closure
@@ -157,7 +156,7 @@ struct Closure
 	Token m_closure_keyword;
 	std::vector<Token> m_params;
 	std::unique_ptr<Statement> m_body;
-	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
+	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
 	int m_captured_count = 0;
 };
 
@@ -168,14 +167,14 @@ struct Ternary
 	std::unique_ptr<Expression> m_condition;
 	std::unique_ptr<Expression> m_true_branch;
 	std::unique_ptr<Expression> m_else_branch;
-	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
+	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
 };
 
 struct Get
 {
 	Token m_name;
 	std::unique_ptr<Expression> m_object;
-	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
+	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
 };
 
 struct Set
@@ -183,7 +182,7 @@ struct Set
 	Token m_name;
 	std::unique_ptr<Expression> m_object;
 	std::unique_ptr<Expression> m_value;
-	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
+	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
 };
 
 struct Array
@@ -191,7 +190,7 @@ struct Array
 	Token m_op;
 	std::vector<std::unique_ptr<Expression>> m_elems;
 	std::optional<std::unique_ptr<Expression>> m_allocated_size;
-	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
+	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
 };
 
 struct ArrayGet
@@ -199,7 +198,7 @@ struct ArrayGet
 	Token m_op;
 	std::unique_ptr<Expression> m_arr_var;
 	std::vector<std::unique_ptr<Expression>> m_indices;
-	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
+	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
 };
 
 struct ArraySet
@@ -208,7 +207,7 @@ struct ArraySet
 	std::unique_ptr<Expression> m_arr_var;
 	std::vector<std::unique_ptr<Expression>> m_indices;
 	std::unique_ptr<Expression> m_value;
-	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
+	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -276,12 +275,6 @@ struct Return
 {
 	Token m_keyword;
 	std::unique_ptr<Expression> m_value;
-};
-
-struct Import
-{
-	Token m_keyword;
-	std::unique_ptr<Expression> m_path;
 };
 
 struct Namespace
