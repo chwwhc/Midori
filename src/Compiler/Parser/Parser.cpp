@@ -409,6 +409,10 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 		int block_local_count = EndScope();
 
 		std::unique_ptr<Statement> closure_body = std::make_unique<Statement>(Block(std::move(right_brace), std::move(statements), block_local_count));
+		if (!HasReturnStatement(*closure_body))
+		{
+			return std::unexpected<std::string>(GenerateParserError("Closure does not return in all paths.", keyword));
+		}
 
 		m_closure_depth -= 1;
 		m_total_locals_in_curr_scope = prev_total_locals;
@@ -954,6 +958,58 @@ MidoriResult::StatementResult Parser::ParseStatement()
 	{
 		return ParseSimpleStatement();
 	}
+}
+
+bool Parser::HasReturnStatement(const Statement& stmt)
+{
+	return std::visit([this](auto&& arg) -> bool
+		{
+			using T = std::decay_t<decltype(arg)>;
+			if constexpr (std::is_same_v<T, Return>)
+			{
+				return true;
+			}
+			else if constexpr (std::is_same_v<T, If>)
+			{
+				bool true_branch_result = HasReturnStatement(*arg.m_true_branch);
+
+				if (!true_branch_result)
+				{
+					return false;
+				}
+
+				if (arg.m_else_branch.has_value())
+				{
+					return true_branch_result && HasReturnStatement(*arg.m_else_branch.value());
+				}
+
+				return false;
+			}
+			else if constexpr (std::is_same_v<T, Block>)
+			{
+				for (const std::unique_ptr<Statement>& statement : arg.m_stmts)
+				{
+					if (HasReturnStatement(*statement))
+					{
+						return true;
+					}
+				}
+
+				return false;
+			}
+			else if constexpr (std::is_same_v<T, For>)
+			{
+				return HasReturnStatement(*arg.m_body);
+			}
+			else if constexpr (std::is_same_v<T, While>)
+			{
+				return HasReturnStatement(*arg.m_body);
+			}
+			else
+			{
+				return false;
+			}
+		}, stmt);
 }
 
 MidoriResult::ParserResult Parser::Parse()

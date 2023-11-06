@@ -5,12 +5,7 @@
 
 void PrintAbstractSyntaxTree::PrintWithIndentation(int depth, std::string text) const
 {
-	for (int i = 0; i < depth; i += 1)
-	{
-		std::cout << "  ";
-	}
-
-	std::cout << text << std::endl;
+	std::cout << std::string(depth, ' ') << text << std::endl;
 }
 
 void PrintAbstractSyntaxTree::operator()(const Block& block, int depth) const

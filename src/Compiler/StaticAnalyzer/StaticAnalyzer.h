@@ -8,15 +8,7 @@ class StaticAnalyzer
 public:
 	static MidoriResult::StaticAnalyzerResult AnalyzeProgram(const ProgramTree& prog)
 	{
-		std::vector<std::string> result = AnalyzeReturn(prog);
-		if (result.empty())
-		{
-			return std::nullopt;
-		}
-		else
-		{
-			return result;
-		}
+		return std::nullopt;
 	}
 
 private:

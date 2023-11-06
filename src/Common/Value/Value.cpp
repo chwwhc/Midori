@@ -65,11 +65,11 @@ std::string Traceable::ToString() const
 			else if constexpr (std::is_same_v<T, std::vector<MidoriValue>>)
 			{
 				std::string result = "[";
-				for (const MidoriValue& value : arg)
-				{
-					result.append(value.ToString());
-					result.append(",");
-				}
+				std::for_each(arg.begin(), arg.end(), [&result](const MidoriValue& value) -> void
+					{
+						result.append(value.ToString());
+						result.append(",");
+					});
 				result.pop_back();
 				result.append("]");
 				return result;

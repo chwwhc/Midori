@@ -155,6 +155,8 @@ private:
 		return local_index;
 	}
 
+	bool HasReturnStatement(const Statement& stmt);
+
 	MidoriResult::ExpressionResult ParseExpression();
 
 	MidoriResult::ExpressionResult ParseFactor();

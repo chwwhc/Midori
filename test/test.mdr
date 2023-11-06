@@ -1,27 +1,26 @@
+fixed foo = closure()
+{
+	var arr = [@3];
+	for (var i = 0; i < 3; i = i + 1)
+	{
+		(closure(fixed i)
+		{
+			arr[i] = closure()
+			{
+				return i;
+			};
+		})(i);
+	}
+
+	PrintLine(arr[0]());  // Should print 0
+	PrintLine(arr[1]());  // Should print 1
+	PrintLine(arr[2]());  // Should print 2
+	
+	return #;
+};
+
 fixed main = closure()
 {
-
-var x = closure(var x)
-{
-    return closure(){ return x; };
-};
-
-var A = closure(var k, var x1, var x2, var x3, var x4, var x5)
-{
-    var B = closure()
-    {
-        k = k - 1;
-        return A(k, B, x1, x2, x3, x4); 
-    };
-    return k > 0 ? B() : x4() + x5();
-};
-    PrintLine(A(10, x(1), x(-1), x(-1), x(1), x(0)));   
-    
-    var fib = closure(var x)
-    {
-        return x < 2 ? x : fib(x - 1) + fib(x - 2);
-    };
-    //PrintLine(fib(10));
-
-    return 0;
+	foo();
+	return 0;
 };
