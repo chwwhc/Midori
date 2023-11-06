@@ -128,17 +128,6 @@ void PrintAbstractSyntaxTree::operator()(const Binary& binary, int depth) const
 	PrintWithIndentation(depth, "}");
 }
 
-void PrintAbstractSyntaxTree::operator()(const Logical& logical, int depth) const
-{
-	PrintWithIndentation(depth, "Logical {");
-	PrintWithIndentation(depth + 1, "Operator: " + logical.m_op.m_lexeme);
-	PrintWithIndentation(depth + 1, "Left: ");
-	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *logical.m_left);
-	PrintWithIndentation(depth + 1, "Right: ");
-	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *logical.m_right);
-	PrintWithIndentation(depth, "}");
-}
-
 void PrintAbstractSyntaxTree::operator()(const Group& group, int depth) const
 {
 	PrintWithIndentation(depth, "Group {");

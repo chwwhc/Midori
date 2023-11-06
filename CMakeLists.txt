@@ -18,7 +18,7 @@ if (MSVC)
     add_compile_options(/W3)
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Ox")
 else()
-    add_compile_options(-Wall -Wextra -pedantic -Werror)
+    add_compile_options(-Wall -Wextra -pedantic -Werror -Wconversion)
 endif()
 
 # Debug flags

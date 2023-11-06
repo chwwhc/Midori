@@ -8,7 +8,6 @@
 #include "Compiler/Token/Token.h"
 
 struct Binary;
-struct Logical;
 struct Group;
 struct String;
 struct Bool;
@@ -26,7 +25,7 @@ struct Array;
 struct ArrayGet;
 struct ArraySet;
 
-using Expression = std::variant < Binary, Logical, Group, String, Bool, Number, Unit, Unary, Bind, Variable, Call, Closure, Ternary, Get, Set, Array, ArrayGet, ArraySet>;
+using Expression = std::variant < Binary, Group, String, Bool, Number, Unit, Unary, Bind, Variable, Call, Closure, Ternary, Get, Set, Array, ArrayGet, ArraySet>;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -86,14 +85,6 @@ struct FunctionType
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct Binary
-{
-	Token m_op;
-	std::unique_ptr<Expression> m_left;
-	std::unique_ptr<Expression> m_right;
-	std::unique_ptr<Name> m_type = std::make_unique<Name>(AnyType());
-};
-
-struct Logical
 {
 	Token m_op;
 	std::unique_ptr<Expression> m_left;

@@ -30,8 +30,6 @@ struct PrintAbstractSyntaxTree
 
 	void operator()(const Binary& binary, int depth = 0) const;
 
-	void operator()(const Logical& logical, int depth = 0) const;
-
 	void operator()(const Group& group, int depth = 0) const;
 
 	void operator()(const Unary& unary, int depth = 0) const;

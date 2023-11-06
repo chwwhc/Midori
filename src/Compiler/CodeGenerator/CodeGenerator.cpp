@@ -231,91 +231,86 @@ void CodeGenerator::operator()(Namespace& namespace_stmt)
 
 void CodeGenerator::operator()(Binary& binary)
 {
+	int line = binary.m_op.m_line;
 	std::visit([this](auto&& arg) { (*this)(arg); }, *binary.m_left);
 	std::visit([this](auto&& arg) { (*this)(arg); }, *binary.m_right);
 
 	switch (binary.m_op.m_token_type)
 	{
 	case Token::Name::SINGLE_PLUS:
-		EmitByte(OpCode::ADD, binary.m_op.m_line);
+		EmitByte(OpCode::ADD, line);
 		break;
 	case Token::Name::DOUBLE_PLUS:
-		EmitByte(OpCode::CONCAT, binary.m_op.m_line);
+		EmitByte(OpCode::CONCAT, line);
 		break;
 	case Token::Name::MINUS:
-		EmitByte(OpCode::SUBTRACT, binary.m_op.m_line);
+		EmitByte(OpCode::SUBTRACT, line);
 		break;
 	case Token::Name::STAR:
-		EmitByte(OpCode::MULTIPLY, binary.m_op.m_line);
+		EmitByte(OpCode::MULTIPLY, line);
 		break;
 	case Token::Name::SLASH:
-		EmitByte(OpCode::DIVIDE, binary.m_op.m_line);
+		EmitByte(OpCode::DIVIDE, line);
 		break;
 	case Token::Name::PERCENT:
-		EmitByte(OpCode::MODULO, binary.m_op.m_line);
+		EmitByte(OpCode::MODULO, line);
 		break;
 	case Token::Name::LEFT_SHIFT:
-		EmitByte(OpCode::LEFT_SHIFT, binary.m_op.m_line);
+		EmitByte(OpCode::LEFT_SHIFT, line);
 		break;
 	case Token::Name::RIGHT_SHIFT:
-		EmitByte(OpCode::RIGHT_SHIFT, binary.m_op.m_line);
+		EmitByte(OpCode::RIGHT_SHIFT, line);
 		break;
 	case Token::Name::LESS:
-		EmitByte(OpCode::LESS, binary.m_op.m_line);
+		EmitByte(OpCode::LESS, line);
 		break;
 	case Token::Name::LESS_EQUAL:
-		EmitByte(OpCode::LESS_EQUAL, binary.m_op.m_line);
+		EmitByte(OpCode::LESS_EQUAL, line);
 		break;
 	case Token::Name::GREATER:
-		EmitByte(OpCode::GREATER, binary.m_op.m_line);
+		EmitByte(OpCode::GREATER, line);
 		break;
 	case Token::Name::GREATER_EQUAL:
-		EmitByte(OpCode::GREATER_EQUAL, binary.m_op.m_line);
+		EmitByte(OpCode::GREATER_EQUAL, line);
 		break;
 	case Token::Name::BANG_EQUAL:
-		EmitByte(OpCode::NOT_EQUAL, binary.m_op.m_line);
+		EmitByte(OpCode::NOT_EQUAL, line);
 		break;
 	case Token::Name::DOUBLE_EQUAL:
-		EmitByte(OpCode::EQUAL, binary.m_op.m_line);
+		EmitByte(OpCode::EQUAL, line);
 		break;
 	case Token::Name::SINGLE_AMPERSAND:
-		EmitByte(OpCode::BITWISE_AND, binary.m_op.m_line);
+		EmitByte(OpCode::BITWISE_AND, line);
 		break;
 	case Token::Name::SINGLE_BAR:
-		EmitByte(OpCode::BITWISE_OR, binary.m_op.m_line);
+		EmitByte(OpCode::BITWISE_OR, line);
 		break;
 	case Token::Name::CARET:
-		EmitByte(OpCode::BITWISE_XOR, binary.m_op.m_line);
+		EmitByte(OpCode::BITWISE_XOR, line);
 		break;
+	case Token::Name::DOUBLE_BAR:
+	{
+		std::visit([this](auto&& arg) {(*this)(arg); }, *binary.m_left);
+		int jump_if_true = EmitJump(OpCode::JUMP_IF_TRUE, line);
+		EmitByte(OpCode::POP, line);
+		std::visit([this](auto&& arg) {(*this)(arg); }, *binary.m_right);
+		PatchJump(jump_if_true, line);
+		break;
+	}
+	case Token::Name::DOUBLE_AMPERSAND:
+	{
+		std::visit([this](auto&& arg) {(*this)(arg); }, *binary.m_left);
+		int jump_if_false = EmitJump(OpCode::JUMP_IF_FALSE, line);
+		EmitByte(OpCode::POP, line);
+		std::visit([this](auto&& arg) {(*this)(arg); }, *binary.m_right);
+		PatchJump(jump_if_false, line);
+		break;
+	}
 	default:
+		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Unrecognized binary operator.", line));
 		break; // Unreachable
 	}
 	return;
-}
-
-void CodeGenerator::operator()(Logical& logical)
-{
-	int line = logical.m_op.m_line;
-	if (logical.m_op.m_token_type == Token::Name::DOUBLE_BAR)
-	{
-		std::visit([this](auto&& arg) {(*this)(arg); }, *logical.m_left);
-		int jump_if_true = EmitJump(OpCode::JUMP_IF_TRUE, line);
-		EmitByte(OpCode::POP, line);
-		std::visit([this](auto&& arg) {(*this)(arg); }, *logical.m_right);
-		PatchJump(jump_if_true, line);
-	}
-	else if (logical.m_op.m_token_type == Token::Name::DOUBLE_AMPERSAND)
-	{
-		std::visit([this](auto&& arg) {(*this)(arg); }, *logical.m_left);
-		int jump_if_false = EmitJump(OpCode::JUMP_IF_FALSE, line);
-		EmitByte(OpCode::POP, line);
-		std::visit([this](auto&& arg) {(*this)(arg); }, *logical.m_right);
-		PatchJump(jump_if_false, line);
-	}
-	else
-	{
-		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Unrecognized logical operator.", line));
-	}
 }
 
 void CodeGenerator::operator()(Group& group)

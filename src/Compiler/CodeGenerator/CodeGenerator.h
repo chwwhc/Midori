@@ -173,8 +173,6 @@ private:
 
 	void operator()(Binary& binary);
 
-	void operator()(Logical& logical);
-
 	void operator()(Group& group);
 
 	void operator()(Unary& unary);

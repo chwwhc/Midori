@@ -503,7 +503,7 @@ MidoriResult::ExpressionResult Parser::ParseLogicalAnd()
 			return std::unexpected<std::string>(std::move(right.error()));
 		}
 
-		expr = MidoriResult::ExpressionResult(std::make_unique<Expression>(Logical(std::move(op), std::move(expr.value()), std::move(right.value()))));
+		expr = MidoriResult::ExpressionResult(std::make_unique<Expression>(Binary(std::move(op), std::move(expr.value()), std::move(right.value()))));
 	}
 
 	return expr;
@@ -526,7 +526,7 @@ MidoriResult::ExpressionResult Parser::ParseLogicalOr()
 			return std::unexpected<std::string>(std::move(right.error()));
 		}
 
-		expr = MidoriResult::ExpressionResult(std::make_unique<Expression>(Logical(std::move(op), std::move(expr.value()), std::move(right.value()))));
+		expr = MidoriResult::ExpressionResult(std::make_unique<Expression>(Binary(std::move(op), std::move(expr.value()), std::move(right.value()))));
 	}
 
 	return expr;
