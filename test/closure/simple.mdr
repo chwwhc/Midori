@@ -1,10 +1,10 @@
-fixed main = closure()
+fixed main := closure() : Integer
 {
-	var x = closure(var y) 
+	var x := closure(var y : Integer) : () -> Integer 
 	{
-		return closure() { return y; };
+		return closure() : Integer { return y; };
 	};
-	var f = x(5);
+	var f := x(5);
 	PrintLine(f()); // Should print 5
 
 	return 0;

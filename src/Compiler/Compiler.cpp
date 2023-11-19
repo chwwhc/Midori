@@ -31,8 +31,9 @@ namespace Compiler
 			}
 			else
 			{
+				StaticAnalyzer static_analyzer;
 				ProgramTree program = std::move(parser_result.value());
-				MidoriResult::StaticAnalyzerResult static_analyzer_result = StaticAnalyzer::AnalyzeProgram(program);
+				MidoriResult::StaticAnalyzerResult static_analyzer_result = static_analyzer.AnalyzeProgram(program);
 				if (static_analyzer_result.has_value())
 				{
 					return std::unexpected<std::vector<std::string>>(std::move(static_analyzer_result.value()));

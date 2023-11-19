@@ -3,7 +3,7 @@
 #include <iostream>
 #include <algorithm>
 
-void PrintAbstractSyntaxTree::PrintWithIndentation(int depth, std::string text) const
+void PrintAbstractSyntaxTree::PrintWithIndentation(int depth, std::string_view text) const
 {
 	std::cout << std::string(depth, ' ') << text << std::endl;
 }
@@ -28,7 +28,7 @@ void PrintAbstractSyntaxTree::operator()(const Simple& simple, int depth) const
 void PrintAbstractSyntaxTree::operator()(const Define& def, int depth) const
 {
 	PrintWithIndentation(depth, "Define {");
-	PrintWithIndentation(depth + 1, "MidoriType: " + def.m_name.m_lexeme);
+	PrintWithIndentation(depth + 1, "Name: " + def.m_name.m_lexeme);
 	PrintWithIndentation(depth + 1, "Value: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *def.m_value);
 	PrintWithIndentation(depth, "}");
@@ -103,7 +103,7 @@ void PrintAbstractSyntaxTree::operator()(const Return& return_stmt, int depth) c
 void PrintAbstractSyntaxTree::operator()(const Namespace& namespace_stmt, int depth) const
 {
 	PrintWithIndentation(depth, "Namespace {");
-	PrintWithIndentation(depth + 1, "MidoriType: " + namespace_stmt.m_name.m_lexeme);
+	PrintWithIndentation(depth + 1, "Name: " + namespace_stmt.m_name.m_lexeme);
 	PrintWithIndentation(depth + 1, "Body: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *namespace_stmt.m_stmts);
 	PrintWithIndentation(depth, "}");
@@ -152,18 +152,18 @@ void PrintAbstractSyntaxTree::operator()(const Call& call, int depth) const
 void PrintAbstractSyntaxTree::operator()(const Get& get, int depth) const
 {
 	PrintWithIndentation(depth, "Get {");
-	PrintWithIndentation(depth + 1, "Traceable: ");
+	PrintWithIndentation(depth + 1, "MidoriTraceable: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *get.m_object);
-	PrintWithIndentation(depth + 1, "MidoriType: " + get.m_name.m_lexeme);
+	PrintWithIndentation(depth + 1, "Name: " + get.m_name.m_lexeme);
 	PrintWithIndentation(depth, "}");
 }
 
 void PrintAbstractSyntaxTree::operator()(const Set& set, int depth) const
 {
 	PrintWithIndentation(depth, "Set {");
-	PrintWithIndentation(depth + 1, "Traceable: ");
+	PrintWithIndentation(depth + 1, "MidoriTraceable: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *set.m_object);
-	PrintWithIndentation(depth + 1, "MidoriType: " + set.m_name.m_lexeme);
+	PrintWithIndentation(depth + 1, "Name: " + set.m_name.m_lexeme);
 	PrintWithIndentation(depth + 1, "Value: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *set.m_value);
 	PrintWithIndentation(depth, "}");
@@ -172,7 +172,7 @@ void PrintAbstractSyntaxTree::operator()(const Set& set, int depth) const
 void PrintAbstractSyntaxTree::operator()(const Variable& variable, int depth) const
 {
 	PrintWithIndentation(depth, "Variable {");
-	PrintWithIndentation(depth + 1, "MidoriType: " + variable.m_name.m_lexeme);
+	PrintWithIndentation(depth + 1, "Name: " + variable.m_name.m_lexeme);
 	PrintWithIndentation(depth + 1, "VariableSemantic: ");
 	std::visit([depth, this]([[maybe_unused]] auto&& arg)
 		{
@@ -199,7 +199,7 @@ void PrintAbstractSyntaxTree::operator()(const Variable& variable, int depth) co
 void PrintAbstractSyntaxTree::operator()(const Bind& bind, int depth) const
 {
 	PrintWithIndentation(depth, "Bind {");
-	PrintWithIndentation(depth + 1, "MidoriType: " + bind.m_name.m_lexeme);
+	PrintWithIndentation(depth + 1, "Name: " + bind.m_name.m_lexeme);
 	PrintWithIndentation(depth + 1, "Value: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *bind.m_value);
 	PrintWithIndentation(depth + 1, "VariableSemantic: ");
@@ -225,28 +225,35 @@ void PrintAbstractSyntaxTree::operator()(const Bind& bind, int depth) const
 	PrintWithIndentation(depth, "}");
 }
 
-void PrintAbstractSyntaxTree::operator()(const String& string, int depth) const
+void PrintAbstractSyntaxTree::operator()(const TextLiteral& text, int depth) const
 {
-	PrintWithIndentation(depth, "String {");
-	PrintWithIndentation(depth + 1, "Value: \"" + string.m_token.m_lexeme + "\"");
+	PrintWithIndentation(depth, "Text {");
+	PrintWithIndentation(depth + 1, "Value: \"" + text.m_token.m_lexeme + "\"");
 	PrintWithIndentation(depth, "}");
 }
 
-void PrintAbstractSyntaxTree::operator()(const Bool& bool_val, int depth) const
+void PrintAbstractSyntaxTree::operator()(const BoolLiteral& bool_val, int depth) const
 {
 	PrintWithIndentation(depth, "Bool {");
 	PrintWithIndentation(depth + 1, "Value: " + bool_val.m_token.m_lexeme);
 	PrintWithIndentation(depth, "}");
 }
 
-void PrintAbstractSyntaxTree::operator()(const Number& number, int depth) const
+void PrintAbstractSyntaxTree::operator()(const FractionLiteral& fraction, int depth) const
 {
-	PrintWithIndentation(depth, "Number {");
-	PrintWithIndentation(depth + 1, "Value: " + number.m_token.m_lexeme);
+	PrintWithIndentation(depth, "Fraction {");
+	PrintWithIndentation(depth + 1, "Value: " + fraction.m_token.m_lexeme);
 	PrintWithIndentation(depth, "}");
 }
 
-void PrintAbstractSyntaxTree::operator()(const Unit&, int depth) const
+void PrintAbstractSyntaxTree::operator()(const IntegerLiteral& integer, int depth) const
+{
+	PrintWithIndentation(depth, "Integer {");
+	PrintWithIndentation(depth + 1, "Value: " + integer.m_token.m_lexeme);
+	PrintWithIndentation(depth, "}");
+}
+
+void PrintAbstractSyntaxTree::operator()(const UnitLiteral&, int depth) const
 {
 	PrintWithIndentation(depth, "#");
 }

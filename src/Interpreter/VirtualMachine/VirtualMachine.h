@@ -12,11 +12,9 @@
 #include <array>
 #include <functional>
 #include <unordered_map>
+#include <iostream>
 #include <stack>
-
-#define VALUE_STACK_MAX 7200
-#define FRAME_STACK_MAX 2050
-#define GARBAGE_COLLECTION_THRESHOLD 1024
+#include <format>
 
 class VirtualMachine
 {
@@ -25,9 +23,14 @@ public:
 
 	VirtualMachine(MidoriResult::ExecutableModule&& module) : m_executable_module(std::move(module)), m_garbage_collector(std::move(m_executable_module.m_constant_roots)), m_current_bytecode(&m_executable_module.m_modules[0]), m_instruction_pointer(m_current_bytecode->cbegin()) {}
 
-	~VirtualMachine() { Traceable::CleanUp(); }
+	~VirtualMachine() { MidoriTraceable::CleanUp(); }
 
 private:
+
+	static constexpr int s_value_stack_max = 20000;
+static constexpr int s_frame_stack_max = 8000;
+static constexpr int s_garbage_collection_threshold = 1024;
+
 	template <typename T, int Size>
 	using StackPointer = std::array<T, Size>::iterator;
 	using InstructionPointer = BytecodeStream::const_iterator;
@@ -37,27 +40,35 @@ private:
 	struct CallFrame
 	{
 		BytecodeStream* m_return_module;
-		StackPointer<MidoriValue, VALUE_STACK_MAX>  m_return_bp;
-		StackPointer<MidoriValue, VALUE_STACK_MAX>  m_return_sp;
+		StackPointer<MidoriValue, s_value_stack_max>  m_return_bp;
+		StackPointer<MidoriValue, s_value_stack_max>  m_return_sp;
 		InstructionPointer m_return_ip;
 	};
 
-	std::array<MidoriValue, VALUE_STACK_MAX> m_value_stack;
-	std::array<CallFrame, FRAME_STACK_MAX> m_call_stack;
 	MidoriResult::ExecutableModule m_executable_module;
 	GlobalVariables m_global_vars;
 	GarbageCollector m_garbage_collector;
-	std::stack<Traceable::Closure*> m_closure_stack;
+	std::stack<MidoriTraceable::Closure*> m_closure_stack;
 	BytecodeStream* m_current_bytecode;
-	StackPointer<MidoriValue, VALUE_STACK_MAX> m_base_pointer = m_value_stack.begin();
-	StackPointer<MidoriValue, VALUE_STACK_MAX> m_value_stack_pointer = m_value_stack.begin();
-	StackPointer<CallFrame, FRAME_STACK_MAX> m_call_stack_pointer = m_call_stack.begin();
+	std::unique_ptr<std::array<MidoriValue, s_value_stack_max>> m_value_stack = std::make_unique<std::array<MidoriValue, s_value_stack_max>>();
+	std::unique_ptr<std::array<CallFrame, s_frame_stack_max>> m_call_stack = std::make_unique<std::array<CallFrame, s_frame_stack_max>>();
+	StackPointer<MidoriValue, s_value_stack_max> m_base_pointer = m_value_stack->begin();
+	StackPointer<MidoriValue, s_value_stack_max> m_value_stack_pointer = m_value_stack->begin();
+	StackPointer<CallFrame, s_frame_stack_max> m_call_stack_pointer = m_call_stack->begin();
 	InstructionPointer m_instruction_pointer;
+	bool m_error = false;
 
 public:
-	MidoriResult::InterpreterResult Execute();
+	void Execute();
 
 private:
+
+	inline void DisplayRuntimeError(std::string_view message)
+	{
+		std::cerr << "\033[31m" << message << "\033[0m" << std::endl;
+		m_error = true;
+	}
+
 	inline int GetLine() { return static_cast<int>(m_instruction_pointer - m_current_bytecode->cbegin()); }
 
 	inline OpCode ReadByte()
@@ -110,167 +121,80 @@ private:
 
 	inline std::string GenerateRuntimeError(const std::string& message, int line)
 	{
-		Traceable::CleanUp();
+		MidoriTraceable::CleanUp();
 		return MidoriError::GenerateRuntimeError(message.data(), line);
 	}
 
-	inline MidoriResult::InterpreterResult Push(MidoriValue&& value)
+	inline bool Push(MidoriValue&& value)
 	{
-		if (m_value_stack_pointer == m_value_stack.end())
+		if (m_value_stack_pointer == m_value_stack->end())
 		{
-			return std::unexpected<std::string>(GenerateRuntimeError("Value stack overflow.", GetLine()));
+			DisplayRuntimeError(GenerateRuntimeError("Value stack overflow.", GetLine()));
+			return false;
 		}
 
 		*m_value_stack_pointer = std::move(value);
 		++m_value_stack_pointer;
-		return &(*std::prev(m_value_stack_pointer));
+		return true;
 	}
 
-	inline MidoriResult::InterpreterResult Duplicate()
+	inline bool Duplicate()
 	{
-		if (m_value_stack_pointer == m_value_stack.end())
+		if (m_value_stack_pointer == m_value_stack->end())
 		{
-			return std::unexpected<std::string>(GenerateRuntimeError("Value stack overflow.", GetLine()));
+			DisplayRuntimeError(GenerateRuntimeError("Value stack overflow.", GetLine()));
+			return false;
 		}
 
 		MidoriValue top_value = *std::prev(m_value_stack_pointer);
 		*m_value_stack_pointer = std::move(top_value);
 		++m_value_stack_pointer;
-		return &(*std::prev(m_value_stack_pointer));
+		return true;
 	}
 
-	inline MidoriResult::InterpreterResult Pop() noexcept
+	inline MidoriValue& Pop() noexcept
 	{
 		MidoriValue& value = *(--m_value_stack_pointer);
 		if (value.IsObjectPointer() && value.GetObjectPointer()->IsCellValue())
 		{
-			return &value.GetObjectPointer()->GetCellValue();
+			return value.GetObjectPointer()->GetCellValue();
 		}
 		else
 		{
-			return &value;
+			return value;
 		}
 	}
 
-	inline MidoriResult::InterpreterResult CheckIsArray(MidoriValue* val)
+	inline bool CheckIndexBounds(MidoriValue* index, int64_t size)
 	{
-		if (!val->IsObjectPointer() || !val->GetObjectPointer()->IsArray())
+		MidoriValue::MidoriInteger val = index->GetInteger();
+		if (val < 0ll || val >= size)
 		{
-			return std::unexpected<std::string>(GenerateRuntimeError("Operand must be an array.", GetLine()));
-		}
-		else
-		{
-			return val;
-		}
-	}
-
-	inline MidoriResult::InterpreterResult CheckIsNumber(MidoriValue* val)
-	{
-		if (!val->IsNumber())
-		{
-			return std::unexpected<std::string>(GenerateRuntimeError("Operand must be a number.", GetLine()));
-		}
-		else
-		{
-			return val;
-		}
-	}
-
-	inline MidoriResult::InterpreterResult CheckIsInteger(MidoriValue* num)
-	{
-		double val = num->GetNumber();
-		if (val != static_cast<int>(val))
-		{
-			return std::unexpected<std::string>(GenerateRuntimeError("Index must be an integer.", GetLine()));
-		}
-		else
-		{
-			return num;
-		}
-	}
-
-	inline MidoriResult::InterpreterResult CheckIndexBounds(MidoriValue* index, int size)
-	{
-		double val = index->GetNumber();
-		int val_int = static_cast<int>(val);
-		if (val_int < 0 || val_int >= size)
-		{
-			std::string error_message = "Index out of bounds at index: " + std::to_string(val_int) + ".";
-			return std::unexpected<std::string>(GenerateRuntimeError(error_message, GetLine()));
-		}
-		else
-		{
-			return index;
-		}
-	}
-
-	inline MidoriResult::InterpreterResult CheckArrayMaxLength(MidoriValue* num)
-	{
-		double val = num->GetNumber();
-		if (val < 0 || val > THREE_BYTE_MAX)
-		{
-			std::string error_message = "Length must be between 0 and " + std::to_string(THREE_BYTE_MAX) + ".";
-			return std::unexpected<std::string>(GenerateRuntimeError(error_message, GetLine()));
-		}
-		else
-		{
-			return num;
-		}
-	}
-
-	inline MidoriResult::InterpreterResult Bind(MidoriResult::InterpreterResult&& prev, std::function<MidoriResult::InterpreterResult(MidoriValue*)>&& function) { return !prev.has_value() ? std::move(prev) : function(prev.value()); }
-
-	inline static bool AreSameType(const MidoriValue& left, const MidoriValue& right) { return MidoriValue::AreSameType(left, right); }
-
-	inline static bool AreNumerical(const MidoriValue& left, const MidoriValue& right) { return left.IsNumber() && right.IsNumber(); }
-
-	inline static bool AreConcatenatable(const MidoriValue& left, const MidoriValue& right)
-	{
-		if (!left.IsObjectPointer() || !right.IsObjectPointer())
-		{
+			DisplayRuntimeError(GenerateRuntimeError(std::format("Index out of bounds at index: {}.", val), GetLine()));
 			return false;
 		}
 
-		Traceable* left_value = left.GetObjectPointer();
-		Traceable* right_value = right.GetObjectPointer();
-
-		return (left_value->IsString() && right_value->IsString()) || (left_value->IsArray() && right_value->IsArray());
+		return true;
 	}
 
-	inline static bool Are32BitIntegers(const MidoriValue& left, const MidoriValue& right)
-	{
-		if (!AreNumerical(left, right))
-		{
-			return false;
-		}
+	MidoriTraceable::GarbageCollectionRoots GetValueStackGarbageCollectionRoots();
 
-		double left_value = left.GetNumber();
-		double right_value = right.GetNumber();
+	MidoriTraceable::GarbageCollectionRoots GetGlobalTableGarbageCollectionRoots();
 
-		return left_value >= INT_MIN && left_value <= INT_MAX &&
-			right_value >= INT_MIN && right_value <= INT_MAX;
-	}
-
-	Traceable::GarbageCollectionRoots GetValueStackGarbageCollectionRoots();
-
-	Traceable::GarbageCollectionRoots GetGlobalTableGarbageCollectionRoots();
-
-	Traceable::GarbageCollectionRoots GetGarbageCollectionRoots();
+	MidoriTraceable::GarbageCollectionRoots GetGarbageCollectionRoots();
 
 	void CollectGarbage();
 
 	template<typename T>
-	Traceable* CollectGarbageThenAllocateObject(T&& value)
+	MidoriTraceable* CollectGarbageThenAllocateObject(T&& value)
 	{
 		CollectGarbage();
-		return Traceable::AllocateObject(std::forward<T>(value));
+		return MidoriTraceable::AllocateObject(std::forward<T>(value));
 	}
 
 	template<typename T>
-	Traceable* AllocateObject(T&& value)
+	MidoriTraceable* AllocateObject(T&& value)
 	{
-		return Traceable::AllocateObject(std::forward<T>(value));
+		return MidoriTraceable::AllocateObject(std::forward<T>(value));
 	}
-
-	MidoriResult::InterpreterResult BinaryOperation(std::function<MidoriValue(const MidoriValue&, const MidoriValue&)>&& op, bool (*type_checker)(const MidoriValue&, const MidoriValue&));
 };

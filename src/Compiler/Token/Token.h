@@ -8,6 +8,7 @@ struct Token
 	enum class Name
 	{
 		// symbol
+		THIN_ARROW,
 		LEFT_PAREN,
 		RIGHT_PAREN,
 		LEFT_BRACE,
@@ -32,11 +33,12 @@ struct Token
 		DOUBLE_AMPERSAND,
 		BANG,
 		BANG_EQUAL,
+		COLON_EQUAL,
 		SINGLE_EQUAL,
 		DOUBLE_EQUAL,
-		GREATER,
+		RIGHT_ANGLE,
 		GREATER_EQUAL,
-		LESS,
+		LEFT_ANGLE,
 		LESS_EQUAL,
 		QUESTION,
 		SINGLE_COLON,
@@ -45,9 +47,10 @@ struct Token
 		HASH,
 
 		// Literal
-		IDENTIFIER,
-		STRING,
-		NUMBER,
+		IDENTIFIER_LITERAL,
+		TEXT_LITERAL,
+		FRACTION_LITERAL,
+		INTEGER_LITERAL,
 
 		// reserved
 		ELSE,
@@ -66,6 +69,14 @@ struct Token
 		IMPORT,
 		NAMESPACE,
 		AS,
+
+		// types
+		FRACTION,
+		INTEGER,
+		TEXT,
+		BOOL,
+		UNIT,
+		ARRAY,
 
 		END_OF_FILE,
 	};

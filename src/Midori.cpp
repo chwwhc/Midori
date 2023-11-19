@@ -38,15 +38,7 @@ int main()
 	{
 		MidoriResult::ExecutableModule& compilation_result_value = compilation_result.value();
 		VirtualMachine vm(std::move(compilation_result_value));
-		MidoriResult::InterpreterResult vm_result = vm.Execute();
-		if (vm_result.has_value())
-		{
-			std::cout << "Program exited normally" << std::endl;
-		}
-		else
-		{
-			std::cerr << vm_result.error() << std::endl;
-		}
+		vm.Execute();
 	}
 	else
 	{

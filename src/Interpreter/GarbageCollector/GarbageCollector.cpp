@@ -2,19 +2,19 @@
 
 #include <algorithm>
 
-void GarbageCollector::Mark(Traceable::GarbageCollectionRoots&& roots)
+void GarbageCollector::Mark(MidoriTraceable::GarbageCollectionRoots&& roots)
 {
 	roots.insert(m_constant_roots.begin(), m_constant_roots.end());
 
-	std::for_each(roots.begin(), roots.end(), [](Traceable* obj) { obj->Trace(); });
+	std::for_each(roots.begin(), roots.end(), [](MidoriTraceable* obj) { obj->Trace(); });
 }
 
 void GarbageCollector::Sweep()
 {
-	std::list<Traceable*>::iterator it = Traceable::s_objects.begin();
-	while (it != Traceable::s_objects.end())
+	std::list<MidoriTraceable*>::iterator it = MidoriTraceable::s_objects.begin();
+	while (it != MidoriTraceable::s_objects.end())
 	{
-		Traceable* obj = *it;
+		MidoriTraceable* obj = *it;
 		if (obj->Marked())
 		{
 			obj->Unmark();
@@ -22,7 +22,7 @@ void GarbageCollector::Sweep()
 		}
 		else
 		{
-			it = Traceable::s_objects.erase(it);
+			it = MidoriTraceable::s_objects.erase(it);
 			delete obj;
 		}
 	}

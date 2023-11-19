@@ -48,10 +48,10 @@ private:
 
 	void Synchronize();
 
-	inline std::string GenerateParserError(const char* message, const Token& token)
+	inline std::string GenerateParserError(std::string&& message, const Token& token)
 	{
 		Synchronize();
-		return MidoriError::GenerateParserError(message, token);
+		return MidoriError::GenerateParserError(std::move(message), token);
 	}
 
 	inline bool IsAtEnd() { return Peek(0).m_token_type == Token::Name::END_OF_FILE; }
@@ -64,7 +64,7 @@ private:
 
 	inline Token& Advance() { if (!IsAtEnd()) { m_current_token_index += 1; } return Previous(); }
 
-	inline MidoriResult::TokenResult Consume(Token::Name type, const char* message)
+	inline MidoriResult::TokenResult Consume(Token::Name type, std::string_view message)
 	{
 		if (Check(type, 0))
 		{
@@ -156,6 +156,8 @@ private:
 	}
 
 	bool HasReturnStatement(const Statement& stmt);
+
+	MidoriResult::TypeResult ParseType();
 
 	MidoriResult::ExpressionResult ParseExpression();
 

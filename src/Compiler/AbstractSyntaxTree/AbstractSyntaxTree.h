@@ -2,17 +2,18 @@
 
 #include <optional>
 #include <memory>
-#include <vector>
-#include <variant>
 
 #include "Compiler/Token/Token.h"
+#include "Common/Value/Type.h"
 
 struct Binary;
 struct Group;
-struct String;
-struct Bool;
-struct Number;
-struct Unit;
+struct Literal;
+struct TextLiteral;
+struct BoolLiteral;
+struct FractionLiteral;
+struct IntegerLiteral;
+struct UnitLiteral;
 struct Unary;
 struct Bind;
 struct Variable;
@@ -25,7 +26,7 @@ struct Array;
 struct ArrayGet;
 struct ArraySet;
 
-using Expression = std::variant < Binary, Group, String, Bool, Number, Unit, Unary, Bind, Variable, Call, Closure, Ternary, Get, Set, Array, ArrayGet, ArraySet>;
+using Expression = std::variant < Binary, Group, TextLiteral, BoolLiteral, FractionLiteral, IntegerLiteral, UnitLiteral, Unary, Bind, Variable, Call, Closure, Ternary, Get, Set, Array, ArrayGet, ArraySet>;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -60,72 +61,49 @@ namespace VariableSemantic
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct FractionalType {};
-struct TextType {};
-struct LogicalType {};
-struct UnitType {};
-struct UndecidedType {};
-struct ArrayType;
-struct FunctionType;
-
-using MidoriType = std::variant<FractionalType, TextType, LogicalType, UnitType, UndecidedType, ArrayType, FunctionType>;
-
-struct ArrayType
-{
-	std::unique_ptr<MidoriType> m_element_type;
-};
-
-struct FunctionType
-{
-	std::vector<std::unique_ptr<MidoriType>> m_param_types;
-	std::unique_ptr<MidoriType> m_return_type;
-};
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////
-
 struct Binary
 {
 	Token m_op;
 	std::unique_ptr<Expression> m_left;
 	std::unique_ptr<Expression> m_right;
-	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
+	std::shared_ptr<MidoriType> m_type;
 };
 
 struct Group
 {
 	std::unique_ptr<Expression> m_expr_in;
-	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
 };
 
-struct String
+struct TextLiteral
 {
 	Token m_token;
-	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(TextType());
 };
 
-struct Bool
+struct BoolLiteral
 {
 	Token m_token;
-	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(LogicalType());
 };
 
-struct Number
+struct FractionLiteral
 {
 	Token m_token;
-	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(FractionalType());
 };
 
-struct Unit
+struct IntegerLiteral
 {
 	Token m_token;
-	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UnitType());
+};
+
+struct UnitLiteral
+{
+	Token m_token;
 };
 
 struct Unary
 {
 	Token m_op;
 	std::unique_ptr<Expression> m_right;
-	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
+	std::shared_ptr<MidoriType> m_type;
 };
 
 struct Bind
@@ -133,14 +111,12 @@ struct Bind
 	Token m_name;
 	std::unique_ptr<Expression> m_value;
 	std::variant<VariableSemantic::Local, VariableSemantic::Global, VariableSemantic::Cell> m_semantic;
-	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
 };
 
 struct Variable
 {
 	Token m_name;
 	std::variant<VariableSemantic::Local, VariableSemantic::Global, VariableSemantic::Cell> m_semantic;
-	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
 };
 
 struct Call
@@ -148,15 +124,15 @@ struct Call
 	Token m_paren;
 	std::unique_ptr<Expression> m_callee;
 	std::vector<std::unique_ptr<Expression>> m_arguments;
-	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
 };
 
 struct Closure
 {
 	Token m_closure_keyword;
 	std::vector<Token> m_params;
+	std::vector<std::shared_ptr<MidoriType>> m_param_types;
 	std::unique_ptr<Statement> m_body;
-	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
+	std::shared_ptr<MidoriType> m_return_type;
 	int m_captured_count = 0;
 };
 
@@ -167,14 +143,12 @@ struct Ternary
 	std::unique_ptr<Expression> m_condition;
 	std::unique_ptr<Expression> m_true_branch;
 	std::unique_ptr<Expression> m_else_branch;
-	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
 };
 
 struct Get
 {
 	Token m_name;
 	std::unique_ptr<Expression> m_object;
-	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
 };
 
 struct Set
@@ -182,15 +156,12 @@ struct Set
 	Token m_name;
 	std::unique_ptr<Expression> m_object;
 	std::unique_ptr<Expression> m_value;
-	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
 };
 
 struct Array
 {
 	Token m_op;
 	std::vector<std::unique_ptr<Expression>> m_elems;
-	std::optional<std::unique_ptr<Expression>> m_allocated_size;
-	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
 };
 
 struct ArrayGet
@@ -198,7 +169,6 @@ struct ArrayGet
 	Token m_op;
 	std::unique_ptr<Expression> m_arr_var;
 	std::vector<std::unique_ptr<Expression>> m_indices;
-	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
 };
 
 struct ArraySet
@@ -207,7 +177,6 @@ struct ArraySet
 	std::unique_ptr<Expression> m_arr_var;
 	std::vector<std::unique_ptr<Expression>> m_indices;
 	std::unique_ptr<Expression> m_value;
-	std::unique_ptr<MidoriType> m_type = std::make_unique<MidoriType>(UndecidedType());
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -230,6 +199,7 @@ struct Define
 {
 	Token m_name;
 	std::unique_ptr<Expression> m_value;
+	std::optional<std::shared_ptr<MidoriType>> m_annotated_type;
 	std::optional<int> m_local_index;
 };
 

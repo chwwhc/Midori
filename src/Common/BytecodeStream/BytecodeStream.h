@@ -17,7 +17,6 @@ enum class OpCode : uint8_t
     CREATE_ARRAY,
     GET_ARRAY,
     SET_ARRAY,
-    RESERVE_ARRAY,
 
     // Bit Operations
     LEFT_SHIFT,
@@ -27,28 +26,41 @@ enum class OpCode : uint8_t
     BITWISE_XOR,
 
     // Arithmetic Operations
-    ADD,
-    SUBTRACT,
-    MULTIPLY,
-    DIVIDE,
-    MODULO,
+    ADD_FRACTION,
+    SUBTRACT_FRACTION,
+    MULTIPLY_FRACTION,
+    DIVIDE_FRACTION,
+    MODULO_FRACTION,
+    ADD_INTEGER,
+    SUBTRACT_INTEGER,
+    MULTIPLY_INTEGER,
+    DIVIDE_INTEGER,
+    MODULO_INTEGER,
 
     // Aggregate Operations
-    CONCAT,
+    CONCAT_ARRAY,
+    CONCAT_TEXT,
 
     // Comparison Operations
-    EQUAL,
-    NOT_EQUAL,
-    GREATER,
-    GREATER_EQUAL,
-    LESS,
-    LESS_EQUAL,
+    EQUAL_FRACTION,
+    NOT_EQUAL_FRACTION,
+    GREATER_FRACTION,
+    GREATER_EQUAL_FRACTION,
+    LESS_FRACTION,
+    LESS_EQUAL_FRACTION,
+    EQUAL_INTEGER,
+    NOT_EQUAL_INTEGER,
+    GREATER_INTEGER,
+    GREATER_EQUAL_INTEGER,
+    LESS_INTEGER,
+    LESS_EQUAL_INTEGER,
 
     // Logical Operations
     NOT,
 
     // Unary Operations
-    NEGATE,
+    NEGATE_FRACTION,
+    NEGATE_INTEGER,
 
     // Control Flow
     JUMP_IF_FALSE,

@@ -2,15 +2,18 @@
 
 #include "Common/Error/Error.h"
 #include "Common/Result/Result.h"
+#include "Compiler/StaticAnalyzer/TypeChecker/TypeChecker.h"
 
 class StaticAnalyzer
 {
+private:
+	TypeChecker m_type_checker;
+
 public:
-	static MidoriResult::StaticAnalyzerResult AnalyzeProgram(const ProgramTree& prog)
+	MidoriResult::StaticAnalyzerResult AnalyzeProgram(ProgramTree& prog)
 	{
-		return std::nullopt;
+		return m_type_checker.TypeCheck(prog);
 	}
 
 private:
-	static std::vector<std::string> AnalyzeReturn(const ProgramTree& prog);
 };

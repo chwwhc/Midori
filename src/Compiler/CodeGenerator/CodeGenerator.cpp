@@ -227,28 +227,29 @@ void CodeGenerator::operator()(Namespace& namespace_stmt)
 void CodeGenerator::operator()(Binary& binary)
 {
 	int line = binary.m_op.m_line;
+	MidoriType& expr_type = *binary.m_type.get();
 	std::visit([this](auto&& arg) { (*this)(arg); }, *binary.m_left);
 	std::visit([this](auto&& arg) { (*this)(arg); }, *binary.m_right);
 
 	switch (binary.m_op.m_token_type)
 	{
 	case Token::Name::SINGLE_PLUS:
-		EmitByte(OpCode::ADD, line);
+		MidoriTypeUtil::IsFractionType(expr_type) ? EmitByte(OpCode::ADD_FRACTION, line) : EmitByte(OpCode::ADD_INTEGER, line);
 		break;
 	case Token::Name::DOUBLE_PLUS:
-		EmitByte(OpCode::CONCAT, line);
+		MidoriTypeUtil::IsTextType(expr_type) ? EmitByte(OpCode::CONCAT_TEXT, line) : EmitByte(OpCode::CONCAT_ARRAY, line);
 		break;
 	case Token::Name::MINUS:
-		EmitByte(OpCode::SUBTRACT, line);
+		MidoriTypeUtil::IsFractionType(expr_type) ? EmitByte(OpCode::SUBTRACT_FRACTION, line) : EmitByte(OpCode::SUBTRACT_INTEGER, line);
 		break;
 	case Token::Name::STAR:
-		EmitByte(OpCode::MULTIPLY, line);
+		MidoriTypeUtil::IsFractionType(expr_type) ? EmitByte(OpCode::MULTIPLY_FRACTION, line) : EmitByte(OpCode::MULTIPLY_INTEGER, line);
 		break;
 	case Token::Name::SLASH:
-		EmitByte(OpCode::DIVIDE, line);
+		MidoriTypeUtil::IsFractionType(expr_type) ? EmitByte(OpCode::DIVIDE_FRACTION, line) : EmitByte(OpCode::DIVIDE_INTEGER, line);
 		break;
 	case Token::Name::PERCENT:
-		EmitByte(OpCode::MODULO, line);
+		MidoriTypeUtil::IsFractionType(expr_type) ? EmitByte(OpCode::MODULO_FRACTION, line) : EmitByte(OpCode::MODULO_INTEGER, line);
 		break;
 	case Token::Name::LEFT_SHIFT:
 		EmitByte(OpCode::LEFT_SHIFT, line);
@@ -256,23 +257,23 @@ void CodeGenerator::operator()(Binary& binary)
 	case Token::Name::RIGHT_SHIFT:
 		EmitByte(OpCode::RIGHT_SHIFT, line);
 		break;
-	case Token::Name::LESS:
-		EmitByte(OpCode::LESS, line);
+	case Token::Name::LEFT_ANGLE:
+		MidoriTypeUtil::IsFractionType(expr_type) ? EmitByte(OpCode::LESS_FRACTION, line) : EmitByte(OpCode::LESS_INTEGER, line);
 		break;
 	case Token::Name::LESS_EQUAL:
-		EmitByte(OpCode::LESS_EQUAL, line);
+		MidoriTypeUtil::IsFractionType(expr_type) ? EmitByte(OpCode::LESS_EQUAL_FRACTION, line) : EmitByte(OpCode::LESS_EQUAL_INTEGER, line);
 		break;
-	case Token::Name::GREATER:
-		EmitByte(OpCode::GREATER, line);
+	case Token::Name::RIGHT_ANGLE:
+		MidoriTypeUtil::IsFractionType(expr_type) ? EmitByte(OpCode::GREATER_FRACTION, line) : EmitByte(OpCode::GREATER_INTEGER, line);
 		break;
 	case Token::Name::GREATER_EQUAL:
-		EmitByte(OpCode::GREATER_EQUAL, line);
+		MidoriTypeUtil::IsFractionType(expr_type) ? EmitByte(OpCode::GREATER_EQUAL_FRACTION, line) : EmitByte(OpCode::GREATER_EQUAL_INTEGER, line);
 		break;
 	case Token::Name::BANG_EQUAL:
-		EmitByte(OpCode::NOT_EQUAL, line);
+		MidoriTypeUtil::IsFractionType(expr_type) ? EmitByte(OpCode::NOT_EQUAL_FRACTION, line) : EmitByte(OpCode::NOT_EQUAL_INTEGER, line);
 		break;
 	case Token::Name::DOUBLE_EQUAL:
-		EmitByte(OpCode::EQUAL, line);
+		MidoriTypeUtil::IsFractionType(expr_type) ? EmitByte(OpCode::EQUAL_FRACTION, line) : EmitByte(OpCode::EQUAL_INTEGER, line);
 		break;
 	case Token::Name::SINGLE_AMPERSAND:
 		EmitByte(OpCode::BITWISE_AND, line);
@@ -320,7 +321,7 @@ void CodeGenerator::operator()(Unary& unary)
 	switch (unary.m_op.m_token_type)
 	{
 	case Token::Name::MINUS:
-		EmitByte(OpCode::NEGATE, unary.m_op.m_line);
+		MidoriTypeUtil::IsFractionType(*unary.m_type) ? EmitByte(OpCode::NEGATE_FRACTION, unary.m_op.m_line) : EmitByte(OpCode::NEGATE_INTEGER, unary.m_op.m_line);
 		break;
 	case Token::Name::BANG:
 		EmitByte(OpCode::NOT, unary.m_op.m_line);
@@ -413,22 +414,27 @@ void CodeGenerator::operator()(Bind& bind)
 		}, bind.m_semantic);
 }
 
-void CodeGenerator::operator()(String& string)
+void CodeGenerator::operator()(TextLiteral& text)
 {
-	EmitConstant(Traceable::AllocateObject(std::move(string.m_token.m_lexeme)), string.m_token.m_line);
+	EmitConstant(MidoriTraceable::AllocateObject(std::move(text.m_token.m_lexeme)), text.m_token.m_line);
 }
 
-void CodeGenerator::operator()(Bool& bool_expr)
+void CodeGenerator::operator()(BoolLiteral& bool_expr)
 {
 	EmitByte(bool_expr.m_token.m_lexeme == "true" ? OpCode::TRUE : OpCode::FALSE, bool_expr.m_token.m_line);
 }
 
-void CodeGenerator::operator()(Number& number)
+void CodeGenerator::operator()(FractionLiteral& fraction)
 {
-	EmitConstant(std::stod(number.m_token.m_lexeme), number.m_token.m_line);
+	EmitConstant(std::stod(fraction.m_token.m_lexeme), fraction.m_token.m_line);
 }
 
-void CodeGenerator::operator()(Unit& nil)
+void CodeGenerator::operator()(IntegerLiteral& integer)
+{
+	EmitConstant(std::stoll(integer.m_token.m_lexeme), integer.m_token.m_line);
+}
+
+void CodeGenerator::operator()(UnitLiteral& nil)
 {
 	EmitByte(OpCode::UNIT, nil.m_token.m_line);
 }
@@ -470,28 +476,20 @@ void CodeGenerator::operator()(Array& array)
 {
 	int line = array.m_op.m_line;
 
-	if (array.m_allocated_size.has_value())
-	{
-		std::visit([this](auto&& arg) {(*this)(arg); }, *array.m_allocated_size.value());
-		EmitByte(OpCode::RESERVE_ARRAY, line);
-	}
-	else
-	{
-		int length = static_cast<int>(array.m_elems.size());
+	int length = static_cast<int>(array.m_elems.size());
 
-		if (length > THREE_BYTE_MAX)
+	if (length > THREE_BYTE_MAX)
+	{
+		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too many array elements (max 16777215).", line));
+		return;
+	}
+
+	std::for_each(array.m_elems.begin(), array.m_elems.end(), [this](std::unique_ptr<Expression>& elem)
 		{
-			m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too many array elements (max 16777215).", line));
-			return;
-		}
-
-		std::for_each(array.m_elems.begin(), array.m_elems.end(), [this](std::unique_ptr<Expression>& elem)
-			{
-				std::visit([this](auto&& arg) {(*this)(arg); }, *elem);
-			});
-		EmitByte(OpCode::CREATE_ARRAY, line);
-		EmitThreeBytes(length, length >> 8, length >> 16, line);
-	}
+			std::visit([this](auto&& arg) {(*this)(arg); }, *elem);
+		});
+	EmitByte(OpCode::CREATE_ARRAY, line);
+	EmitThreeBytes(length, length >> 8, length >> 16, line);
 }
 
 void CodeGenerator::operator()(ArrayGet& array_get)

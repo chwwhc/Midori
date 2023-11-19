@@ -1,16 +1,17 @@
-fixed foo = closure()
+fixed foo := closure() : Integer
 {
-	var getFunc = #;
+	var getFunc : () -> Integer := closure() : Integer { return 1; };
 	if (true)
 	{
-		var y = 5;
-		getFunc = closure() { return y; };
+		var y : Integer := 5;
+		getFunc = closure() : Integer { return y; };
 	}
 	return getFunc();
 };
 
-fixed main = closure()
+fixed main := closure() : Unit
 {
 	PrintLine(foo());  // Should print 5
-	return 0;
+
+	return #;
 };

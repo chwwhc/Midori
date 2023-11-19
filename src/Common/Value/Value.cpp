@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <iostream>
 
-std::string MidoriValue::DoubleToStringWithoutTrailingZeros(double value)
+std::string MidoriValue::DoubleToStringWithoutTrailingZeros(MidoriFraction value)
 {
 	std::string str = std::to_string(value);
 
@@ -26,15 +26,19 @@ std::string MidoriValue::ToString() const
 		{
 			using T = std::decay_t<decltype(arg)>;
 
-			if constexpr (std::is_same_v<T, double>)
+			if constexpr (std::is_same_v<T, MidoriFraction>)
 			{
 				return DoubleToStringWithoutTrailingZeros(arg);
 			}
-			else if constexpr (std::is_same_v<T, std::monostate>)
+			else if constexpr (std::is_same_v<T, MidoriInteger>)
+			{
+				return std::to_string(arg);
+			}
+			else if constexpr (std::is_same_v<T, MidoriUnit>)
 			{
 				return "#";
 			}
-			else if constexpr (std::is_same_v<T, bool>)
+			else if constexpr (std::is_same_v<T, MidoriBool>)
 			{
 				return arg ? "true" : "false";
 			}
@@ -42,7 +46,7 @@ std::string MidoriValue::ToString() const
 			{
 				return "<native function " + std::string(arg.m_name) + ">";
 			}
-			else if constexpr (std::is_same_v<T, Traceable*>)
+			else if constexpr (std::is_same_v<T, MidoriTraceable*>)
 			{
 				return arg->ToString();
 			}
@@ -53,7 +57,7 @@ std::string MidoriValue::ToString() const
 		}, m_value);
 }
 
-std::string Traceable::ToString() const
+std::string MidoriTraceable::ToString() const
 {
 	return std::visit([](auto&& arg) -> std::string
 		{
@@ -84,19 +88,19 @@ std::string Traceable::ToString() const
 			}
 			else
 			{
-				return "Unknown Traceable";
+				return "Unknown MidoriTraceable";
 			}
 		}, m_value);
 }
 
-void Traceable::CleanUp()
+void MidoriTraceable::CleanUp()
 {
 	s_static_bytes_allocated = 0u;
-	std::for_each(s_objects.begin(), s_objects.end(), [](Traceable* object) { delete object; });
+	std::for_each(s_objects.begin(), s_objects.end(), [](MidoriTraceable* object) { delete object; });
 	s_objects.clear();
 }
 
-void Traceable::PrintMemoryTelemetry()
+void MidoriTraceable::PrintMemoryTelemetry()
 {
 	std::cout << "\n\t------------------------------\n";
 	std::cout << "\tMemory telemetry:\n";
@@ -107,7 +111,7 @@ void Traceable::PrintMemoryTelemetry()
 	std::cout << "\n\t------------------------------\n\n";
 }
 
-void Traceable::Trace()
+void MidoriTraceable::Trace()
 {
 	if (Marked())
 	{
@@ -127,9 +131,9 @@ void Traceable::Trace()
 	}
 	else if (IsClosure())
 	{
-		Traceable::Closure& closure = GetClosure();
+		MidoriTraceable::Closure& closure = GetClosure();
 
-		std::for_each(closure.m_cell_values.begin(), closure.m_cell_values.end(), [](Traceable* captured) -> void
+		std::for_each(closure.m_cell_values.begin(), closure.m_cell_values.end(), [](MidoriTraceable* captured) -> void
 			{
 				if (captured != nullptr)
 				{

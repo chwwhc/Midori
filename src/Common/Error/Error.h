@@ -7,68 +7,72 @@
 #include "Common/Value/GlobalVariableTable.h"
 #include "Common/Value/Value.h"
 
-#include <expected>
+#include <format>
 
 class MidoriError
 {
 private:
-	static inline std::string GenerateBaseError(const char* message, int line, const Token* token = nullptr)
+	static inline std::string GenerateBaseError(std::string&& message, int line, const Token* token = nullptr)
 	{
 		std::string generated_message;
 
 		if (token != nullptr)
 		{
-			generated_message.append("[line ");
-			generated_message.append(std::to_string(line));
-			generated_message.append("] '");
-			generated_message.append(token->m_lexeme);
-			generated_message.append("' ");
+			generated_message.append(std::format("[line {}] '{}' {}", line, token->m_lexeme, message));
 		}
 		else
 		{
-			generated_message.append("[line ");
-			generated_message.append(std::to_string(line));
-			generated_message.append("] ");
+			generated_message.append(std::format("[line {}] {}", line, message));
 		}
-
-		generated_message.append(message);
 
 		return generated_message;
 	}
 
 public:
-	static inline std::string GenerateCodeGeneratorError(const char* message, int line)
+	static inline std::string GenerateCodeGeneratorError(std::string_view message, int line)
 	{
-		std::string generated_message = "Code Generator Error: ";
-		generated_message.append(GenerateBaseError(message, line).data());
-		return generated_message;
+		return GenerateBaseError(std::format("Code Generator Error\n{}", message), line);
 	}
 
-	static inline std::string GenerateLexerError(const char* message, int line)
+	static inline std::string GenerateLexerError(std::string_view message, int line)
 	{
-		std::string generated_message = "Lexer Error: ";
-		generated_message.append(GenerateBaseError(message, line).data());
-		return generated_message;
+		return GenerateBaseError(std::format("Lexer Error\n{}", message), line);
 	}
 
-	static inline std::string GenerateParserError(const char* message, const Token& token)
+	static inline std::string GenerateParserError(std::string_view message, const Token& token)
 	{
-		std::string generated_message = "Parser Error: ";
-		generated_message.append(GenerateBaseError(message, token.m_line, &token).data());
-		return generated_message;
+		return GenerateBaseError(std::format("Parser Error\n{}", message), token.m_line, &token);
 	}
 
-	static inline std::string GenerateStaticAnalyzerError(const char* message, const Token& token)
+	static inline std::string GenerateTypeCheckerError(std::string_view message, const Token& token, const std::vector<const MidoriType*>& expected, const MidoriType& actual)
 	{
-		std::string generated_message = "Static Analyzer Error: ";
-		generated_message.append(GenerateBaseError(message, token.m_line, &token).data());
-		return generated_message;
+		if (expected.empty())
+		{
+			return GenerateBaseError(std::format("Type Checker Error\n{}, got {}", message, MidoriTypeUtil::ToString(actual)), token.m_line, &token);
+		}
+
+		std::string expected_types;
+		if (expected.size() > 1u)
+		{
+			for (size_t i = 0u; i < expected.size(); i += 1u)
+			{
+				expected_types.append(MidoriTypeUtil::ToString(*expected[i]));
+				if (i != expected.size() - 1)
+				{
+					expected_types.append(", ");
+				}
+			}
+		}
+		else
+		{
+			expected_types = MidoriTypeUtil::ToString(*expected[0]);
+		}
+
+		return GenerateBaseError(std::format("Type Checker Error\n{}\nExpected {}, but got {}", message, expected_types, MidoriTypeUtil::ToString(actual)), token.m_line, &token);
 	}
 
-	static inline std::string GenerateRuntimeError(const char* message, int line)
+	static inline std::string GenerateRuntimeError(std::string_view message, int line)
 	{
-		std::string generated_message = "Runtime Error: ";
-		generated_message.append(GenerateBaseError(message, line).data());
-		return generated_message;
+		return GenerateBaseError(std::format("Runtime Error\n{}", message), line);
 	}
 };

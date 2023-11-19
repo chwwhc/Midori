@@ -2,6 +2,14 @@
 
 const std::unordered_map<std::string, Token::Name> Lexer::s_keywords =
 {
+	// types
+	{"Fraction", Token::Name::FRACTION},
+	{"Integer", Token::Name::INTEGER},
+	{"Text", Token::Name::TEXT},
+	{"Bool", Token::Name::BOOL},
+	{"Unit", Token::Name::UNIT},
+	{"Array", Token::Name::ARRAY},
+
 	// reserved keywords
 	{"else", Token::Name::ELSE},
 	{"false", Token::Name::FALSE},
@@ -136,11 +144,13 @@ MidoriResult::TokenResult Lexer::MatchString()
 		Advance();
 	}
 
-	return MakeToken(Token::Name::STRING, std::move(result));
+	return MakeToken(Token::Name::TEXT_LITERAL, std::move(result));
 }
 
 Token Lexer::MatchNumber()
 {
+	bool is_fraction = false;
+
 	while (IsDigit(LookAhead(0)))
 	{
 		Advance();
@@ -149,7 +159,8 @@ Token Lexer::MatchNumber()
 	// Look for a fractional part.
 	if (LookAhead(0) == '.' && IsDigit(LookAhead(1)))
 	{
-		// Consume the ".".
+		is_fraction = true;
+
 		Advance();
 
 		while (IsDigit(LookAhead(0)))
@@ -158,7 +169,7 @@ Token Lexer::MatchNumber()
 		}
 	}
 
-	return MakeToken(Token::Name::NUMBER);
+	return MakeToken(is_fraction ? Token::Name::FRACTION_LITERAL : Token::Name::INTEGER_LITERAL);
 }
 
 Token Lexer::MatchIdentifierOrReserved()
@@ -178,7 +189,7 @@ Token Lexer::MatchIdentifierOrReserved()
 	}
 	else
 	{
-		return MakeToken(Token::Name::IDENTIFIER);
+		return MakeToken(Token::Name::IDENTIFIER_LITERAL);
 	}
 }
 
@@ -239,13 +250,38 @@ MidoriResult::TokenResult Lexer::LexOneToken()
 			return MakeToken(Token::Name::SINGLE_PLUS);
 		}
 	case '-':
-		return MakeToken(Token::Name::MINUS);
+		if (MatchNext('>'))
+		{
+			return MakeToken(Token::Name::THIN_ARROW);
+		}
+		else
+		{
+			return MakeToken(Token::Name::MINUS);
+		}
 	case '?':
 		return MakeToken(Token::Name::QUESTION);
 	case ':':
-		return MakeToken(Token::Name::SINGLE_COLON);
+		if (MatchNext(':'))
+		{
+			return MakeToken(Token::Name::DOUBLE_COLON);
+		}
+		else if (MatchNext('='))
+		{
+			return MakeToken(Token::Name::COLON_EQUAL);
+		}
+		else
+		{
+			return MakeToken(Token::Name::SINGLE_COLON);
+		}
 	case '%':
-		return MakeToken(Token::Name::PERCENT);
+		if (MatchNext('>'))
+		{
+			return MakeToken(Token::Name::RIGHT_SHIFT);
+		}
+		else
+		{
+			return MakeToken(Token::Name::PERCENT);
+		}
 	case '*':
 		return MakeToken(Token::Name::STAR);
 	case '/':
@@ -293,26 +329,22 @@ MidoriResult::TokenResult Lexer::LexOneToken()
 		{
 			return MakeToken(Token::Name::GREATER_EQUAL);
 		}
-		else if (MatchNext('>'))
-		{
-			return MakeToken(Token::Name::RIGHT_SHIFT);
-		}
 		else
 		{
-			return MakeToken(Token::Name::GREATER);
+			return MakeToken(Token::Name::RIGHT_ANGLE);
 		}
 	case '<':
 		if (MatchNext('='))
 		{
 			return MakeToken(Token::Name::LESS_EQUAL);
 		}
-		else if (MatchNext('<'))
+		else if (MatchNext('%'))
 		{
 			return MakeToken(Token::Name::LEFT_SHIFT);
 		}
 		else
 		{
-			return MakeToken(Token::Name::LESS);
+			return MakeToken(Token::Name::LEFT_ANGLE);
 		}
 	case ' ':
 	case '\r':

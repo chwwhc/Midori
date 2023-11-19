@@ -35,7 +35,7 @@ private:
 
 	StaticData m_static_data;
 	GlobalVariableTable m_global_table;
-	Traceable::GarbageCollectionRoots m_traceable_constants;
+	MidoriTraceable::GarbageCollectionRoots m_traceable_constants;
 	std::optional<MainModuleContext> m_main_module_ctx = std::nullopt;
 	int m_current_module_index = 0;
 
@@ -64,9 +64,9 @@ private:
 	{
 		if (value.IsObjectPointer())
 		{
-			Traceable* traceable = static_cast<Traceable*>(value.GetObjectPointer());
+			MidoriTraceable* traceable = static_cast<MidoriTraceable*>(value.GetObjectPointer());
 			m_traceable_constants.emplace(traceable);
-			Traceable::s_static_bytes_allocated += traceable->GetSize();
+			MidoriTraceable::s_static_bytes_allocated += traceable->GetSize();
 		}
 
 		int index = m_static_data.AddConstant(std::move(value));
@@ -185,13 +185,15 @@ private:
 
 	void operator()(Bind& bind);
 
-	void operator()(String& string);
+	void operator()(TextLiteral& text);
 
-	void operator()(Bool& bool_expr);
+	void operator()(BoolLiteral& bool_expr);
 
-	void operator()(Number& number);
+	void operator()(FractionLiteral& fraction);
 
-	void operator()(Unit& nil);
+	void operator()(IntegerLiteral& integer);
+
+	void operator()(UnitLiteral& unit);
 
 	void operator()(Closure& closure);
 

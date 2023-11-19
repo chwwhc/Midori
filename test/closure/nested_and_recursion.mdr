@@ -1,17 +1,17 @@
-var createCounter = closure(var initial) 
+var createCounter := closure(var initial : Integer) : (Integer) -> () -> Integer
 {
-  var counter = closure(var value) 
+  var counter := closure(var value : Integer) : () -> Integer 
   {
     initial = initial + value;
-    return closure() { return initial; };
+    return closure() : Integer { return initial; };
   };
   return counter;
 };
 
-var counter = createCounter(5);
-var next = counter(3);
+var counter := createCounter(5);
+var next := counter(3);
 
-fixed main = closure()
+fixed main := closure() : Integer
 {
     PrintLine(next());  // Should print 8
 

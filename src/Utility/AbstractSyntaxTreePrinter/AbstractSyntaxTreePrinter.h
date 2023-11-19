@@ -4,7 +4,7 @@
 
 struct PrintAbstractSyntaxTree
 {
-	void PrintWithIndentation(int depth, std::string text) const;
+	void PrintWithIndentation(int depth, std::string_view text) const;
 
 	void operator()(const Block& block, int depth = 0) const;
 
@@ -42,13 +42,15 @@ struct PrintAbstractSyntaxTree
 
 	void operator()(const Bind& bind, int depth = 0) const;
 
-	void operator()(const String& string, int depth = 0) const;
+	void operator()(const TextLiteral& text, int depth = 0) const;
 
-	void operator()(const Bool& bool_val, int depth = 0) const;
+	void operator()(const BoolLiteral& bool_val, int depth = 0) const;
 
-	void operator()(const Number& number, int depth = 0) const;
+	void operator()(const FractionLiteral& fraction, int depth = 0) const;
 
-	void operator()(const Unit&, int depth = 0) const;
+	void operator()(const IntegerLiteral& integer, int depth = 0) const;
+
+	void operator()(const UnitLiteral&, int depth = 0) const;
 
 	void operator()(const Closure& closure, int depth = 0) const;
 

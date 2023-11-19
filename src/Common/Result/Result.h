@@ -20,12 +20,12 @@ namespace MidoriResult
 #ifdef DEBUG
 		std::vector<std::string> m_module_names;
 #endif
-		Traceable::GarbageCollectionRoots m_constant_roots;
+		MidoriTraceable::GarbageCollectionRoots m_constant_roots;
 		StaticData m_static_data;
 		GlobalVariableTable m_global_table;
 
 #ifdef DEBUG
-		ExecutableModule(std::vector<BytecodeStream>&& bytecode_vector, std::vector<std::string>&& module_names, Traceable::GarbageCollectionRoots&& roots, StaticData&& static_data, GlobalVariableTable&& global_table) : m_modules(std::move(bytecode_vector)), m_module_names(std::move(module_names)), m_constant_roots(std::move(roots)), m_static_data(std::move(static_data)), m_global_table(std::move(global_table)) {}
+		ExecutableModule(std::vector<BytecodeStream>&& bytecode_vector, std::vector<std::string>&& module_names, MidoriTraceable::GarbageCollectionRoots&& roots, StaticData&& static_data, GlobalVariableTable&& global_table) : m_modules(std::move(bytecode_vector)), m_module_names(std::move(module_names)), m_constant_roots(std::move(roots)), m_static_data(std::move(static_data)), m_global_table(std::move(global_table)) {}
 #else
 		ExecutableModule(std::vector<BytecodeStream>&& bytecode_vector, Traceable::GarbageCollectionRoots&& roots, StaticData&& static_data, GlobalVariableTable&& global_table) : m_modules(std::move(bytecode_vector)), m_constant_roots(std::move(roots)), m_static_data(std::move(static_data)), m_global_table(std::move(global_table)) {}
 #endif
@@ -36,8 +36,8 @@ namespace MidoriResult
 	using ExpressionResult = std::expected<std::unique_ptr<Expression>, std::string>;
 	using StatementResult = std::expected<std::unique_ptr<Statement>, std::string>;
 	using ParserResult = std::expected<ProgramTree, std::vector<std::string>>;
+	using TypeResult = std::expected<std::shared_ptr<MidoriType>, std::string>;
 	using StaticAnalyzerResult = std::optional<std::vector<std::string>>;
 	using CodeGeneratorResult = std::expected<ExecutableModule, std::vector<std::string>>;
 	using CompilerResult = std::expected<ExecutableModule, std::vector<std::string>>;
-	using InterpreterResult = std::expected<MidoriValue*, std::string>;
 }

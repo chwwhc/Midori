@@ -1,1 +1,94 @@
 #pragma once
+
+#include "Common/Error/Error.h"
+#include "Common/Result/Result.h"
+
+#include <unordered_map>
+#include <unordered_set>
+#include <array>
+
+class TypeChecker
+{
+public:
+
+private:
+	using TypeEnvironment = std::unordered_map<std::string, std::shared_ptr<MidoriType>>;
+	using TypeEnvironmentStack = std::vector<TypeEnvironment>;
+
+	std::vector<std::string> m_errors;
+	const std::unordered_set<Token::Name> m_arithmetic_operators = { Token::Name::SINGLE_PLUS, Token::Name::MINUS, Token::Name::STAR, Token::Name::SLASH, Token::Name::PERCENT };
+	const std::unordered_set<Token::Name> m_concatenation_operators = { Token::Name::DOUBLE_PLUS };
+	const std::unordered_set<Token::Name> m_partial_order_comparison_operators = {Token::Name::LEFT_ANGLE, Token::Name::LESS_EQUAL, Token::Name::RIGHT_ANGLE, Token::Name::GREATER_EQUAL };
+	const std::unordered_set<Token::Name> m_equality_operators = { Token::Name::DOUBLE_EQUAL, Token::Name::BANG_EQUAL };
+	const std::unordered_set<Token::Name> m_logical_operators = { Token::Name::DOUBLE_AMPERSAND, Token::Name::DOUBLE_BAR };
+	const std::unordered_set<Token::Name> m_bitwise_operators = { Token::Name::CARET, Token::Name::SINGLE_AMPERSAND, Token::Name::SINGLE_BAR, Token::Name::RIGHT_SHIFT, Token::Name::LEFT_SHIFT};
+	const std::array<MidoriType, 5u> m_atomic_types = { FractionType(), IntegerType(), TextType(), BoolType(), UnitType() };
+	TypeEnvironmentStack m_name_type_table;
+	std::shared_ptr<MidoriType> m_curr_closure_return_type = std::make_shared<MidoriType>(UndecidedType());
+
+public:
+
+	MidoriResult::StaticAnalyzerResult TypeCheck(ProgramTree& program_tree);
+
+private:
+
+	inline void BeginScope() { m_name_type_table.emplace_back(); }
+
+	inline void EndScope() { m_name_type_table.pop_back(); }
+
+	void operator()(Block& block);
+
+	void operator()(Simple& simple);
+
+	void operator()(Define& def);
+
+	void operator()(If& if_stmt);
+
+	void operator()(While& while_stmt);
+
+	void operator()(For& for_stmt);
+
+	void operator()(Break& break_stmt);
+
+	void operator()(Continue& continue_stmt);
+
+	void operator()(Return& return_stmt);
+
+	void operator()(Namespace& namespace_stmt);
+
+	MidoriResult::TypeResult operator()(Binary& binary);
+
+	MidoriResult::TypeResult operator()(Group& group);
+
+	MidoriResult::TypeResult operator()(Unary& unary);
+
+	MidoriResult::TypeResult operator()(Call& call);
+
+	MidoriResult::TypeResult operator()(Get& get);
+
+	MidoriResult::TypeResult operator()(Set& set);
+
+	MidoriResult::TypeResult operator()(Variable& variable);
+
+	MidoriResult::TypeResult operator()(Bind& bind);
+
+	MidoriResult::TypeResult operator()(TextLiteral& text);
+
+	MidoriResult::TypeResult operator()(BoolLiteral& bool_expr);
+
+	MidoriResult::TypeResult operator()(FractionLiteral& fraction);
+
+	MidoriResult::TypeResult operator()(IntegerLiteral& integer);
+
+	MidoriResult::TypeResult operator()(UnitLiteral& unit);
+
+	MidoriResult::TypeResult operator()(Closure& closure);
+
+	MidoriResult::TypeResult operator()(Array& array);
+
+	MidoriResult::TypeResult operator()(ArrayGet& array_get);
+
+	MidoriResult::TypeResult operator()(ArraySet& array_set);
+
+	MidoriResult::TypeResult operator()(Ternary& ternary);
+};

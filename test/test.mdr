@@ -1,14 +1,34 @@
-
-fixed main = closure()
+fixed foo := closure() : Unit
 {
-	if (true && true)
+	var arr : Array<() -> Integer> := [closure() : Integer { return 1; }, closure() : Integer { return 1; }, closure() : Integer { return 1; }];
+	for (var i : Integer := 0; i < 3; i = i + 1)
 	{
-		PrintLine("true and true");
-	}
-	if (true || false)
-	{
-		PrintLine("true or false");
+		(closure(fixed i : Integer) : Unit
+		{
+			arr[i] = closure() : Integer
+			{
+				return i;
+			};
+			return #;
+		})(i);
 	}
 
-	return 0;
+	PrintLine(arr[0]());  // Should print 0
+	PrintLine(arr[1]());  // Should print 1
+	PrintLine(arr[2]());  // Should print 2
+	
+	return #;
+};
+
+fixed main := closure() : Unit
+{
+	foo();
+
+	var x := false;
+	x = !x;
+
+	"asd" ++ ["sdsd"];
+	[1] ++ [0, 0];
+
+	return #;
 };
