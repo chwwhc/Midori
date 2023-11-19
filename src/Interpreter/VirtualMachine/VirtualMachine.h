@@ -21,20 +21,22 @@ class VirtualMachine
 
 public:
 
-	VirtualMachine(MidoriResult::ExecutableModule&& module) : m_executable_module(std::move(module)), m_garbage_collector(std::move(m_executable_module.m_constant_roots)), m_current_bytecode(&m_executable_module.m_modules[0]), m_instruction_pointer(m_current_bytecode->cbegin()) {}
+	VirtualMachine(MidoriResult::ExecutableModule&& executable_module);
 
 	~VirtualMachine() { MidoriTraceable::CleanUp(); }
 
 private:
 
 	static constexpr int s_value_stack_max = 20000;
-static constexpr int s_frame_stack_max = 8000;
-static constexpr int s_garbage_collection_threshold = 1024;
+	static constexpr int s_frame_stack_max = 8000;
+	static constexpr int s_garbage_collection_threshold = 1024;
+	static constexpr int s_number_of_opcodes = 58;
 
 	template <typename T, int Size>
 	using StackPointer = std::array<T, Size>::iterator;
 	using InstructionPointer = BytecodeStream::const_iterator;
 	using GlobalVariables = std::unordered_map<std::string, MidoriValue>;
+	using InstructionHandler = std::function<void()>;
 	friend class NativeFunction;
 
 	struct CallFrame
@@ -46,6 +48,7 @@ static constexpr int s_garbage_collection_threshold = 1024;
 	};
 
 	MidoriResult::ExecutableModule m_executable_module;
+	std::array<InstructionHandler, s_number_of_opcodes> m_dispatch_table;
 	GlobalVariables m_global_vars;
 	GarbageCollector m_garbage_collector;
 	std::stack<MidoriTraceable::Closure*> m_closure_stack;
@@ -59,6 +62,7 @@ static constexpr int s_garbage_collection_threshold = 1024;
 	bool m_error = false;
 
 public:
+
 	void Execute();
 
 private:

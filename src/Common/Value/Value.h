@@ -34,7 +34,6 @@ public:
 private:
 	std::variant<MidoriFraction, MidoriInteger, MidoriUnit, MidoriBool, NativeFunction, MidoriTraceable*> m_value;
 
-private:
 	static std::string DoubleToStringWithoutTrailingZeros(MidoriFraction value);
 
 public:
