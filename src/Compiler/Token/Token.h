@@ -45,6 +45,7 @@ struct Token
 		DOUBLE_COLON,
 		AT,
 		HASH,
+		TILDE,
 
 		// Literal
 		IDENTIFIER_LITERAL,
@@ -81,7 +82,7 @@ struct Token
 		END_OF_FILE,
 	};
 
-	Name m_token_type;
+	Name m_token_name;
 	std::string m_lexeme;
 	int m_line = 0;
 };

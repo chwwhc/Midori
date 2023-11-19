@@ -16,12 +16,12 @@ private:
 	using TypeEnvironmentStack = std::vector<TypeEnvironment>;
 
 	std::vector<std::string> m_errors;
-	const std::unordered_set<Token::Name> m_arithmetic_operators = { Token::Name::SINGLE_PLUS, Token::Name::MINUS, Token::Name::STAR, Token::Name::SLASH, Token::Name::PERCENT };
-	const std::unordered_set<Token::Name> m_concatenation_operators = { Token::Name::DOUBLE_PLUS };
-	const std::unordered_set<Token::Name> m_partial_order_comparison_operators = {Token::Name::LEFT_ANGLE, Token::Name::LESS_EQUAL, Token::Name::RIGHT_ANGLE, Token::Name::GREATER_EQUAL };
-	const std::unordered_set<Token::Name> m_equality_operators = { Token::Name::DOUBLE_EQUAL, Token::Name::BANG_EQUAL };
-	const std::unordered_set<Token::Name> m_logical_operators = { Token::Name::DOUBLE_AMPERSAND, Token::Name::DOUBLE_BAR };
-	const std::unordered_set<Token::Name> m_bitwise_operators = { Token::Name::CARET, Token::Name::SINGLE_AMPERSAND, Token::Name::SINGLE_BAR, Token::Name::RIGHT_SHIFT, Token::Name::LEFT_SHIFT};
+	const std::unordered_set<Token::Name> m_binary_arithmetic_operators = { Token::Name::SINGLE_PLUS, Token::Name::MINUS, Token::Name::STAR, Token::Name::SLASH, Token::Name::PERCENT };
+	const std::unordered_set<Token::Name> m_binary_concatenation_operators = { Token::Name::DOUBLE_PLUS };
+	const std::unordered_set<Token::Name> m_binary_partial_order_comparison_operators = {Token::Name::LEFT_ANGLE, Token::Name::LESS_EQUAL, Token::Name::RIGHT_ANGLE, Token::Name::GREATER_EQUAL };
+	const std::unordered_set<Token::Name> m_binary_equality_operators = { Token::Name::DOUBLE_EQUAL, Token::Name::BANG_EQUAL };
+	const std::unordered_set<Token::Name> m_binary_logical_operators = { Token::Name::DOUBLE_AMPERSAND, Token::Name::DOUBLE_BAR };
+	const std::unordered_set<Token::Name> m_binary_bitwise_operators = { Token::Name::CARET, Token::Name::SINGLE_AMPERSAND, Token::Name::SINGLE_BAR, Token::Name::RIGHT_SHIFT, Token::Name::LEFT_SHIFT};
 	const std::array<MidoriType, 5u> m_atomic_types = { FractionType(), IntegerType(), TextType(), BoolType(), UnitType() };
 	TypeEnvironmentStack m_name_type_table;
 	std::shared_ptr<MidoriType> m_curr_closure_return_type = std::make_shared<MidoriType>(UndecidedType());

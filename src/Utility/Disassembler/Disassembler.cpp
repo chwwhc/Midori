@@ -206,6 +206,9 @@ namespace Disassembler
 		case OpCode::BITWISE_XOR:
 			SimpleInstruction("BITWISE_XOR", offset);
 			break;
+		case OpCode::BITWISE_NOT:
+			SimpleInstruction("BITWISE_NOT", offset);
+			break;
 		case OpCode::ADD_FRACTION:
 			SimpleInstruction("ADD_FRACTION", offset);
 			break;

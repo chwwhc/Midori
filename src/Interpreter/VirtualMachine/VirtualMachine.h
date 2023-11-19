@@ -30,7 +30,7 @@ private:
 	static constexpr int s_value_stack_max = 20000;
 	static constexpr int s_frame_stack_max = 8000;
 	static constexpr int s_garbage_collection_threshold = 1024;
-	static constexpr int s_number_of_opcodes = 58;
+	static constexpr int s_number_of_opcodes = 59;
 
 	template <typename T, int Size>
 	using StackPointer = std::array<T, Size>::iterator;

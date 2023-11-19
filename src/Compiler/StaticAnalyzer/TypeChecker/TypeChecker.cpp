@@ -236,14 +236,13 @@ MidoriResult::TypeResult TypeChecker::operator()(Binary& binary)
 		std::string left_type = MidoriTypeUtil::ToString(*left_result.value());
 		std::string right_type = MidoriTypeUtil::ToString(*right_result.value());
 		std::string error_message = std::format("Binary expression type error: left type is {}, right type is {}", left_type, right_type);
-		std::vector<const MidoriType*> expected_types = { std::addressof(*left_result.value()) };
-		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError(error_message, binary.m_op, expected_types, *right_result.value()));
+		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError(error_message, binary.m_op, {}, *right_result.value()));
 	}
 
 	binary.m_type = left_result.value();
 	const MidoriType& actual_type = *left_result.value();
 
-	if (m_partial_order_comparison_operators.find(binary.m_op.m_token_type) != m_partial_order_comparison_operators.cend())
+	if (m_binary_partial_order_comparison_operators.find(binary.m_op.m_token_name) != m_binary_partial_order_comparison_operators.cend())
 	{
 		if (!MidoriTypeUtil::IsNumericType(*left_result.value()))
 		{
@@ -253,7 +252,7 @@ MidoriResult::TypeResult TypeChecker::operator()(Binary& binary)
 
 		return std::make_shared<MidoriType>(BoolType());
 	}
-	else if (m_arithmetic_operators.find(binary.m_op.m_token_type) != m_arithmetic_operators.cend())
+	else if (m_binary_arithmetic_operators.find(binary.m_op.m_token_name) != m_binary_arithmetic_operators.cend())
 	{
 		if (!MidoriTypeUtil::IsNumericType(*left_result.value()))
 		{
@@ -261,11 +260,19 @@ MidoriResult::TypeResult TypeChecker::operator()(Binary& binary)
 			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Binary expression type error", binary.m_op, expected_types, actual_type));
 		}
 	}
-	else if (m_equality_operators.find(binary.m_op.m_token_type) != m_equality_operators.cend())
+	else if (m_binary_bitwise_operators.find(binary.m_op.m_token_name) != m_binary_bitwise_operators.cend())
+	{
+		if (!MidoriTypeUtil::IsIntegerType(*left_result.value()))
+		{
+			std::vector<const MidoriType*> expected_types = { &m_atomic_types[1] };
+			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Binary expression type error", binary.m_op, expected_types, actual_type));
+		}
+	}
+	else if (m_binary_equality_operators.find(binary.m_op.m_token_name) != m_binary_equality_operators.cend())
 	{
 		return std::make_shared<MidoriType>(BoolType());
 	}
-	else if (m_logical_operators.find(binary.m_op.m_token_type) != m_logical_operators.cend())
+	else if (m_binary_logical_operators.find(binary.m_op.m_token_name) != m_binary_logical_operators.cend())
 	{
 		if (!MidoriTypeUtil::IsBoolType(*left_result.value()))
 		{
@@ -275,7 +282,7 @@ MidoriResult::TypeResult TypeChecker::operator()(Binary& binary)
 
 		return std::make_shared<MidoriType>(BoolType());
 	}
-	else if (m_concatenation_operators.find(binary.m_op.m_token_type) != m_concatenation_operators.cend())
+	else if (m_binary_concatenation_operators.find(binary.m_op.m_token_name) != m_binary_concatenation_operators.cend())
 	{
 		if (!(MidoriTypeUtil::IsTextType(*left_result.value()) || MidoriTypeUtil::IsArrayType(*left_result.value())))
 		{
@@ -304,7 +311,7 @@ MidoriResult::TypeResult TypeChecker::operator()(Unary& unary)
 
 	const MidoriType& actual_type = *right_result.value();
 
-	if (unary.m_op.m_token_type == Token::Name::MINUS)
+	if (unary.m_op.m_token_name == Token::Name::MINUS)
 	{
 		if (!MidoriTypeUtil::IsNumericType(*right_result.value()))
 		{
@@ -312,11 +319,19 @@ MidoriResult::TypeResult TypeChecker::operator()(Unary& unary)
 			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Unary expression type error", unary.m_op, expected_types, actual_type));
 		}
 	}
-	else if (unary.m_op.m_token_type == Token::Name::BANG)
+	else if (unary.m_op.m_token_name == Token::Name::BANG)
 	{
 		if (!MidoriTypeUtil::IsBoolType(*right_result.value()))
 		{
 			std::vector<const MidoriType*> expected_types = { &m_atomic_types[3] };
+			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Unary expression type error", unary.m_op, expected_types, actual_type));
+		}
+	}
+	else if (unary.m_op.m_token_name == Token::Name::TILDE)
+	{
+		if (!MidoriTypeUtil::IsIntegerType(*right_result.value()))
+		{
+			std::vector<const MidoriType*> expected_types = { &m_atomic_types[1] };
 			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Unary expression type error", unary.m_op, expected_types, actual_type));
 		}
 	}

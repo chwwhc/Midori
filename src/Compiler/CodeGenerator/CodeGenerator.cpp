@@ -231,7 +231,7 @@ void CodeGenerator::operator()(Binary& binary)
 	std::visit([this](auto&& arg) { (*this)(arg); }, *binary.m_left);
 	std::visit([this](auto&& arg) { (*this)(arg); }, *binary.m_right);
 
-	switch (binary.m_op.m_token_type)
+	switch (binary.m_op.m_token_name)
 	{
 	case Token::Name::SINGLE_PLUS:
 		MidoriTypeUtil::IsFractionType(expr_type) ? EmitByte(OpCode::ADD_FRACTION, line) : EmitByte(OpCode::ADD_INTEGER, line);
@@ -318,13 +318,16 @@ void CodeGenerator::operator()(Unary& unary)
 {
 	std::visit([this](auto&& arg) {(*this)(arg); }, *unary.m_right);
 
-	switch (unary.m_op.m_token_type)
+	switch (unary.m_op.m_token_name)
 	{
 	case Token::Name::MINUS:
 		MidoriTypeUtil::IsFractionType(*unary.m_type) ? EmitByte(OpCode::NEGATE_FRACTION, unary.m_op.m_line) : EmitByte(OpCode::NEGATE_INTEGER, unary.m_op.m_line);
 		break;
 	case Token::Name::BANG:
 		EmitByte(OpCode::NOT, unary.m_op.m_line);
+		break;
+	case Token::Name::TILDE:
+		EmitByte(OpCode::BITWISE_NOT, unary.m_op.m_line);
 		break;
 	default:
 		break; // Unreachable

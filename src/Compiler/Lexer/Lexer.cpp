@@ -346,6 +346,8 @@ MidoriResult::TokenResult Lexer::LexOneToken()
 		{
 			return MakeToken(Token::Name::LEFT_ANGLE);
 		}
+	case '~':
+		return MakeToken(Token::Name::TILDE);
 	case ' ':
 	case '\r':
 	case '\t':
@@ -395,7 +397,7 @@ MidoriResult::LexerResult Lexer::Lex()
 		return std::unexpected<std::vector<std::string>>(errors);
 	}
 
-	if (std::prev(token_stream.cend())->m_token_type != Token::Name::END_OF_FILE)
+	if (std::prev(token_stream.cend())->m_token_name != Token::Name::END_OF_FILE)
 	{
 		token_stream.AddToken(MakeToken(Token::Name::END_OF_FILE));
 	}

@@ -120,7 +120,7 @@ MidoriResult::ExpressionResult Parser::ParseBind()
 
 MidoriResult::ExpressionResult Parser::ParseUnary()
 {
-	if (Match(Token::Name::BANG, Token::Name::MINUS))
+	if (Match(Token::Name::BANG, Token::Name::MINUS, Token::Name::TILDE))
 	{
 		Token& op = Previous();
 		MidoriResult::ExpressionResult right = ParseUnary();
@@ -608,7 +608,7 @@ MidoriResult::StatementResult Parser::ParseBlockStatement()
 
 MidoriResult::StatementResult Parser::ParseDefineStatement()
 {
-	bool is_fixed = Previous().m_token_type == Token::Name::FIXED;
+	bool is_fixed = Previous().m_token_name == Token::Name::FIXED;
 	MidoriResult::TokenResult var_name = Consume(Token::Name::IDENTIFIER_LITERAL, "Expected variable name.");
 	if (!var_name.has_value())
 	{
@@ -1127,11 +1127,11 @@ void Parser::Synchronize()
 
 	while (!IsAtEnd())
 	{
-		if (Previous().m_token_type == Token::Name::SINGLE_SEMICOLON)
+		if (Previous().m_token_name == Token::Name::SINGLE_SEMICOLON)
 		{
 			return;
 		}
-		switch (Peek(0).m_token_type)
+		switch (Peek(0).m_token_name)
 		{
 		case Token::Name::NAMESPACE:
 		case Token::Name::VAR:

@@ -101,31 +101,36 @@ VirtualMachine::VirtualMachine(MidoriResult::ExecutableModule&& executable_modul
 		{
 			const MidoriValue& right = Pop();
 			const MidoriValue& left = Pop();
-			Push(MidoriValue(static_cast<double>(static_cast<int>(left.GetFraction()) << static_cast<int>(right.GetFraction()))));
+			Push(MidoriValue(left.GetInteger() << right.GetInteger()));
 		};
 	m_dispatch_table[static_cast<size_t>(OpCode::RIGHT_SHIFT)] = [this]()
 		{
 			const MidoriValue& right = Pop();
 			const MidoriValue& left = Pop();
-			Push(MidoriValue(static_cast<double>(static_cast<int>(left.GetFraction()) >> static_cast<int>(right.GetFraction()))));
+			Push(MidoriValue(left.GetInteger() >> right.GetInteger()));
 		};
 	m_dispatch_table[static_cast<size_t>(OpCode::BITWISE_AND)] = [this]()
 		{
 			const MidoriValue& right = Pop();
 			const MidoriValue& left = Pop();
-			Push(MidoriValue(static_cast<double>(static_cast<int>(left.GetFraction()) & static_cast<int>(right.GetFraction()))));
+			Push(MidoriValue(left.GetInteger() & right.GetInteger()));
 		};
 	m_dispatch_table[static_cast<size_t>(OpCode::BITWISE_OR)] = [this]()
 		{
 			const MidoriValue& right = Pop();
 			const MidoriValue& left = Pop();
-			Push(MidoriValue(static_cast<double>(static_cast<int>(left.GetFraction()) | static_cast<int>(right.GetFraction()))));
+			Push(MidoriValue(left.GetInteger() | right.GetInteger()));
 		};
 	m_dispatch_table[static_cast<size_t>(OpCode::BITWISE_XOR)] = [this]()
 		{
 			const MidoriValue& right = Pop();
 			const MidoriValue& left = Pop();
-			Push(MidoriValue(static_cast<double>(static_cast<int>(left.GetFraction()) ^ static_cast<int>(right.GetFraction()))));
+			Push(MidoriValue(left.GetInteger() ^ right.GetInteger()));
+		};
+	m_dispatch_table[static_cast<size_t>(OpCode::BITWISE_NOT)] = [this]()
+		{
+			const MidoriValue& right = Pop();
+			Push(MidoriValue(~right.GetInteger()));
 		};
 	m_dispatch_table[static_cast<size_t>(OpCode::ADD_FRACTION)] = [this]()
 		{
