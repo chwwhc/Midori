@@ -308,12 +308,7 @@ VirtualMachine::VirtualMachine(MidoriResult::ExecutableModule&& executable_modul
 		};
 	m_dispatch_table[static_cast<size_t>(OpCode::JUMP_IF_FALSE)] = [this]()
 		{
-			if (Duplicate() == false)
-			{
-				return;
-			}
-
-			MidoriValue& value = Pop();
+			const MidoriValue& value = Peek();
 
 			int offset = ReadShort();
 			if (!value.GetBool())
@@ -323,12 +318,7 @@ VirtualMachine::VirtualMachine(MidoriResult::ExecutableModule&& executable_modul
 		};
 	m_dispatch_table[static_cast<size_t>(OpCode::JUMP_IF_TRUE)] = [this]()
 		{
-			if (Duplicate() == false)
-			{
-				return;
-			}
-
-			MidoriValue& value = Pop();
+			const MidoriValue& value = Peek();
 
 			int offset = ReadShort();
 			if (value.GetBool())
@@ -346,45 +336,43 @@ VirtualMachine::VirtualMachine(MidoriResult::ExecutableModule&& executable_modul
 			int offset = ReadShort();
 			m_instruction_pointer -= offset;
 		};
-	m_dispatch_table[static_cast<size_t>(OpCode::CALL)] = [this]()
+	m_dispatch_table[static_cast<size_t>(OpCode::CALL_NATIVE)] = [this]()
 		{
 			const MidoriValue& callable = Pop();
 			int arity = static_cast<int>(ReadByte());
 
-			// Native function
-			if (callable.IsNativeFunction())
-			{
-				MidoriValue::NativeFunction& native_function = callable.GetNativeFunction();
+			MidoriValue::NativeFunction& native_function = callable.GetNativeFunction();
+			native_function.m_cpp_function();
+		};
+	m_dispatch_table[static_cast<size_t>(OpCode::CALL_DEFINED)] = [this]()
+		{
+			const MidoriValue& callable = Pop();
+			int arity = static_cast<int>(ReadByte());
 
-				native_function.m_cpp_function();
+			MidoriTraceable::Closure& closure = callable.GetObjectPointer()->GetClosure();
+
+			m_closure_stack.emplace(&closure);
+
+			if (std::next(m_call_stack_pointer) == m_call_stack->end())
+			{
+				DisplayRuntimeError(GenerateRuntimeError("Call stack overflow.", GetLine()));
+				return;
 			}
-			else if (callable.IsObjectPointer() && callable.GetObjectPointer()->IsClosure())
-			{
-				MidoriTraceable::Closure& closure = callable.GetObjectPointer()->GetClosure();
 
-				m_closure_stack.emplace(&closure);
+			// Return address := pop all the arguments and the callee
+			*m_call_stack_pointer++ = { m_current_bytecode , m_base_pointer, m_value_stack_pointer - arity, m_instruction_pointer };
+			m_current_bytecode = &m_executable_module.m_modules[closure.m_module_index];
+			m_instruction_pointer = m_current_bytecode->cbegin();
+			m_base_pointer = m_value_stack_pointer - arity;
 
-				if (std::next(m_call_stack_pointer) == m_call_stack->end())
+
+			std::for_each_n(m_base_pointer, std::distance(m_base_pointer, m_value_stack_pointer), [](MidoriValue& value) -> void
 				{
-					DisplayRuntimeError(GenerateRuntimeError("Call stack overflow.", GetLine()));
-					return;
-				}
-
-				// Return address := pop all the arguments and the callee
-				*m_call_stack_pointer++ = { m_current_bytecode , m_base_pointer, m_value_stack_pointer - arity, m_instruction_pointer };
-				m_current_bytecode = &m_executable_module.m_modules[closure.m_module_index];
-				m_instruction_pointer = m_current_bytecode->cbegin();
-				m_base_pointer = m_value_stack_pointer - arity;
-
-
-				std::for_each_n(m_base_pointer, std::distance(m_base_pointer, m_value_stack_pointer), [](MidoriValue& value) -> void
+					if (value.IsObjectPointer() && value.GetObjectPointer()->IsCellValue())
 					{
-						if (value.IsObjectPointer() && value.GetObjectPointer()->IsCellValue())
-						{
-							value = value.GetObjectPointer()->GetCellValue();
-						}
-					});
-			}
+						value = value.GetObjectPointer()->GetCellValue();
+					}
+				});
 		};
 	m_dispatch_table[static_cast<size_t>(OpCode::CREATE_CLOSURE)] = [this]()
 		{

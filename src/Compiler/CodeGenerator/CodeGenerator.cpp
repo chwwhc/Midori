@@ -23,7 +23,7 @@ MidoriResult::CodeGeneratorResult CodeGenerator::GenerateCode(ProgramTree&& prog
 	const CodeGenerator::MainModuleContext& main_module_ctx = m_main_module_ctx.value();
 	m_current_module_index = main_module_ctx.m_main_module_index;
 	EmitVariable(main_module_ctx.m_main_module_global_table_index, OpCode::GET_GLOBAL, main_module_ctx.m_main_module_line);
-	EmitByte(OpCode::CALL, main_module_ctx.m_main_module_line);
+	EmitByte(OpCode::CALL_DEFINED, main_module_ctx.m_main_module_line);
 	EmitByte(static_cast<OpCode>(0), main_module_ctx.m_main_module_line);
 
 #ifdef DEBUG
@@ -349,7 +349,7 @@ void CodeGenerator::operator()(Call& call)
 	std::for_each(call.m_arguments.begin(), call.m_arguments.end(), [&line, this](std::unique_ptr<Expression>& arg) { std::visit([this](auto&& arg) {(*this)(arg); }, *arg); });
 	std::visit([this](auto&& arg) {(*this)(arg); }, *call.m_callee);
 
-	EmitByte(OpCode::CALL, line);
+	call.m_is_native ? EmitByte(OpCode::CALL_NATIVE, line) : EmitByte(OpCode::CALL_DEFINED, line);
 	EmitByte(static_cast<OpCode>(arity), line);
 }
 

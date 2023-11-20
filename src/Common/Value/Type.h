@@ -25,6 +25,7 @@ struct FunctionType
 {
 	std::vector<std::shared_ptr<MidoriType>> m_param_types;
 	std::shared_ptr<MidoriType> m_return_type;
+	bool m_is_native = false;
 };
 
 template<typename T>

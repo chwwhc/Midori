@@ -124,6 +124,7 @@ struct Call
 	Token m_paren;
 	std::unique_ptr<Expression> m_callee;
 	std::vector<std::unique_ptr<Expression>> m_arguments;
+	bool m_is_native = false;
 };
 
 struct Closure

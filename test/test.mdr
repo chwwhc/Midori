@@ -5,7 +5,7 @@ fixed main := closure() : Unit
 		return n < 2 ? n : fib(n - 1) + fib(n - 2);
 	};
 
-	PrintLine(~1);
+	PrintLine(fib(35));
 
 	return #;
 };

@@ -70,7 +70,8 @@ enum class OpCode : uint8_t
     JUMP_BACK,
 
     // Callable
-    CALL,
+    CALL_NATIVE,
+    CALL_DEFINED,
 
     // Variable Operations
     CREATE_CLOSURE,

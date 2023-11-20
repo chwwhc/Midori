@@ -30,7 +30,7 @@ private:
 	static constexpr int s_value_stack_max = 20000;
 	static constexpr int s_frame_stack_max = 8000;
 	static constexpr int s_garbage_collection_threshold = 1024;
-	static constexpr int s_number_of_opcodes = 59;
+	static constexpr int s_number_of_opcodes = 60;
 
 	template <typename T, int Size>
 	using StackPointer = std::array<T, Size>::iterator;
@@ -140,6 +140,19 @@ private:
 		*m_value_stack_pointer = std::move(value);
 		++m_value_stack_pointer;
 		return true;
+	}
+
+	inline const MidoriValue& Peek()
+	{
+		const MidoriValue& value = *(std::prev(m_value_stack_pointer));
+		if (value.IsObjectPointer() && value.GetObjectPointer()->IsCellValue())
+		{
+			return value.GetObjectPointer()->GetCellValue();
+		}
+		else
+		{
+			return value;
+		}
 	}
 
 	inline bool Duplicate()

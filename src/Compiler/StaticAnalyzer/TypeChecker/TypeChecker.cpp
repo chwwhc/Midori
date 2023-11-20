@@ -7,7 +7,7 @@
 
 MidoriResult::StaticAnalyzerResult TypeChecker::TypeCheck(ProgramTree& program_tree)
 {
-	TypeChecker::TypeEnvironment&& global_env = { {"PrintLine", std::make_shared<MidoriType>(FunctionType({std::make_shared<MidoriType>(IntegerType())}, std::make_shared<MidoriType>(UnitType())))} };
+	TypeChecker::TypeEnvironment&& global_env = { {"PrintLine", std::make_shared<MidoriType>(FunctionType({std::make_shared<MidoriType>(IntegerType())}, std::make_shared<MidoriType>(UnitType()), true))} };
 	m_name_type_table.emplace_back(global_env);
 	std::for_each(program_tree.begin(), program_tree.end(), [this](std::unique_ptr<Statement>& statement)
 		{
@@ -50,7 +50,7 @@ void TypeChecker::operator()(Define& def)
 	if (std::holds_alternative<Closure>(*def.m_value))
 	{
 		Closure& closure = std::get<Closure>(*def.m_value);
-		m_name_type_table.back().emplace(def.m_name.m_lexeme, std::make_shared<MidoriType>(FunctionType(closure.m_param_types, closure.m_return_type)));
+		m_name_type_table.back().emplace(def.m_name.m_lexeme, std::make_shared<MidoriType>(FunctionType(closure.m_param_types, closure.m_return_type, false)));
 		const MidoriType& actual_type = *m_name_type_table.back()[def.m_name.m_lexeme];
 		BeginScope();
 		for (size_t i = 0u; i < closure.m_param_types.size(); i += 1u)
@@ -353,7 +353,7 @@ MidoriResult::TypeResult TypeChecker::operator()(Call& call)
 	if (!MidoriTypeUtil::IsFunctionType(actual_type))
 	{
 		// TODO: Add function type
-		MidoriType function_type = FunctionType({ std::make_shared<MidoriType>(UnitType()) }, std::make_shared<MidoriType>(UnitType()));
+		MidoriType function_type = FunctionType({ std::make_shared<MidoriType>(UndecidedType()) }, std::make_shared<MidoriType>(UndecidedType()), false);
 		std::vector<const MidoriType*> expected_types = { &function_type };
 		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Call expression type error: not a callable", call.m_paren, expected_types, actual_type));
 	}
@@ -372,9 +372,13 @@ MidoriResult::TypeResult TypeChecker::operator()(Call& call)
 		}
 	}
 
+	const FunctionType& function_type = MidoriTypeUtil::GetFunctionType(*callee_result.value());
+	call.m_is_native = function_type.m_is_native;
+
+	const std::vector<std::shared_ptr<MidoriType>>& param_types = function_type.m_param_types;
 	for (size_t i = 0u; i < arg_results.size(); i += 1u)
 	{
-		std::vector<const MidoriType*> expected_types = { std::addressof(*MidoriTypeUtil::GetFunctionType(*callee_result.value()).m_param_types[i]) };
+		std::vector<const MidoriType*> expected_types = { std::addressof(*param_types[i]) };
 		const MidoriType& actual_type = *arg_results[i].value();
 		if (*expected_types[0] != actual_type)
 		{
@@ -483,7 +487,7 @@ MidoriResult::TypeResult TypeChecker::operator()(Closure& closure)
 	EndScope();
 
 	m_curr_closure_return_type = std::move(prev_return_type);
-	return std::make_shared<MidoriType>(FunctionType(std::move(closure.m_param_types), std::move(closure.m_return_type)));
+	return std::make_shared<MidoriType>(FunctionType(std::move(closure.m_param_types), std::move(closure.m_return_type), false));
 }
 
 MidoriResult::TypeResult TypeChecker::operator()(Array& array)
