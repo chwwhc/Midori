@@ -72,6 +72,8 @@ enum class OpCode : uint8_t
     // Callable
     CALL_NATIVE,
     CALL_DEFINED,
+    CONSTRUCT_STRUCT,
+    ALLOCATE_STRUCT,
 
     // Variable Operations
     CREATE_CLOSURE,
@@ -82,6 +84,10 @@ enum class OpCode : uint8_t
     SET_LOCAL,
     GET_CELL,
     SET_CELL,
+
+    // Struct Operations
+    GET_MEMBER,
+    SET_MEMBER,
 
     // Stack Operations
     POP,

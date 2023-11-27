@@ -9,6 +9,7 @@ const std::unordered_map<std::string, Token::Name> Lexer::s_keywords =
 	{"Bool", Token::Name::BOOL},
 	{"Unit", Token::Name::UNIT},
 	{"Array", Token::Name::ARRAY},
+	{"Maybe", Token::Name::MAYBE},
 
 	// reserved keywords
 	{"else", Token::Name::ELSE},
@@ -22,10 +23,15 @@ const std::unordered_map<std::string, Token::Name> Lexer::s_keywords =
 	{"closure", Token::Name::CLOSURE},
 	{"while", Token::Name::WHILE},
 	{"do", Token::Name::DO},
+	{"as", Token::Name::AS},
 	{"break", Token::Name::BREAK},
 	{"continue", Token::Name::CONTINUE},
 	{"import", Token::Name::IMPORT},
-	{"namespace", Token::Name::NAMESPACE},
+	{"struct", Token::Name::STRUCT},
+	{"union", Token::Name::UNION},
+	{"new", Token::Name::NEW},
+	{"Just", Token::Name::JUST},
+	{"None", Token::Name::NONE},
 };
 
 std::optional<std::string> Lexer::SkipWhitespaceAndComments()

@@ -4,17 +4,26 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <unordered_map>
+
+enum class FunctionSemantic : uint8_t
+{
+	NATIVE,
+	DEFINED,
+	CONSTRUCTOR,
+};
 
 struct FractionType {};
 struct IntegerType {};
 struct TextType {};
 struct BoolType {};
 struct UnitType {};
-struct UndecidedType {};
 struct ArrayType;
 struct FunctionType;
+struct MaybeType;
+struct StructType;
 
-using MidoriType = std::variant<FractionType, TextType, BoolType, UnitType, UndecidedType, ArrayType, FunctionType, IntegerType>;
+using MidoriType = std::variant<FractionType, TextType, BoolType, UnitType, ArrayType, FunctionType, IntegerType, MaybeType, StructType>;
 
 struct ArrayType
 {
@@ -25,14 +34,22 @@ struct FunctionType
 {
 	std::vector<std::shared_ptr<MidoriType>> m_param_types;
 	std::shared_ptr<MidoriType> m_return_type;
-	bool m_is_native = false;
+	FunctionSemantic m_semantic;
 };
 
-template<typename T>
-inline bool operator==(const UndecidedType&, const T&) { return false; }
+struct MaybeType
+{
+	std::shared_ptr<MidoriType> m_element_type;
+};
 
-template<typename T>
-inline bool operator!=(const UndecidedType&, const T&) { return true; }
+struct StructType
+{
+	using MemberTypeInfo = std::pair<int, std::shared_ptr<MidoriType>>;
+	using MemberTypeTable = std::unordered_map<std::string, MemberTypeInfo>;
+
+	std::string m_name;
+	MemberTypeTable m_member_types;
+};
 
 inline bool operator==(const IntegerType&, const IntegerType&) { return true; }
 
@@ -75,6 +92,14 @@ inline bool operator==(const FunctionType& lhs, const FunctionType& rhs)
 }
 
 inline bool operator!=(const FunctionType& lhs, const FunctionType& rhs) { return !(lhs == rhs); }
+
+inline bool operator==(const MaybeType& lhs, const MaybeType& rhs) { return *lhs.m_element_type == *rhs.m_element_type; }
+
+inline bool operator!=(const MaybeType& lhs, const MaybeType& rhs) { return !(lhs == rhs); }
+
+inline bool operator==(const StructType& lhs, const StructType& rhs) { return lhs.m_name == rhs.m_name; }
+
+inline bool operator!=(const StructType& lhs, const StructType& rhs) { return !(lhs == rhs); }
 
 inline bool operator==(const MidoriType& lhs, const MidoriType& rhs)
 {
@@ -124,13 +149,21 @@ namespace MidoriTypeUtil
 
 	inline const FunctionType& GetFunctionType(const MidoriType& type) { return std::get<FunctionType>(type); }
 
+	inline bool IsMaybeType(const MidoriType& type) { return std::holds_alternative<MaybeType>(type); }
+
+	inline const MaybeType& GetMaybeType(const MidoriType& type) { return std::get<MaybeType>(type); }
+
+	inline bool IsStructType(const MidoriType& type) { return std::holds_alternative<StructType>(type); }
+
+	inline const StructType& GetStructType(const MidoriType& type) { return std::get<StructType>(type); }
+
 	inline bool IsNumericType(const MidoriType& type) { return IsFractionType(type) || IsIntegerType(type); }
 
 	inline std::string ToString(const MidoriType& type)
 	{
-		return std::visit([](const auto& a) -> std::string
+		return std::visit([](const auto& arg) -> std::string
 			{
-				using T = std::decay_t<decltype(a)>;
+				using T = std::decay_t<decltype(arg)>;
 				if constexpr (std::is_same_v<T, FractionType>)
 				{
 					return "Fraction";
@@ -153,25 +186,29 @@ namespace MidoriTypeUtil
 				}
 				else if constexpr (std::is_same_v<T, ArrayType>)
 				{
-					return "Array<" + ToString(*a.m_element_type) + ">";
+					return "Array<" + ToString(*arg.m_element_type) + ">";
 				}
 				else if constexpr (std::is_same_v<T, FunctionType>)
 				{
 					std::string result = "(";
-					for (size_t i = 0u; i < a.m_param_types.size(); i += 1u)
+					for (size_t i = 0u; i < arg.m_param_types.size(); i += 1u)
 					{
-						result += ToString(*a.m_param_types[i]);
-						if (i != a.m_param_types.size() - 1u)
+						result += ToString(*arg.m_param_types[i]);
+						if (i != arg.m_param_types.size() - 1u)
 						{
-							result += ", ";
+							result.append(", ");
 						}
 					}
-					result += ") -> " + ToString(*a.m_return_type);
+					result += ") -> " + ToString(*arg.m_return_type);
 					return result;
 				}
-				else if constexpr (std::is_same_v<T, UndecidedType>)
+				else if constexpr (std::is_same_v<T, MaybeType>)
 				{
-					return "Undecided";
+					return "Maybe<" + ToString(*arg.m_element_type) + ">";
+				}
+				else if constexpr (std::is_same_v<T, StructType>)
+				{
+					return std::string(arg.m_name);
 				}
 				else
 				{

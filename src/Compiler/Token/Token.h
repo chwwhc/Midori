@@ -68,7 +68,12 @@ struct Token
 		BREAK,
 		CONTINUE,
 		IMPORT,
-		NAMESPACE,
+		STRUCT,
+		UNION,
+		MAYBE,
+		JUST,
+		NONE,
+		NEW,
 		AS,
 
 		// types

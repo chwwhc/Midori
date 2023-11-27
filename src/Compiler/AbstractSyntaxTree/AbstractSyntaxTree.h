@@ -19,6 +19,7 @@ struct Bind;
 struct Variable;
 struct Call;
 struct Closure;
+struct Construct;
 struct Ternary;
 struct Get;
 struct Set;
@@ -26,7 +27,7 @@ struct Array;
 struct ArrayGet;
 struct ArraySet;
 
-using Expression = std::variant < Binary, Group, TextLiteral, BoolLiteral, FractionLiteral, IntegerLiteral, UnitLiteral, Unary, Bind, Variable, Call, Closure, Ternary, Get, Set, Array, ArrayGet, ArraySet>;
+using MidoriExpression = std::variant < Binary, Group, TextLiteral, BoolLiteral, FractionLiteral, IntegerLiteral, UnitLiteral, Unary, Bind, Variable, Call, Closure, Construct, Ternary, Get, Set, Array, ArrayGet, ArraySet>;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -39,10 +40,10 @@ struct For;
 struct Break;
 struct Continue;
 struct Return;
-struct Namespace;
+struct Struct;
 
-using Statement = std::variant<Block, Simple, Define, If, While, For, Break, Continue, Return, Namespace>;
-using ProgramTree = std::vector<std::unique_ptr<Statement>>;
+using MidoriStatement = std::variant<Block, Simple, Define, If, While, For, Break, Continue, Return, Struct>;
+using MidoriProgramTree = std::vector<std::unique_ptr<MidoriStatement>>;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -64,14 +65,14 @@ namespace VariableSemantic
 struct Binary
 {
 	Token m_op;
-	std::unique_ptr<Expression> m_left;
-	std::unique_ptr<Expression> m_right;
+	std::unique_ptr<MidoriExpression> m_left;
+	std::unique_ptr<MidoriExpression> m_right;
 	std::shared_ptr<MidoriType> m_type;
 };
 
 struct Group
 {
-	std::unique_ptr<Expression> m_expr_in;
+	std::unique_ptr<MidoriExpression> m_expr_in;
 };
 
 struct TextLiteral
@@ -102,14 +103,14 @@ struct UnitLiteral
 struct Unary
 {
 	Token m_op;
-	std::unique_ptr<Expression> m_right;
+	std::unique_ptr<MidoriExpression> m_right;
 	std::shared_ptr<MidoriType> m_type;
 };
 
 struct Bind
 {
 	Token m_name;
-	std::unique_ptr<Expression> m_value;
+	std::unique_ptr<MidoriExpression> m_value;
 	std::variant<VariableSemantic::Local, VariableSemantic::Global, VariableSemantic::Cell> m_semantic;
 };
 
@@ -122,9 +123,9 @@ struct Variable
 struct Call
 {
 	Token m_paren;
-	std::unique_ptr<Expression> m_callee;
-	std::vector<std::unique_ptr<Expression>> m_arguments;
-	bool m_is_native = false;
+	std::unique_ptr<MidoriExpression> m_callee;
+	std::vector<std::unique_ptr<MidoriExpression>> m_arguments;
+	FunctionSemantic m_semantic;
 };
 
 struct Closure
@@ -132,52 +133,61 @@ struct Closure
 	Token m_closure_keyword;
 	std::vector<Token> m_params;
 	std::vector<std::shared_ptr<MidoriType>> m_param_types;
-	std::unique_ptr<Statement> m_body;
+	std::unique_ptr<MidoriStatement> m_body;
 	std::shared_ptr<MidoriType> m_return_type;
 	int m_captured_count = 0;
+};
+
+struct Construct
+{
+	Token m_new_keyword;
+	std::vector<std::unique_ptr<MidoriExpression>> m_params;
+	std::shared_ptr<MidoriType> m_return_type;
 };
 
 struct Ternary
 {
 	Token m_question;
 	Token m_colon;
-	std::unique_ptr<Expression> m_condition;
-	std::unique_ptr<Expression> m_true_branch;
-	std::unique_ptr<Expression> m_else_branch;
+	std::unique_ptr<MidoriExpression> m_condition;
+	std::unique_ptr<MidoriExpression> m_true_branch;
+	std::unique_ptr<MidoriExpression> m_else_branch;
 };
 
 struct Get
 {
-	Token m_name;
-	std::unique_ptr<Expression> m_object;
+	Token m_member_name;
+	std::unique_ptr<MidoriExpression> m_struct;
+	int m_index = -1;
 };
 
 struct Set
 {
-	Token m_name;
-	std::unique_ptr<Expression> m_object;
-	std::unique_ptr<Expression> m_value;
+	Token m_member_name;
+	std::unique_ptr<MidoriExpression> m_struct;
+	std::unique_ptr<MidoriExpression> m_value;
+	int m_index = -1;
 };
 
 struct Array
 {
 	Token m_op;
-	std::vector<std::unique_ptr<Expression>> m_elems;
+	std::vector<std::unique_ptr<MidoriExpression>> m_elems;
 };
 
 struct ArrayGet
 {
 	Token m_op;
-	std::unique_ptr<Expression> m_arr_var;
-	std::vector<std::unique_ptr<Expression>> m_indices;
+	std::unique_ptr<MidoriExpression> m_arr_var;
+	std::vector<std::unique_ptr<MidoriExpression>> m_indices;
 };
 
 struct ArraySet
 {
 	Token m_op;
-	std::unique_ptr<Expression> m_arr_var;
-	std::vector<std::unique_ptr<Expression>> m_indices;
-	std::unique_ptr<Expression> m_value;
+	std::unique_ptr<MidoriExpression> m_arr_var;
+	std::vector<std::unique_ptr<MidoriExpression>> m_indices;
+	std::unique_ptr<MidoriExpression> m_value;
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -186,20 +196,20 @@ struct ArraySet
 struct Block
 {
 	Token m_right_brace;
-	std::vector<std::unique_ptr<Statement>> m_stmts;
+	std::vector<std::unique_ptr<MidoriStatement>> m_stmts;
 	int m_local_count = 0;
 };
 
 struct Simple
 {
 	Token m_semicolon;
-	std::unique_ptr<Expression> m_expr;
+	std::unique_ptr<MidoriExpression> m_expr;
 };
 
 struct Define
 {
 	Token m_name;
-	std::unique_ptr<Expression> m_value;
+	std::unique_ptr<MidoriExpression> m_value;
 	std::optional<std::shared_ptr<MidoriType>> m_annotated_type;
 	std::optional<int> m_local_index;
 };
@@ -208,25 +218,25 @@ struct If
 {
 	Token m_if_keyword;
 	std::optional<Token> m_else_keyword;
-	std::optional<std::unique_ptr<Statement>> m_else_branch;
-	std::unique_ptr<Expression> m_condition;
-	std::unique_ptr<Statement> m_true_branch;
+	std::optional<std::unique_ptr<MidoriStatement>> m_else_branch;
+	std::unique_ptr<MidoriExpression> m_condition;
+	std::unique_ptr<MidoriStatement> m_true_branch;
 };
 
 struct While
 {
 	Token m_while_keyword;
-	std::unique_ptr<Expression> m_condition;
-	std::unique_ptr<Statement> m_body;
+	std::unique_ptr<MidoriExpression> m_condition;
+	std::unique_ptr<MidoriStatement> m_body;
 };
 
 struct For
 {
 	Token m_for_keyword;
-	std::optional<std::unique_ptr<Expression>> m_condition;
-	std::optional<std::unique_ptr<Statement>> m_condition_incrementer;
-	std::optional<std::unique_ptr<Statement>> m_condition_intializer;
-	std::unique_ptr<Statement> m_body;
+	std::optional<std::unique_ptr<MidoriExpression>> m_condition;
+	std::optional<std::unique_ptr<MidoriStatement>> m_condition_incrementer;
+	std::optional<std::unique_ptr<MidoriStatement>> m_condition_intializer;
+	std::unique_ptr<MidoriStatement> m_body;
 	int m_control_block_local_count = 0;
 };
 
@@ -245,11 +255,11 @@ struct Continue
 struct Return
 {
 	Token m_keyword;
-	std::unique_ptr<Expression> m_value;
+	std::unique_ptr<MidoriExpression> m_value;
 };
 
-struct Namespace
+struct Struct
 {
 	Token m_name;
-	std::unique_ptr<Statement> m_stmts;
+	std::shared_ptr<MidoriType> m_self_type;
 };

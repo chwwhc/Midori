@@ -26,19 +26,19 @@ public:
 
 private:
 
-    inline bool IsAtEnd(int offset) { return m_current + offset >= m_source_code.size(); }
+    inline bool IsAtEnd(int offset) { return m_current + offset >= static_cast<int>(m_source_code.size()); }
 
-    inline bool IsDigit(char32_t c) { return c >= '0' && c <= '9'; }
+    inline bool IsDigit(char c) { return c >= '0' && c <= '9'; }
 
-    inline bool IsAlpha(char32_t c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c == '_'); }
+    inline bool IsAlpha(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c == '_'); }
 
-    inline bool IsAlphaNumeric(char32_t c) { return IsDigit(c) || IsAlpha(c) ;}
+    inline bool IsAlphaNumeric(char c) { return IsDigit(c) || IsAlpha(c) ;}
 
     inline char Advance() { return m_source_code[m_current++]; }
 
-    inline char LookAhead(int offset) { return (IsAtEnd(0u) || m_current + offset >= m_source_code.size()) ? '\0' : m_source_code[m_current + offset]; }
+    inline char LookAhead(int offset) { return (IsAtEnd(0u) || m_current + offset >= static_cast<int>(m_source_code.size())) ? '\0' : m_source_code[m_current + offset]; }
 
-    inline bool MatchNext(char32_t expected) { return ((IsAtEnd(0u) || m_source_code[m_current] != expected) ? false : (++m_current, true)); }
+    inline bool MatchNext(char expected) { return ((IsAtEnd(0u) || m_source_code[m_current] != expected) ? false : (++m_current, true)); }
 
     inline Token MakeToken(Token::Name type) {  return Token(type, m_source_code.substr(m_begin, m_current - m_begin), m_line);}
 

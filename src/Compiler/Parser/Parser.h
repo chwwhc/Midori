@@ -30,10 +30,12 @@ private:
 	std::vector<Scope> m_scopes;
 	std::stack<int> m_local_count_before_loop;
 	std::unordered_set<std::string> m_native_functions;
+	std::unordered_map<std::string, std::shared_ptr<MidoriType>> m_structs;
 	int m_closure_depth = 0;
 	int m_current_token_index = 0;
 	int m_total_locals_in_curr_scope = 0;
 	int m_total_variables = 0;
+	int m_struct_count = 0;
 	bool m_error = false;
 
 public:
@@ -75,9 +77,10 @@ private:
 	}
 
 	template <typename... T>
-	inline bool Match(T... types)
+	requires (std::is_same_v<T, Token::Name> && ...)
+	inline bool Match(T... tokens)
 	{
-		if ((... || Check(types, 0)))
+		if ((... || Check(tokens, 0)))
 		{
 			Advance();
 			return true;
@@ -86,7 +89,8 @@ private:
 	}
 
 	template <typename... T>
-	inline MidoriResult::ExpressionResult ParseBinary(MidoriResult::ExpressionResult(Parser::* operand)(), T... types)
+	requires (std::is_same_v<T, Token::Name> && ...)
+	inline MidoriResult::ExpressionResult ParseBinary(MidoriResult::ExpressionResult(Parser::* operand)(), T... tokens)
 	{
 		MidoriResult::ExpressionResult lower_expr = (this->*operand)();
 		if (!lower_expr.has_value())
@@ -94,7 +98,7 @@ private:
 			return std::unexpected<std::string>(std::move(lower_expr.error()));
 		}
 
-		while (Match(types...))
+		while (Match(tokens...))
 		{
 			const Token& op = Previous();
 			MidoriResult::ExpressionResult right = (this->*operand)();
@@ -103,7 +107,7 @@ private:
 				return std::unexpected<std::string>(std::move(right.error()));
 			}
 
-			lower_expr = std::make_unique<Expression>(Binary(std::move(op), std::move(lower_expr.value()), std::move(right.value())));
+			lower_expr = std::make_unique<MidoriExpression>(Binary(std::move(op), std::move(lower_expr.value()), std::move(right.value())));
 		}
 
 		return lower_expr;
@@ -126,7 +130,7 @@ private:
 	inline MidoriResult::TokenResult DefineName(const Token& name, bool is_fixed)
 	{
 		Scope::const_iterator it = m_scopes.back().find(name.m_lexeme);
-		if (it != m_scopes.back().end())
+		if (it != m_scopes.back().cend())
 		{
 			return std::unexpected<std::string>(MidoriError::GenerateParserError("MidoriType already declared in this scope.", name));
 		}
@@ -155,7 +159,7 @@ private:
 		return local_index;
 	}
 
-	bool HasReturnStatement(const Statement& stmt);
+	bool HasReturnStatement(const MidoriStatement& stmt);
 
 	MidoriResult::TypeResult ParseType();
 
@@ -181,7 +185,7 @@ private:
 
 	MidoriResult::ExpressionResult ParseUnary();
 
-	MidoriResult::ExpressionResult ParseArrayAccessHelper(std::unique_ptr<Expression>&& arr_var);
+	MidoriResult::ExpressionResult ParseArrayAccessHelper(std::unique_ptr<MidoriExpression>&& arr_var);
 
 	MidoriResult::ExpressionResult ParseArrayAccess();
 
@@ -189,7 +193,9 @@ private:
 
 	MidoriResult::ExpressionResult ParseCall();
 
-	MidoriResult::ExpressionResult FinishCall(std::unique_ptr<Expression>&& callee);
+	MidoriResult::ExpressionResult ParseConstruct();
+
+	MidoriResult::ExpressionResult FinishCall(std::unique_ptr<MidoriExpression>&& callee);
 
 	MidoriResult::ExpressionResult ParsePrimary();
 
@@ -205,7 +211,7 @@ private:
 
 	MidoriResult::StatementResult ParseDefineStatement();
 
-	MidoriResult::StatementResult ParseNamespaceDeclaration();
+	MidoriResult::StatementResult ParseStructDeclaration();
 
 	MidoriResult::StatementResult ParseIfStatement();
 

@@ -10,8 +10,6 @@
 
 #include "Common/BytecodeStream/BytecodeStream.h"
 
-#define THREE_BYTE_MAX 16777215
-
 class MidoriTraceable;
 
 class MidoriValue
@@ -23,18 +21,8 @@ public:
 	using MidoriUnit = std::monostate;
 	using MidoriBool = bool;
 
-
-	struct NativeFunction
-	{
-		std::function<void()> m_cpp_function;
-		const char* m_name;
-		int m_arity;
-	};
-
 private:
-	std::variant<MidoriFraction, MidoriInteger, MidoriUnit, MidoriBool, NativeFunction, MidoriTraceable*> m_value;
-
-	static std::string DoubleToStringWithoutTrailingZeros(MidoriFraction value);
+	std::variant<MidoriFraction, MidoriInteger, MidoriUnit, MidoriBool, MidoriTraceable*> m_value;
 
 public:
 
@@ -46,9 +34,15 @@ public:
 
 	MidoriValue(bool b) : m_value(b) {}
 
-	MidoriValue(NativeFunction f) : m_value(std::move(f)) {}
-
 	MidoriValue(MidoriTraceable* o) : m_value(o) {}
+
+	MidoriValue(const MidoriValue& other) = default;
+
+	MidoriValue(MidoriValue&& other) noexcept = default;
+
+	MidoriValue& operator=(const MidoriValue& other) = default;
+
+	MidoriValue& operator=(MidoriValue&& other) noexcept = default;
 
 	inline MidoriFraction GetFraction() const { return std::get<MidoriFraction>(m_value); }
 
@@ -65,10 +59,6 @@ public:
 	inline MidoriBool GetBool() const { return std::get<MidoriBool>(m_value); }
 
 	inline bool IsBool() const { return std::holds_alternative<MidoriBool>(m_value); }
-
-	inline NativeFunction& GetNativeFunction() const { return const_cast<NativeFunction&>(std::get<NativeFunction>(m_value)); }
-
-	inline bool IsNativeFunction() const { return std::holds_alternative<NativeFunction>(m_value); }
 
 	inline MidoriTraceable* GetObjectPointer() const { return std::get<MidoriTraceable*>(m_value); }
 
@@ -96,15 +86,28 @@ public:
 	using MidoriText = std::string;
 	using MidoriArray = std::vector<MidoriValue>;
 
+	struct NativeFunction
+	{
+		std::function<void()> m_cpp_function;
+		std::string_view m_name;
+	};
+
 	struct Closure
 	{
-		std::vector<MidoriTraceable*> m_cell_values;
+		using Environment = std::vector<MidoriTraceable*>;
+
+		Environment m_cell_values;
 		int m_module_index;
 		int m_arity;
 	};
 
+	struct MidoriStruct
+	{
+		std::vector<MidoriValue> m_values;
+	};
+
 private:
-	std::variant<MidoriText, std::vector<MidoriValue>, CellValue, Closure> m_value;
+	std::variant<MidoriText, MidoriArray, MidoriStruct, CellValue, NativeFunction, Closure> m_value;
 	size_t m_size;
 	bool m_is_marked;
 
@@ -125,9 +128,17 @@ public:
 
 	inline CellValue& GetCellValue() const { return const_cast<CellValue&>(std::get<CellValue>(m_value)); }
 
+	inline NativeFunction& GetNativeFunction() const { return const_cast<NativeFunction&>(std::get<NativeFunction>(m_value)); }
+
+	inline bool IsNativeFunction() const { return std::holds_alternative<NativeFunction>(m_value); }
+
 	inline bool IsClosure() const { return std::holds_alternative<Closure>(m_value); }
 
 	inline Closure& GetClosure() const { return const_cast<Closure&>(std::get<Closure>(m_value)); }
+
+	inline bool IsStruct() const { return std::holds_alternative<MidoriStruct>(m_value); }
+
+	inline MidoriStruct& GetStruct() const { return const_cast<MidoriStruct&>(std::get<MidoriStruct>(m_value)); }
 
 	inline size_t GetSize() const { return m_size; }
 
@@ -172,11 +183,15 @@ private:
 
 	MidoriTraceable(MidoriTraceable&& other) noexcept = default;
 
-	MidoriTraceable(std::string&& str) : m_value(std::move(str)) {}
+	MidoriTraceable(MidoriText&& str) : m_value(std::move(str)) {}
 
-	MidoriTraceable(std::vector<MidoriValue>&& array) : m_value(std::move(array)) {}
+	MidoriTraceable(MidoriArray&& array) : m_value(std::move(array)) {}
 
 	MidoriTraceable(CellValue&& cell_value) : m_value(std::move(cell_value)) {}
 
+	MidoriTraceable(NativeFunction&& native_function) : m_value(std::move(native_function)) {}
+
 	MidoriTraceable(Closure&& closure) : m_value(std::move(closure)) {}
+
+	MidoriTraceable(MidoriStruct&& midori_struct) : m_value(std::move(midori_struct)) {}
 };

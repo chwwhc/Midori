@@ -1,11 +1,5 @@
 ﻿cmake_minimum_required(VERSION 3.8)
 
-# Enable Hot Reload for MSVC compilers if supported.
-if (POLICY CMP0141)
-  cmake_policy(SET CMP0141 NEW)
-  set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
-endif()
-
 # Project name
 project("Midori")
 
@@ -15,10 +9,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Compiler flags
 if (MSVC)
-    add_compile_options(/W3)
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Ox")
+    add_compile_options(/W4 /permissive-)
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Ox /Zi")
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG /OPT:REF /OPT:ICF")
 else()
     add_compile_options(-Wall -Wextra -pedantic -Werror -Wconversion)
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -g")
 endif()
 
 # Debug flags
@@ -26,6 +22,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   add_definitions(-DDEBUG)
 endif()
 
+# Include directories
 include_directories(${CMAKE_SOURCE_DIR}/src)
 
 # Source files
@@ -41,3 +38,20 @@ add_executable(Midori ${SRC_FILES})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/out)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/out)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/out)
+
+# Enable Hot Reload for MSVC compilers if supported.
+if (POLICY CMP0141)
+  cmake_policy(SET CMP0141 NEW)
+endif()
+
+# Set debug information format for MSVC
+if (MSVC)
+  target_compile_options(Midori PRIVATE 
+    $<$<CONFIG:RelWithDebInfo>:/Zi>
+    $<$<CONFIG:Release>:/Zi>
+  )
+  target_link_options(Midori PRIVATE
+    $<$<CONFIG:RelWithDebInfo>:/DEBUG /OPT:REF /OPT:ICF>
+    $<$<CONFIG:Release>:/DEBUG /OPT:REF /OPT:ICF>
+  )
+endif()

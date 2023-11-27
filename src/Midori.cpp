@@ -21,7 +21,6 @@ std::optional<std::string> ReadFile(const char* filename)
 	return buffer.str();
 }
 
-
 int main()
 {
 	const char* filename = "C:\\Users\\JK\\Documents\\GitHub\\Midori\\test\\test.mdr";

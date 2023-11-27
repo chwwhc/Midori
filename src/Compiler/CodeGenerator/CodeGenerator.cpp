@@ -1,10 +1,10 @@
 #include "CodeGenerator.h"
 
-MidoriResult::CodeGeneratorResult CodeGenerator::GenerateCode(ProgramTree&& program_tree)
+MidoriResult::CodeGeneratorResult CodeGenerator::GenerateCode(MidoriProgramTree&& program_tree)
 {
 	SetUpNativeFunctions();
 
-	std::for_each(program_tree.begin(), program_tree.end(), [this](std::unique_ptr<Statement>& statement)
+	std::for_each(program_tree.begin(), program_tree.end(), [this](std::unique_ptr<MidoriStatement>& statement)
 		{
 			std::visit([this](auto&& arg) { (*this)(arg); }, *statement);
 		});
@@ -35,7 +35,7 @@ MidoriResult::CodeGeneratorResult CodeGenerator::GenerateCode(ProgramTree&& prog
 
 void CodeGenerator::operator()(Block& block)
 {
-	std::for_each(block.m_stmts.begin(), block.m_stmts.end(), [this](std::unique_ptr<Statement>& statement)
+	std::for_each(block.m_stmts.begin(), block.m_stmts.end(), [this](std::unique_ptr<MidoriStatement>& statement)
 		{
 			std::visit([this](auto&& arg) { (*this)(arg); }, *statement);
 		});
@@ -219,7 +219,7 @@ void CodeGenerator::operator()(Return& return_stmt)
 	EmitByte(OpCode::RETURN, line);
 }
 
-void CodeGenerator::operator()(Namespace& namespace_stmt)
+void CodeGenerator::operator()(Struct&)
 {
 	return;
 }
@@ -346,21 +346,41 @@ void CodeGenerator::operator()(Call& call)
 		return;
 	}
 
-	std::for_each(call.m_arguments.begin(), call.m_arguments.end(), [&line, this](std::unique_ptr<Expression>& arg) { std::visit([this](auto&& arg) {(*this)(arg); }, *arg); });
+	std::for_each(call.m_arguments.begin(), call.m_arguments.end(), [&line, this](std::unique_ptr<MidoriExpression>& arg) { std::visit([this](auto&& arg) {(*this)(arg); }, *arg); });
 	std::visit([this](auto&& arg) {(*this)(arg); }, *call.m_callee);
 
-	call.m_is_native ? EmitByte(OpCode::CALL_NATIVE, line) : EmitByte(OpCode::CALL_DEFINED, line);
-	EmitByte(static_cast<OpCode>(arity), line);
+	switch (call.m_semantic)
+	{
+	case FunctionSemantic::NATIVE:
+		EmitByte(OpCode::CALL_NATIVE, line);
+		break;
+	case FunctionSemantic::DEFINED:
+		EmitByte(OpCode::CALL_DEFINED, line);
+		EmitByte(static_cast<OpCode>(arity), line);
+		break;
+	default:
+		break; // Unreachable
+	}
+
 }
 
 void CodeGenerator::operator()(Get& get)
 {
-	return;
+	int line = get.m_member_name.m_line;
+
+	std::visit([this](auto&& arg) {(*this)(arg); }, *get.m_struct);
+	EmitByte(OpCode::GET_MEMBER, line);
+	EmitByte(static_cast<OpCode>(get.m_index), line);
 }
 
 void CodeGenerator::operator()(Set& set)
 {
-	return;
+	int line = set.m_member_name.m_line;
+
+	std::visit([this](auto&& arg) {(*this)(arg); }, *set.m_struct);
+	std::visit([this](auto&& arg) {(*this)(arg); }, *set.m_value);
+	EmitByte(OpCode::SET_MEMBER, line);
+	EmitByte(static_cast<OpCode>(set.m_index), line);
 }
 
 void CodeGenerator::operator()(Variable& variable)
@@ -383,7 +403,7 @@ void CodeGenerator::operator()(Variable& variable)
 			}
 			else
 			{
-				m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Bad Variable Expression.", variable.m_name.m_line));
+				m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Bad Variable MidoriExpression.", variable.m_name.m_line));
 				return;
 			}
 		}, variable.m_semantic);
@@ -411,7 +431,7 @@ void CodeGenerator::operator()(Bind& bind)
 			}
 			else
 			{
-				m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Bad Bind Expression.", bind.m_name.m_line));
+				m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Bad Bind MidoriExpression.", bind.m_name.m_line));
 				return;
 			}
 		}, bind.m_semantic);
@@ -475,19 +495,36 @@ void CodeGenerator::operator()(Closure& closure)
 	EmitThreeBytes(static_cast<int>(closure.m_captured_count), static_cast<int>(arity), static_cast<int>(closure_module_index), line);
 }
 
+void CodeGenerator::operator()(Construct& construct)
+{
+	int line = construct.m_new_keyword.m_line;
+	OpCode size = static_cast<OpCode>(construct.m_params.size());
+
+	EmitByte(OpCode::ALLOCATE_STRUCT, line);
+
+	std::for_each(construct.m_params.begin(), construct.m_params.end(), [this](std::unique_ptr<MidoriExpression>& param)
+		{
+			std::visit([this](auto&& arg) {(*this)(arg); }, *param);
+		});
+
+	EmitByte(OpCode::CONSTRUCT_STRUCT, line);
+	EmitByte(size, line);
+}
+
 void CodeGenerator::operator()(Array& array)
 {
 	int line = array.m_op.m_line;
 
 	int length = static_cast<int>(array.m_elems.size());
+	constexpr int three_byte_max = 16777215;
 
-	if (length > THREE_BYTE_MAX)
+	if (length > three_byte_max)
 	{
 		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too many array elements (max 16777215).", line));
 		return;
 	}
 
-	std::for_each(array.m_elems.begin(), array.m_elems.end(), [this](std::unique_ptr<Expression>& elem)
+	std::for_each(array.m_elems.begin(), array.m_elems.end(), [this](std::unique_ptr<MidoriExpression>& elem)
 		{
 			std::visit([this](auto&& arg) {(*this)(arg); }, *elem);
 		});
@@ -507,7 +544,7 @@ void CodeGenerator::operator()(ArrayGet& array_get)
 
 	std::visit([this](auto&& arg) {(*this)(arg); }, *array_get.m_arr_var);
 
-	std::for_each(array_get.m_indices.begin(), array_get.m_indices.end(), [this](std::unique_ptr<Expression>& index)
+	std::for_each(array_get.m_indices.begin(), array_get.m_indices.end(), [this](std::unique_ptr<MidoriExpression>& index)
 		{
 			std::visit([this](auto&& arg) {(*this)(arg); }, *index);
 		});
@@ -528,7 +565,7 @@ void CodeGenerator::operator()(ArraySet& array_set)
 
 	std::visit([this](auto&& arg) {(*this)(arg); }, *array_set.m_arr_var);
 
-	std::for_each(array_set.m_indices.begin(), array_set.m_indices.end(), [this](std::unique_ptr<Expression>& index)
+	std::for_each(array_set.m_indices.begin(), array_set.m_indices.end(), [this](std::unique_ptr<MidoriExpression>& index)
 		{
 			std::visit([this](auto&& arg) {(*this)(arg); }, *index);
 		});

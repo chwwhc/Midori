@@ -32,7 +32,7 @@ namespace Compiler
 			else
 			{
 				StaticAnalyzer static_analyzer;
-				ProgramTree program = std::move(parser_result.value());
+				MidoriProgramTree program = std::move(parser_result.value());
 				MidoriResult::StaticAnalyzerResult static_analyzer_result = static_analyzer.AnalyzeProgram(program);
 				if (static_analyzer_result.has_value())
 				{
@@ -40,7 +40,7 @@ namespace Compiler
 				}
 #ifdef DEBUG
 				PrintAbstractSyntaxTree ast_printer;
-				for (const std::unique_ptr<Statement>& statement : program)
+				for (const std::unique_ptr<MidoriStatement>& statement : program)
 				{
 					std::visit(ast_printer, *statement);
 				}

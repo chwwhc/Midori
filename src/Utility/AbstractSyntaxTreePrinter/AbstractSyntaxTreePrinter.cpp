@@ -11,7 +11,7 @@ void PrintAbstractSyntaxTree::PrintWithIndentation(int depth, std::string_view t
 void PrintAbstractSyntaxTree::operator()(const Block& block, int depth) const
 {
 	PrintWithIndentation(depth, "Block {");
-	std::for_each(block.m_stmts.cbegin(), block.m_stmts.cend(), [depth, this](const std::unique_ptr<Statement>& stmt)
+	std::for_each(block.m_stmts.cbegin(), block.m_stmts.cend(), [depth, this](const std::unique_ptr<MidoriStatement>& stmt)
 		{
 			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 1); }, *stmt);
 		});
@@ -100,12 +100,15 @@ void PrintAbstractSyntaxTree::operator()(const Return& return_stmt, int depth) c
 	PrintWithIndentation(depth, "}");
 }
 
-void PrintAbstractSyntaxTree::operator()(const Namespace& namespace_stmt, int depth) const
+void PrintAbstractSyntaxTree::operator()(const Struct& struct_stmt, int depth) const
 {
-	PrintWithIndentation(depth, "Namespace {");
-	PrintWithIndentation(depth + 1, "Name: " + namespace_stmt.m_name.m_lexeme);
-	PrintWithIndentation(depth + 1, "Body: ");
-	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *namespace_stmt.m_stmts);
+	PrintWithIndentation(depth, "Struct {");
+	PrintWithIndentation(depth + 1, "Name: " + struct_stmt.m_name.m_lexeme);
+	const StructType& struct_type = MidoriTypeUtil::GetStructType(*struct_stmt.m_self_type);
+	std::for_each(struct_type.m_member_types.cbegin(), struct_type.m_member_types.cend(), [depth, this](const std::pair<const std::string, StructType::MemberTypeInfo>& member_type)
+		{
+			PrintWithIndentation(depth + 1, MidoriTypeUtil::ToString(*member_type.second.second));
+		});
 	PrintWithIndentation(depth, "}");
 }
 
@@ -142,7 +145,7 @@ void PrintAbstractSyntaxTree::operator()(const Call& call, int depth) const
 	PrintWithIndentation(depth + 1, "Callee: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *call.m_callee);
 	PrintWithIndentation(depth + 1, "Args: ");
-	std::for_each(call.m_arguments.cbegin(), call.m_arguments.cend(), [depth, this](const std::unique_ptr<Expression>& arg)
+	std::for_each(call.m_arguments.cbegin(), call.m_arguments.cend(), [depth, this](const std::unique_ptr<MidoriExpression>& arg)
 		{
 			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *arg);
 		});
@@ -152,18 +155,18 @@ void PrintAbstractSyntaxTree::operator()(const Call& call, int depth) const
 void PrintAbstractSyntaxTree::operator()(const Get& get, int depth) const
 {
 	PrintWithIndentation(depth, "Get {");
-	PrintWithIndentation(depth + 1, "MidoriTraceable: ");
-	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *get.m_object);
-	PrintWithIndentation(depth + 1, "Name: " + get.m_name.m_lexeme);
+	PrintWithIndentation(depth + 1, "MidoriStruct: ");
+	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *get.m_struct);
+	PrintWithIndentation(depth + 1, "Name: " + get.m_member_name.m_lexeme);
 	PrintWithIndentation(depth, "}");
 }
 
 void PrintAbstractSyntaxTree::operator()(const Set& set, int depth) const
 {
 	PrintWithIndentation(depth, "Set {");
-	PrintWithIndentation(depth + 1, "MidoriTraceable: ");
-	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *set.m_object);
-	PrintWithIndentation(depth + 1, "Name: " + set.m_name.m_lexeme);
+	PrintWithIndentation(depth + 1, "MidoriStruct: ");
+	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *set.m_struct);
+	PrintWithIndentation(depth + 1, "Name: " + set.m_member_name.m_lexeme);
 	PrintWithIndentation(depth + 1, "Value: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *set.m_value);
 	PrintWithIndentation(depth, "}");
@@ -271,11 +274,23 @@ void PrintAbstractSyntaxTree::operator()(const Closure& closure, int depth) cons
 	PrintWithIndentation(depth, "}");
 }
 
+void PrintAbstractSyntaxTree::operator()(const Construct& construct, int depth) const
+{
+	PrintWithIndentation(depth, "Construct {");
+	PrintWithIndentation(depth + 1, "Type: " + MidoriTypeUtil::ToString(*construct.m_return_type));
+	PrintWithIndentation(depth + 1, "Params: ");
+	std::for_each(construct.m_params.cbegin(), construct.m_params.cend(), [depth, this](const std::unique_ptr<MidoriExpression>& expr)
+		{
+			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *expr);
+		});
+	PrintWithIndentation(depth, "}");
+}
+
 void PrintAbstractSyntaxTree::operator()(const Array& array, int depth) const
 {
 	PrintWithIndentation(depth, "Array {");
 	PrintWithIndentation(depth + 1, "Elements: ");
-	std::for_each(array.m_elems.cbegin(), array.m_elems.cend(), [depth, this](const std::unique_ptr<Expression>& element)
+	std::for_each(array.m_elems.cbegin(), array.m_elems.cend(), [depth, this](const std::unique_ptr<MidoriExpression>& element)
 		{
 			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *element);
 		});
@@ -288,7 +303,7 @@ void PrintAbstractSyntaxTree::operator()(const ArrayGet& array_get, int depth) c
 	PrintWithIndentation(depth + 1, "Array: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *array_get.m_arr_var);
 	PrintWithIndentation(depth + 1, "Index: ");
-	std::for_each(array_get.m_indices.cbegin(), array_get.m_indices.cend(), [depth, this](const std::unique_ptr<Expression>& index)
+	std::for_each(array_get.m_indices.cbegin(), array_get.m_indices.cend(), [depth, this](const std::unique_ptr<MidoriExpression>& index)
 		{
 			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *index);
 		});
@@ -301,7 +316,7 @@ void PrintAbstractSyntaxTree::PrintAbstractSyntaxTree::operator()(const ArraySet
 	PrintWithIndentation(depth + 1, "Array: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *array_set.m_arr_var);
 	PrintWithIndentation(depth + 1, "Index: ");
-	std::for_each(array_set.m_indices.cbegin(), array_set.m_indices.cend(), [depth, this](const std::unique_ptr<Expression>& index)
+	std::for_each(array_set.m_indices.cbegin(), array_set.m_indices.cend(), [depth, this](const std::unique_ptr<MidoriExpression>& index)
 		{
 			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *index);
 		});

@@ -131,6 +131,26 @@ namespace
 		std::cout << ' ' << std::dec << operand;
 		std::cout << two_tabs << std::setw(comment_width) << " // number of parameters: " << std::dec << operand << std::setfill(' ') << std::endl;
 	}
+
+	void MemberInstruction(std::string_view name, const BytecodeStream& stream, int& offset)
+	{
+		int operand = static_cast<int>(stream.ReadByteCode(offset + 1));
+		offset += 2;
+
+		std::cout << std::left << std::setw(instr_width) << name;
+		std::cout << ' ' << std::dec << operand;
+		std::cout << two_tabs << std::setw(comment_width) << " // member index: " << std::dec << operand << std::setfill(' ') << std::endl;
+	}
+
+	void StructInstruction(std::string_view name, const BytecodeStream& stream, int& offset)
+	{
+		int operand = static_cast<int>(stream.ReadByteCode(offset + 1));
+		offset += 2;
+
+		std::cout << std::left << std::setw(instr_width) << name;
+		std::cout << ' ' << std::dec << operand;
+		std::cout << two_tabs << std::setw(comment_width) << " // struct size: " << std::dec << operand << std::setfill(' ') << std::endl;
+	}
 }
 
 namespace Disassembler
@@ -155,7 +175,7 @@ namespace Disassembler
 		if (offset > 0 && stream.GetLine(offset) == stream.GetLine(offset - 1))
 		{
 			std::cout << "|" << std::setfill(' ');
-		} 
+		}
 		else
 		{
 			std::cout << std::dec << stream.GetLine(offset) << std::setfill(' ');
@@ -303,10 +323,16 @@ namespace Disassembler
 			JumpInstruction("JUMP_BACK", -1, stream, offset);
 			break;
 		case OpCode::CALL_NATIVE:
-			CallInstruction("CALL_NATIVE", stream, offset);
+			SimpleInstruction("CALL_NATIVE", offset);
 			break;
 		case OpCode::CALL_DEFINED:
 			CallInstruction("CALL_DEFINED", stream, offset);
+			break;
+		case OpCode::CONSTRUCT_STRUCT:
+			StructInstruction("CONSTRUCT_STRUCT", stream, offset);
+			break;
+		case OpCode::ALLOCATE_STRUCT:
+			SimpleInstruction("ALLOCATE_STRUCT", offset);
 			break;
 		case OpCode::CREATE_CLOSURE:
 			ClosureCreateInstruction("CREATE_CLOSURE", stream, offset);
@@ -331,6 +357,12 @@ namespace Disassembler
 			break;
 		case OpCode::SET_CELL:
 			LocalOrCellVariableInstruction("SET_CELL", stream, offset);
+			break;
+		case OpCode::GET_MEMBER:
+			MemberInstruction("GET_MEMBER", stream, offset);
+			break;
+		case OpCode::SET_MEMBER:
+			MemberInstruction("SET_MEMBER", stream, offset);
 			break;
 		case OpCode::POP:
 			SimpleInstruction("POP", offset);

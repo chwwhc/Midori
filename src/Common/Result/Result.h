@@ -33,9 +33,9 @@ namespace MidoriResult
 
 	using TokenResult = std::expected<Token, std::string>;
 	using LexerResult = std::expected<TokenStream, std::vector<std::string>>;
-	using ExpressionResult = std::expected<std::unique_ptr<Expression>, std::string>;
-	using StatementResult = std::expected<std::unique_ptr<Statement>, std::string>;
-	using ParserResult = std::expected<ProgramTree, std::vector<std::string>>;
+	using ExpressionResult = std::expected<std::unique_ptr<MidoriExpression>, std::string>;
+	using StatementResult = std::expected<std::unique_ptr<MidoriStatement>, std::string>;
+	using ParserResult = std::expected<MidoriProgramTree, std::vector<std::string>>;
 	using TypeResult = std::expected<std::shared_ptr<MidoriType>, std::string>;
 	using StaticAnalyzerResult = std::optional<std::vector<std::string>>;
 	using CodeGeneratorResult = std::expected<ExecutableModule, std::vector<std::string>>;

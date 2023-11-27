@@ -41,7 +41,7 @@ private:
 
 public:
 
-	MidoriResult::CodeGeneratorResult GenerateCode(ProgramTree&& program_tree);
+	MidoriResult::CodeGeneratorResult GenerateCode(MidoriProgramTree&& program_tree);
 
 private:
 
@@ -167,7 +167,7 @@ private:
 
 	void operator()(Return& return_stmt);
 
-	void operator()(Namespace& namespace_stmt);
+	void operator()(Struct& struct_stmt);
 
 	void operator()(Binary& binary);
 
@@ -196,6 +196,8 @@ private:
 	void operator()(UnitLiteral& unit);
 
 	void operator()(Closure& closure);
+
+	void operator()(Construct& construct);
 
 	void operator()(Array& array);
 

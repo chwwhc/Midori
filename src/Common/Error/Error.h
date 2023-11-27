@@ -59,7 +59,7 @@ public:
 				expected_types.append(MidoriTypeUtil::ToString(*expected[i]));
 				if (i != expected.size() - 1)
 				{
-					expected_types.append(", ");
+					expected_types.append(" or ");
 				}
 			}
 		}

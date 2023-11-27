@@ -24,7 +24,7 @@ struct PrintAbstractSyntaxTree
 
 	void operator()(const Return& return_stmt, int depth = 0) const;
 
-	void operator()(const Namespace& namespace_stmt, int depth = 0) const;
+	void operator()(const Struct& struct_stmt, int depth = 0) const;
 
 	void operator()(const Binary& binary, int depth = 0) const;
 
@@ -53,6 +53,8 @@ struct PrintAbstractSyntaxTree
 	void operator()(const UnitLiteral&, int depth = 0) const;
 
 	void operator()(const Closure& closure, int depth = 0) const;
+
+	void operator()(const Construct& construct, int depth = 0) const;
 
 	void operator()(const Array& array, int depth = 0) const;
 

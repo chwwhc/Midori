@@ -10,7 +10,7 @@ private:
 	TypeChecker m_type_checker;
 
 public:
-	MidoriResult::StaticAnalyzerResult AnalyzeProgram(ProgramTree& prog)
+	MidoriResult::StaticAnalyzerResult AnalyzeProgram(MidoriProgramTree& prog)
 	{
 		return m_type_checker.TypeCheck(prog);
 	}

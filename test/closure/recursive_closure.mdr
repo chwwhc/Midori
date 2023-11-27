@@ -8,8 +8,8 @@ var factorial := makeRecursive(5);
 
 fixed main := closure() : Integer
 {
-	factorial = makeRecursive(6);
-	factorial(6);  // Should print 120
+	factorial = makeRecursive(5);
+	PrintLine(factorial(5));  // Should print 120
 
 	return 0;
 };
