@@ -322,8 +322,8 @@ namespace Disassembler
 		case OpCode::JUMP_BACK:
 			JumpInstruction("JUMP_BACK", -1, stream, offset);
 			break;
-		case OpCode::CALL_NATIVE:
-			SimpleInstruction("CALL_NATIVE", offset);
+		case OpCode::CALL_FOREIGN:
+			CallInstruction("CALL_FOREIGN", stream, offset);
 			break;
 		case OpCode::CALL_DEFINED:
 			CallInstruction("CALL_DEFINED", stream, offset);

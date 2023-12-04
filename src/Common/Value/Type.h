@@ -6,13 +6,6 @@
 #include <string>
 #include <unordered_map>
 
-enum class FunctionSemantic : uint8_t
-{
-	NATIVE,
-	DEFINED,
-	CONSTRUCTOR,
-};
-
 struct FractionType {};
 struct IntegerType {};
 struct TextType {};
@@ -34,7 +27,7 @@ struct FunctionType
 {
 	std::vector<std::shared_ptr<MidoriType>> m_param_types;
 	std::shared_ptr<MidoriType> m_return_type;
-	FunctionSemantic m_semantic;
+	bool m_is_foreign = false;
 };
 
 struct MaybeType

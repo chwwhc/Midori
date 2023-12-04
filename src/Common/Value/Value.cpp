@@ -3,6 +3,53 @@
 #include <algorithm>
 #include <iostream>
 
+namespace
+{
+	std::string ConvertToQuotedString(std::string_view input) 
+	{
+		std::string result = "\"";
+
+		for (char c : input) 
+		{
+			switch (c) {
+			case '\n': 
+			{
+				result.append("\\n");
+				break;
+			}
+			case '\t':
+			{
+				result.append("\\t");
+				break;
+			}
+			case '\r':
+			{
+				result.append("\\r");
+				break;
+			}
+			case '\\': 
+			{
+				result.append("\\\\");
+				break;
+			}
+			case '\"': 
+			{
+				result.append("\\\"");
+				break;
+			}
+			default: 
+			{
+				result.push_back(c);
+			}
+			}
+		}
+
+		result.append("\"");
+
+		return result;
+	}
+}
+
 std::string MidoriValue::ToString() const
 {
 	return std::visit([](auto&& arg) -> std::string
@@ -43,7 +90,7 @@ std::string MidoriTraceable::ToString() const
 			using T = std::decay_t<decltype(arg)>;
 			if constexpr (std::is_same_v<T, MidoriText>)
 			{
-				return arg;
+				return ConvertToQuotedString(arg);
 			}
 			else if constexpr (std::is_same_v<T, MidoriArray>)
 			{
@@ -64,10 +111,6 @@ std::string MidoriTraceable::ToString() const
 			else if constexpr (std::is_same_v<T, Closure>)
 			{
 				return "<closure at: " + std::to_string(reinterpret_cast<uintptr_t>(&arg)) + ">";
-			}
-			else if constexpr (std::is_same_v<T, NativeFunction>)
-			{
-				return "<native function " + std::string(arg.m_name) + ">";
 			}
 			else if constexpr (std::is_same_v<T, MidoriStruct>)
 			{

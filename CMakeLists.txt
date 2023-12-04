@@ -25,20 +25,27 @@ endif()
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR}/src)
 
-# Source files for the main executable including MidoriStdLib
+# Source files for the main executable
 file(GLOB_RECURSE SRC_FILES
     "src/*.h"
     "src/*.cpp"
-    "src/Library/*.h"
-    "src/Library/*.cpp"
 )
 
 # Add source to this project's executable.
 add_executable(Midori ${SRC_FILES})
 
+# Source files for the standard library DLL
+file(GLOB_RECURSE STD_LIB_SRC_FILES
+    "src/Library/*.h"
+    "src/Library/*.cpp"
+)
+
+# Add standard library as a dynamically linked library
+add_library(MidoriStdLib SHARED ${STD_LIB_SRC_FILES})
+
 # Set the output name for Unix-like systems to follow naming convention
 if (UNIX)
-    set_target_properties(Midori PROPERTIES OUTPUT_NAME "libMidoriStdLib")
+    set_target_properties(MidoriStdLib PROPERTIES OUTPUT_NAME "libMidoriStdLib")
 endif()
 
 # Specify where to put the build artifacts (this makes sure they go into 'out')
@@ -62,3 +69,6 @@ if (MSVC)
     $<$<CONFIG:Release>:/DEBUG /OPT:REF /OPT:ICF>
   )
 endif()
+
+# Link against any necessary libraries
+# target_link_libraries(MidoriStdLib <OtherLibraries>)

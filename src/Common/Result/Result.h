@@ -37,7 +37,7 @@ namespace MidoriResult
 	using StatementResult = std::expected<std::unique_ptr<MidoriStatement>, std::string>;
 	using ParserResult = std::expected<MidoriProgramTree, std::vector<std::string>>;
 	using TypeResult = std::expected<std::shared_ptr<MidoriType>, std::string>;
-	using StaticAnalyzerResult = std::optional<std::vector<std::string>>;
+	using TypeCheckerResult = std::optional<std::vector<std::string>>;
 	using CodeGeneratorResult = std::expected<ExecutableModule, std::vector<std::string>>;
 	using CompilerResult = std::expected<ExecutableModule, std::vector<std::string>>;
 }

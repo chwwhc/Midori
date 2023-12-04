@@ -40,9 +40,10 @@ struct For;
 struct Break;
 struct Continue;
 struct Return;
+struct Foreign;
 struct Struct;
 
-using MidoriStatement = std::variant<Block, Simple, Define, If, While, For, Break, Continue, Return, Struct>;
+using MidoriStatement = std::variant<Block, Simple, Define, If, While, For, Break, Continue, Return, Foreign, Struct>;
 using MidoriProgramTree = std::vector<std::unique_ptr<MidoriStatement>>;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -125,7 +126,7 @@ struct Call
 	Token m_paren;
 	std::unique_ptr<MidoriExpression> m_callee;
 	std::vector<std::unique_ptr<MidoriExpression>> m_arguments;
-	FunctionSemantic m_semantic;
+	bool m_is_foreign = false;
 };
 
 struct Closure
@@ -256,6 +257,13 @@ struct Return
 {
 	Token m_keyword;
 	std::unique_ptr<MidoriExpression> m_value;
+};
+
+struct Foreign
+{
+	Token m_function_name;
+	std::shared_ptr<MidoriType> m_type;
+	std::optional<int> m_local_index;
 };
 
 struct Struct

@@ -2,7 +2,7 @@
 #include "Compiler/Lexer/Lexer.h"
 #include "Compiler/Parser/Parser.h"
 #include "Compiler/CodeGenerator/CodeGenerator.h"
-#include "StaticAnalyzer/StaticAnalyzer.h"
+#include "TypeChecker/TypeChecker.h"
 
 
 #ifdef DEBUG
@@ -31,12 +31,12 @@ namespace Compiler
 			}
 			else
 			{
-				StaticAnalyzer static_analyzer;
+				TypeChecker type_checker;
 				MidoriProgramTree program = std::move(parser_result.value());
-				MidoriResult::StaticAnalyzerResult static_analyzer_result = static_analyzer.AnalyzeProgram(program);
-				if (static_analyzer_result.has_value())
+				MidoriResult::TypeCheckerResult type_checker_result = type_checker.TypeCheck(program);
+				if (type_checker_result.has_value())
 				{
-					return std::unexpected<std::vector<std::string>>(std::move(static_analyzer_result.value()));
+					return std::unexpected<std::vector<std::string>>(std::move(type_checker_result.value()));
 				}
 #ifdef DEBUG
 				PrintAbstractSyntaxTree ast_printer;

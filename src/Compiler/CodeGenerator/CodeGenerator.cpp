@@ -2,8 +2,6 @@
 
 MidoriResult::CodeGeneratorResult CodeGenerator::GenerateCode(MidoriProgramTree&& program_tree)
 {
-	SetUpNativeFunctions();
-
 	std::for_each(program_tree.begin(), program_tree.end(), [this](std::unique_ptr<MidoriStatement>& statement)
 		{
 			std::visit([this](auto&& arg) { (*this)(arg); }, *statement);
@@ -219,6 +217,26 @@ void CodeGenerator::operator()(Return& return_stmt)
 	EmitByte(OpCode::RETURN, line);
 }
 
+void CodeGenerator::operator()(Foreign& foreign)
+{
+	int line = foreign.m_function_name.m_line;
+	bool is_global = !foreign.m_local_index.has_value();
+	std::optional<int> index = std::nullopt;
+	if (is_global)
+	{
+		std::string foreign_function_name = foreign.m_function_name.m_lexeme;
+		index.emplace(m_global_table.AddGlobalVariable(std::move(foreign_function_name)));
+		m_global_variables[foreign.m_function_name.m_lexeme] = index.value();
+	}
+
+	EmitConstant(MidoriTraceable::AllocateObject(std::move(foreign.m_function_name.m_lexeme)), foreign.m_function_name.m_line);
+
+	if (is_global)
+	{
+		EmitVariable(index.value(), OpCode::DEFINE_GLOBAL, line);
+	}
+}
+
 void CodeGenerator::operator()(Struct&)
 {
 	return;
@@ -349,19 +367,16 @@ void CodeGenerator::operator()(Call& call)
 	std::for_each(call.m_arguments.begin(), call.m_arguments.end(), [&line, this](std::unique_ptr<MidoriExpression>& arg) { std::visit([this](auto&& arg) {(*this)(arg); }, *arg); });
 	std::visit([this](auto&& arg) {(*this)(arg); }, *call.m_callee);
 
-	switch (call.m_semantic)
+	if (call.m_is_foreign)
 	{
-	case FunctionSemantic::NATIVE:
-		EmitByte(OpCode::CALL_NATIVE, line);
-		break;
-	case FunctionSemantic::DEFINED:
+		EmitByte(OpCode::CALL_FOREIGN, line);
+	}
+	else
+	{
 		EmitByte(OpCode::CALL_DEFINED, line);
-		EmitByte(static_cast<OpCode>(arity), line);
-		break;
-	default:
-		break; // Unreachable
 	}
 
+	EmitByte(static_cast<OpCode>(arity), line);
 }
 
 void CodeGenerator::operator()(Get& get)
@@ -588,11 +603,4 @@ void CodeGenerator::operator()(Ternary& ternary)
 	EmitByte(OpCode::POP, line);
 	std::visit([this](auto&& arg) {(*this)(arg); }, *ternary.m_else_branch);
 	PatchJump(jump, line);
-}
-
-void CodeGenerator::SetUpNativeFunctions()
-{
-	std::string variable_name = "PrintLine";
-	int index = m_global_table.AddGlobalVariable(std::move(variable_name));
-	m_global_variables["PrintLine"] = index;
 }

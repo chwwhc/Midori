@@ -30,7 +30,7 @@ const std::unordered_map<std::string, Token::Name> Lexer::s_keywords =
 	{"struct", Token::Name::STRUCT},
 	{"union", Token::Name::UNION},
 	{"new", Token::Name::NEW},
-	{"extern", Token::Name::EXTERN},
+	{"foreign", Token::Name::FOREIGN },
 	{"Just", Token::Name::JUST},
 	{"None", Token::Name::NONE},
 };

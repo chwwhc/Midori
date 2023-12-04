@@ -24,6 +24,8 @@ struct PrintAbstractSyntaxTree
 
 	void operator()(const Return& return_stmt, int depth = 0) const;
 
+	void operator()(const Foreign& foreign, int depth = 0) const;
+
 	void operator()(const Struct& struct_stmt, int depth = 0) const;
 
 	void operator()(const Binary& binary, int depth = 0) const;

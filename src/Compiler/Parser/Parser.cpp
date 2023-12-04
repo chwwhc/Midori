@@ -62,11 +62,6 @@ MidoriResult::ExpressionResult Parser::ParseBind()
 		if (std::holds_alternative<Variable>(*expr.value()))
 		{
 			Variable& variable_expr = std::get<Variable>(*expr.value());
-			// native function
-			if (m_native_functions.find(variable_expr.m_name.m_lexeme) != m_native_functions.end())
-			{
-				return std::unexpected<std::string>(GenerateParserError("Cannot bind to a native function.", variable_expr.m_name));
-			}
 
 			std::vector<Scope>::reverse_iterator found_scope_it = std::find_if(m_scopes.rbegin(), m_scopes.rend(), [&variable_expr](const Scope& scope)
 				{
@@ -344,11 +339,6 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 	{
 		Token& variable = Previous();
 
-		if (m_native_functions.find(variable.m_lexeme) != m_native_functions.end())
-		{
-			return std::make_unique<MidoriExpression>(Variable(std::move(Previous()), VariableSemantic::Global()));
-		}
-
 		std::vector<Scope>::reverse_iterator found_scope_it = std::find_if(m_scopes.rbegin(), m_scopes.rend(), [&variable](const Scope& scope)
 			{
 				return scope.find(variable.m_lexeme) != scope.end();
@@ -601,28 +591,14 @@ MidoriResult::ExpressionResult Parser::ParseLogicalOr()
 
 MidoriResult::StatementResult Parser::ParseDeclaration()
 {
-	if (Match(Token::Name::VAR, Token::Name::FIXED))
-	{
-		return ParseDefineStatement();
-	}
-	else if (Match(Token::Name::STRUCT))
-	{
-		return ParseStructDeclaration();
-	}
-	return ParseStatement();
+	constexpr bool may_throw_error = false;
+	return ParseDeclarationCommon(may_throw_error);
 }
 
-MidoriResult::StatementResult Parser::ParseDeclarationHelper()
+MidoriResult::StatementResult Parser::ParseGlobalDeclaration()
 {
-	if (Match(Token::Name::VAR, Token::Name::FIXED))
-	{
-		return ParseDefineStatement();
-	}
-	else if (Match(Token::Name::STRUCT))
-	{
-		return ParseStructDeclaration();
-	}
-	return std::unexpected<std::string>(GenerateParserError("Expected declaration.", Peek(0)));
+	constexpr bool may_throw_error = true;
+	return ParseDeclarationCommon(may_throw_error);
 }
 
 MidoriResult::StatementResult Parser::ParseBlockStatement()
@@ -1032,6 +1008,49 @@ MidoriResult::StatementResult Parser::ParseReturnStatement()
 	return std::make_unique<MidoriStatement>(Return(std::move(keyword), std::move(expr.value())));
 }
 
+MidoriResult::StatementResult Parser::ParseForeignStatement()
+{
+	MidoriResult::TokenResult name = Consume(Token::Name::IDENTIFIER_LITERAL, "Expected foreign function name.");
+	if (!name.has_value())
+	{
+		return std::unexpected<std::string>(std::move(name.error()));
+	}
+
+	MidoriResult::TokenResult colon = Consume(Token::Name::SINGLE_COLON, "Expected ':' before foreign function type.");
+	if (!colon.has_value())
+	{
+		return std::unexpected<std::string>(std::move(colon.error()));
+	}
+
+	constexpr bool is_fixed = true;
+	name = DefineName(name.value(), is_fixed);
+	if (!name.has_value())
+	{
+		return std::unexpected<std::string>(std::move(name.error()));
+	}
+	std::optional<int> local_index = GetLocalVariableIndex(name.value().m_lexeme, is_fixed);
+
+	MidoriResult::TypeResult type = ParseType();
+	if (!type.has_value())
+	{
+		return std::unexpected<std::string>(std::move(type.error()));
+	}
+	else if (!MidoriTypeUtil::IsFunctionType(*type.value()))
+	{
+		return std::unexpected<std::string>(GenerateParserError("'foreign' only applies to function types.", name.value()));
+	}
+	FunctionType& function_type = const_cast<FunctionType&>(MidoriTypeUtil::GetFunctionType(*type.value()));
+	function_type.m_is_foreign = true;
+
+	MidoriResult::TokenResult semi_colon = Consume(Token::Name::SINGLE_SEMICOLON, "Expected ';' after foreign function type.");
+	if (!semi_colon.has_value())
+	{
+		return std::unexpected<std::string>(std::move(semi_colon.error()));
+	}
+
+	return std::make_unique<MidoriStatement>(Foreign(std::move(name.value()), std::move(type.value()), std::move(local_index)));
+}
+
 
 MidoriResult::StatementResult Parser::ParseStatement()
 {
@@ -1149,7 +1168,7 @@ MidoriResult::TypeResult Parser::ParseType()
 		}
 		else
 		{
-			return std::make_shared<MidoriType>(FunctionType(std::move(types), std::move(return_type.value()), FunctionSemantic::DEFINED));
+			return std::make_shared<MidoriType>(FunctionType(std::move(types), std::move(return_type.value())));
 		}
 	}
 	else if (Match(Token::Name::IDENTIFIER_LITERAL))
@@ -1222,6 +1241,28 @@ bool Parser::HasReturnStatement(const MidoriStatement& stmt)
 		}, stmt);
 }
 
+MidoriResult::StatementResult Parser::ParseDeclarationCommon(bool may_throw_error)
+{
+	if (Match(Token::Name::VAR, Token::Name::FIXED)) 
+	{
+		return ParseDefineStatement();
+	}
+	else if (Match(Token::Name::STRUCT)) 
+	{
+		return ParseStructDeclaration();
+	}
+	else if (Match(Token::Name::FOREIGN)) 
+	{
+		return ParseForeignStatement();
+	}
+
+	if (may_throw_error) 
+	{
+		return std::unexpected<std::string>(GenerateParserError("Expected declaration.", Peek(0)));
+	}
+	return ParseStatement();
+}
+
 MidoriResult::ParserResult Parser::Parse()
 {
 	MidoriProgramTree programTree;
@@ -1230,7 +1271,7 @@ MidoriResult::ParserResult Parser::Parse()
 	BeginScope();
 	while (!IsAtEnd())
 	{
-		MidoriResult::StatementResult result = ParseDeclarationHelper();
+		MidoriResult::StatementResult result = ParseGlobalDeclaration();
 		if (result.has_value())
 		{
 			programTree.emplace_back(std::move(result.value()));

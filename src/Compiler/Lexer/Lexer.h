@@ -28,7 +28,7 @@ private:
 
     inline bool IsAtEnd(int offset) { return m_current + offset >= static_cast<int>(m_source_code.size()); }
 
-    inline bool IsDigit(char c) { return c >= '0' && c <= '9'; }
+    inline bool IsDigit(char c) { return isdigit(c); }
 
     inline bool IsAlpha(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c == '_'); }
 

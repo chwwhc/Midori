@@ -7,7 +7,6 @@
 #include "Common/Value/StaticData.h"
 #include "Common/Value/GlobalVariableTable.h"
 #include "Interpreter/GarbageCollector/GarbageCollector.h"
-#include "Interpreter/NativeFunction/NativeFunction.h"
 
 #include <array>
 #include <functional>
@@ -35,27 +34,7 @@ class VirtualMachine
 public:
 
 	VirtualMachine(MidoriResult::ExecutableModule&& executable_module) : m_executable_module(std::move(executable_module)), m_garbage_collector(std::move(m_executable_module.m_constant_roots)),
-		m_current_bytecode(&m_executable_module.m_modules[0]), m_instruction_pointer(m_current_bytecode->cbegin()) 
-	{
-#ifdef _WIN32
-		m_library_handle = LoadLibrary("./MidoriStdLib.dll");
-#else
-		m_library_handle = dlopen("./libMidoriStdLib.so", RTLD_LAZY);
-#endif
-
-		if (!m_library_handle)
-		{
-#ifdef _WIN32
-			FreeLibrary(m_library_handle);
-#else
-			dlclose(m_library_handle);
-#endif
-			std::cerr << "Failed to load the Midori std library." << std::endl;
-			std::exit(1);
-		}
-
-		GetProcAddress(m_library_handle, "Print")();
-	}
+		m_current_bytecode(&m_executable_module.m_modules[0]), m_instruction_pointer(m_current_bytecode->cbegin()) {}
 
 	~VirtualMachine() 
 	{ 
@@ -77,7 +56,6 @@ private:
 	using StackPointer = std::array<T, Size>::iterator;
 	using InstructionPointer = BytecodeStream::const_iterator;
 	using GlobalVariables = std::unordered_map<std::string, MidoriValue>;
-	friend class NativeFunction;
 
 	struct CallFrame
 	{

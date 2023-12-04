@@ -9,9 +9,9 @@ fixed foo := closure() : Unit
 		};
 	}
 
-	PrintLine(arr[0]());  // Should print 3, due to late binding
-	PrintLine(arr[1]());  // Should print 3
-	PrintLine(arr[2]());  // Should print 3
+	PrintLine(arr[0]());  // Should print 0
+	PrintLine(arr[1]());  // Should print 1
+	PrintLine(arr[2]());  // Should print 2
 	
 	return #;
 };

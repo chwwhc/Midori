@@ -62,14 +62,12 @@ private:
 
 	inline void EmitConstant(MidoriValue&& value, int line)
 	{
-		/*
 		if (value.IsObjectPointer())
 		{
 			MidoriTraceable* traceable = static_cast<MidoriTraceable*>(value.GetObjectPointer());
 			m_traceable_constants.emplace(traceable);
 			MidoriTraceable::s_static_bytes_allocated += traceable->GetSize();
 		}
-		*/
 
 		int index = m_static_data.AddConstant(std::move(value));
 
@@ -169,6 +167,8 @@ private:
 
 	void operator()(Return& return_stmt);
 
+	void operator()(Foreign& foreign);
+
 	void operator()(Struct& struct_stmt);
 
 	void operator()(Binary& binary);
@@ -208,6 +208,4 @@ private:
 	void operator()(ArraySet& array_set);
 
 	void operator()(Ternary& ternary);
-
-	void SetUpNativeFunctions();
 };

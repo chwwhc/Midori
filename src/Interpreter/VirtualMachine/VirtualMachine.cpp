@@ -74,10 +74,24 @@ void VirtualMachine::CollectGarbage()
 
 void VirtualMachine::Execute()
 {
-	NativeFunction::InitializeNativeFunctions(*this);
-
 	try
 	{
+#ifdef _WIN32
+		m_library_handle = LoadLibrary("./MidoriStdLib.dll");
+#else
+		m_library_handle = dlopen("./libMidoriStdLib.so", RTLD_LAZY);
+#endif
+
+		if (m_library_handle == NULL)
+		{
+#ifdef _WIN32
+			FreeLibrary(m_library_handle);
+#else
+			dlclose(m_library_handle);
+#endif
+			throw InterpreterException("Failed to load the standard library.");
+		}
+
 		while (true)
 		{
 #ifdef DEBUG
@@ -493,11 +507,24 @@ void VirtualMachine::Execute()
 				m_instruction_pointer -= offset;
 				break;
 			}
-			case OpCode::CALL_NATIVE:
+			case OpCode::CALL_FOREIGN:
 			{
-				const MidoriValue& callable = Pop();
-				MidoriTraceable::NativeFunction& native_function = callable.GetObjectPointer()->GetNativeFunction();
-				native_function.m_cpp_function();
+				const MidoriValue& foreign_function_name = Pop();
+				int arity = static_cast<int>(ReadByte());
+				MidoriTraceable::MidoriText& foreign_function_name_ref = foreign_function_name.GetObjectPointer()->GetText();
+
+				FARPROC proc = GetProcAddress(m_library_handle, foreign_function_name_ref.c_str());
+				if (proc == NULL)
+				{
+					throw InterpreterException(GenerateRuntimeError(std::format("Failed to load foreign function '{}'.", foreign_function_name_ref), GetLine()));
+				}
+
+				void(*ffi)(MidoriValue*) = reinterpret_cast<void(*)(MidoriValue*)>(proc);
+				MidoriValue& arg = Pop();
+				ffi(&arg);
+
+				Push(MidoriValue());
+
 				break;
 			}
 			case OpCode::CALL_DEFINED:

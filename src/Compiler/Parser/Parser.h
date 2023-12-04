@@ -29,7 +29,6 @@ private:
 	TokenStream m_tokens;
 	std::vector<Scope> m_scopes;
 	std::stack<int> m_local_count_before_loop;
-	std::unordered_set<std::string> m_native_functions;
 	std::unordered_map<std::string, std::shared_ptr<MidoriType>> m_structs;
 	int m_closure_depth = 0;
 	int m_current_token_index = 0;
@@ -39,10 +38,7 @@ private:
 	bool m_error = false;
 
 public:
-	explicit Parser(TokenStream&& tokens) : m_tokens(std::move(tokens))
-	{
-		m_native_functions.emplace("PrintLine");
-	}
+	explicit Parser(TokenStream&& tokens) : m_tokens(std::move(tokens)) {}
 
 	MidoriResult::ParserResult Parse();
 
@@ -132,7 +128,7 @@ private:
 		Scope::const_iterator it = m_scopes.back().find(name.m_lexeme);
 		if (it != m_scopes.back().cend())
 		{
-			return std::unexpected<std::string>(MidoriError::GenerateParserError("MidoriType already declared in this scope.", name));
+			return std::unexpected<std::string>(MidoriError::GenerateParserError("Name already declared in this scope.", name));
 		}
 		else
 		{
@@ -203,9 +199,11 @@ private:
 
 	MidoriResult::ExpressionResult ParseLogicalOr();
 
+	MidoriResult::StatementResult ParseDeclarationCommon(bool may_throw_error);
+
 	MidoriResult::StatementResult ParseDeclaration();
 
-	MidoriResult::StatementResult ParseDeclarationHelper();
+	MidoriResult::StatementResult ParseGlobalDeclaration();
 
 	MidoriResult::StatementResult ParseBlockStatement();
 
@@ -226,6 +224,8 @@ private:
 	MidoriResult::StatementResult ParseSimpleStatement();
 
 	MidoriResult::StatementResult ParseReturnStatement();
+
+	MidoriResult::StatementResult ParseForeignStatement();
 
 	MidoriResult::StatementResult ParseStatement();
 };

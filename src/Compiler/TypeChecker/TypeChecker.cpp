@@ -5,10 +5,9 @@
 #include <iterator>
 #include <format>
 
-MidoriResult::StaticAnalyzerResult TypeChecker::TypeCheck(MidoriProgramTree& program_tree)
+MidoriResult::TypeCheckerResult TypeChecker::TypeCheck(MidoriProgramTree& program_tree)
 {
-	TypeChecker::TypeEnvironment&& global_env = { {"PrintLine", std::make_shared<MidoriType>(FunctionType({std::make_shared<MidoriType>(IntegerType())}, std::make_shared<MidoriType>(UnitType()), FunctionSemantic::NATIVE))} };
-	m_name_type_table.emplace_back(global_env);
+	m_name_type_table.emplace_back();
 	std::for_each(program_tree.begin(), program_tree.end(), [this](std::unique_ptr<MidoriStatement>& statement)
 		{
 			std::visit([this](auto&& arg) { (*this)(arg); }, *statement);
@@ -50,7 +49,7 @@ void TypeChecker::operator()(Define& def)
 	if (std::holds_alternative<Closure>(*def.m_value))
 	{
 		Closure& closure = std::get<Closure>(*def.m_value);
-		m_name_type_table.back().emplace(def.m_name.m_lexeme, std::make_shared<MidoriType>(FunctionType(closure.m_param_types, closure.m_return_type, FunctionSemantic::DEFINED)));
+		m_name_type_table.back().emplace(def.m_name.m_lexeme, std::make_shared<MidoriType>(FunctionType(closure.m_param_types, closure.m_return_type)));
 		const MidoriType& actual_type = *m_name_type_table.back()[def.m_name.m_lexeme];
 
 		BeginScope();
@@ -241,6 +240,11 @@ void TypeChecker::operator()(Return& return_stmt)
 	}
 }
 
+void TypeChecker::operator()(Foreign& foreign)
+{
+	m_name_type_table.back()[foreign.m_function_name.m_lexeme] = foreign.m_type;
+}
+
 void TypeChecker::operator()(Struct& struct_stmt)
 {
 	const StructType& struct_type = MidoriTypeUtil::GetStructType(*struct_stmt.m_self_type);
@@ -419,7 +423,7 @@ MidoriResult::TypeResult TypeChecker::operator()(Call& call)
 		}
 	}
 
-	call.m_semantic = function_type.m_semantic;
+	call.m_is_foreign = function_type.m_is_foreign;
 
 	return function_type.m_return_type;
 }
@@ -578,7 +582,7 @@ MidoriResult::TypeResult TypeChecker::operator()(Closure& closure)
 	EndScope();
 
 	m_curr_closure_return_type = std::move(prev_return_type);
-	return std::make_shared<MidoriType>(FunctionType(std::move(closure.m_param_types), std::move(closure.m_return_type), FunctionSemantic::DEFINED));
+	return std::make_shared<MidoriType>(FunctionType(std::move(closure.m_param_types), std::move(closure.m_return_type)));
 }
 
 MidoriResult::TypeResult TypeChecker::operator()(Construct& construct)

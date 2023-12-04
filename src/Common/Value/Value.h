@@ -64,8 +64,6 @@ public:
 
 	inline bool IsObjectPointer() const { return std::holds_alternative<MidoriTraceable*>(m_value); }
 
-	inline static bool AreSameType(const MidoriValue& lhs, const MidoriValue& rhs) { return lhs.m_value.index() == rhs.m_value.index(); }
-
 	inline friend bool operator==(const MidoriValue& lhs, const MidoriValue& rhs) { return lhs.m_value == rhs.m_value; }
 
 	inline friend bool operator!=(const MidoriValue& lhs, const MidoriValue& rhs) { return !(lhs == rhs); }
@@ -86,12 +84,6 @@ public:
 	using MidoriText = std::string;
 	using MidoriArray = std::vector<MidoriValue>;
 
-	struct NativeFunction
-	{
-		std::function<void()> m_cpp_function;
-		std::string_view m_name;
-	};
-
 	struct Closure
 	{
 		using Environment = std::vector<MidoriTraceable*>;
@@ -107,7 +99,7 @@ public:
 	};
 
 private:
-	std::variant<MidoriText, MidoriArray, MidoriStruct, CellValue, NativeFunction, Closure> m_value;
+	std::variant<MidoriText, MidoriArray, MidoriStruct, CellValue, Closure> m_value;
 	size_t m_size;
 	bool m_is_marked;
 
@@ -127,10 +119,6 @@ public:
 	inline bool IsCellValue() const { return std::holds_alternative<CellValue>(m_value); }
 
 	inline CellValue& GetCellValue() const { return const_cast<CellValue&>(std::get<CellValue>(m_value)); }
-
-	inline NativeFunction& GetNativeFunction() const { return const_cast<NativeFunction&>(std::get<NativeFunction>(m_value)); }
-
-	inline bool IsNativeFunction() const { return std::holds_alternative<NativeFunction>(m_value); }
 
 	inline bool IsClosure() const { return std::holds_alternative<Closure>(m_value); }
 
@@ -188,8 +176,6 @@ private:
 	MidoriTraceable(MidoriArray&& array) : m_value(std::move(array)) {}
 
 	MidoriTraceable(CellValue&& cell_value) : m_value(std::move(cell_value)) {}
-
-	MidoriTraceable(NativeFunction&& native_function) : m_value(std::move(native_function)) {}
 
 	MidoriTraceable(Closure&& closure) : m_value(std::move(closure)) {}
 

@@ -100,6 +100,15 @@ void PrintAbstractSyntaxTree::operator()(const Return& return_stmt, int depth) c
 	PrintWithIndentation(depth, "}");
 }
 
+void PrintAbstractSyntaxTree::operator()(const Foreign& foreign, int depth) const
+{
+	PrintWithIndentation(depth, "ForeignFunctionInterface {");
+	PrintWithIndentation(depth + 1, "Name: " + foreign.m_function_name.m_lexeme);
+	const FunctionType& ffi_type = MidoriTypeUtil::GetFunctionType(*foreign.m_type);
+	PrintWithIndentation(depth + 1, "Type: " + MidoriTypeUtil::ToString(ffi_type));
+	PrintWithIndentation(depth, "}");
+}
+
 void PrintAbstractSyntaxTree::operator()(const Struct& struct_stmt, int depth) const
 {
 	PrintWithIndentation(depth, "Struct {");

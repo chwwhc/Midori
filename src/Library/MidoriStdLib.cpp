@@ -1,9 +1,11 @@
-#include <iostream>
+#include "Common/Value/Value.h"
 
-    extern "C"
-    {
-        __declspec(dllexport) void Print()
-        {
-            std::cout << "Hello from the DLL!" << std::endl;
-        }
-    }
+#include <cstdio>
+
+extern "C"
+{
+	__declspec(dllexport) void Print(MidoriValue* val)
+	{
+		std::printf("%s", val->GetObjectPointer()->GetText().c_str());
+	}
+}

@@ -75,7 +75,7 @@ struct Token
 		NONE,
 		NEW,
 		AS,
-		EXTERN,
+		FOREIGN,
 
 		// types
 		FRACTION,

@@ -1,17 +1,16 @@
-struct Fib
-{
-	N : Integer;
-	fn : (Integer) -> Integer;
-}
+foreign Print : (Text) -> Unit;
 
-fixed main := closure() : Integer
+fixed main := closure() : Unit
 {
 
-	fixed fib := new Fib(10, closure(fixed n : Integer) : Integer {
-		return n < 2 ? n : fib.fn(n - 1) + fib.fn(n - 2);
-	});
+fixed PrintLine := closure(fixed val : Text) : Unit
+{
+	Print(val);
+	Print("\n");
+	return #;
+};
 
-	PrintLine(fib.fn(fib.N));
+	PrintLine("Hello World!");
 
-    return 0;
+	return #;
 };

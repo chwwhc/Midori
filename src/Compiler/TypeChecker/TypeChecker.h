@@ -27,7 +27,7 @@ private:
 
 public:
 
-	MidoriResult::StaticAnalyzerResult TypeCheck(MidoriProgramTree& program_tree);
+	MidoriResult::TypeCheckerResult TypeCheck(MidoriProgramTree& program_tree);
 
 private:
 
@@ -52,6 +52,8 @@ private:
 	void operator()(Continue& continue_stmt);
 
 	void operator()(Return& return_stmt);
+
+	void operator()(Foreign& foreign);
 
 	void operator()(Struct& struct_stmt);
 
