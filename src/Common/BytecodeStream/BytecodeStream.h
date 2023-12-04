@@ -9,9 +9,9 @@ enum class OpCode : uint8_t
     CONSTANT,
     CONSTANT_LONG,
     CONSTANT_LONG_LONG,
-    UNIT,
-    TRUE,
-    FALSE,
+    OP_UNIT,
+    OP_TRUE,
+    OP_FALSE,
 
     // Array Operations
     CREATE_ARRAY,

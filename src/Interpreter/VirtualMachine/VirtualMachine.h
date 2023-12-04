@@ -16,6 +16,13 @@
 #include <stdexcept>
 #include <format>
 
+// handle std library
+#ifdef _WIN32
+#include <Windows.h>
+#else
+#include <dlfcn.h>
+#endif
+
 class InterpreterException : public std::runtime_error
 {
 public:
@@ -28,9 +35,37 @@ class VirtualMachine
 public:
 
 	VirtualMachine(MidoriResult::ExecutableModule&& executable_module) : m_executable_module(std::move(executable_module)), m_garbage_collector(std::move(m_executable_module.m_constant_roots)),
-		m_current_bytecode(&m_executable_module.m_modules[0]), m_instruction_pointer(m_current_bytecode->cbegin()) {}
+		m_current_bytecode(&m_executable_module.m_modules[0]), m_instruction_pointer(m_current_bytecode->cbegin()) 
+	{
+#ifdef _WIN32
+		m_library_handle = LoadLibrary("./MidoriStdLib.dll");
+#else
+		m_library_handle = dlopen("./libMidoriStdLib.so", RTLD_LAZY);
+#endif
 
-	~VirtualMachine() { MidoriTraceable::CleanUp(); }
+		if (!m_library_handle)
+		{
+#ifdef _WIN32
+			FreeLibrary(m_library_handle);
+#else
+			dlclose(m_library_handle);
+#endif
+			std::cerr << "Failed to load the Midori std library." << std::endl;
+			std::exit(1);
+		}
+
+		GetProcAddress(m_library_handle, "Print")();
+	}
+
+	~VirtualMachine() 
+	{ 
+		MidoriTraceable::CleanUp(); 
+#ifdef _WIN32
+		FreeLibrary(m_library_handle);
+#else
+		dlclose(m_library_handle);
+#endif
+	}
 
 private:
 
@@ -66,6 +101,12 @@ private:
 	StackPointer<CallFrame, s_frame_stack_max> m_call_stack_begin = m_call_stack->begin();
 	StackPointer<CallFrame, s_frame_stack_max> m_call_stack_end = m_call_stack->end();
 	InstructionPointer m_instruction_pointer;
+
+#ifdef _WIN32
+	HMODULE m_library_handle;
+#else
+	void* m_library_handle;
+#endif
 
 public:
 
@@ -156,27 +197,13 @@ private:
 	inline const MidoriValue& Peek() const noexcept
 	{
 		const MidoriValue& value = *(std::prev(m_value_stack_pointer));
-		if (value.IsObjectPointer() && value.GetObjectPointer()->IsCellValue())
-		{
-			return value.GetObjectPointer()->GetCellValue();
-		}
-		else
-		{
-			return value;
-		}
+		return value;
 	}
 
 	inline MidoriValue& Pop() noexcept
 	{
 		MidoriValue& value = *(--m_value_stack_pointer);
-		if (value.IsObjectPointer() && value.GetObjectPointer()->IsCellValue())
-		{
-			return value.GetObjectPointer()->GetCellValue();
-		}
-		else
-		{
-			return value;
-		}
+		return value;
 	}
 
 	template<typename T>

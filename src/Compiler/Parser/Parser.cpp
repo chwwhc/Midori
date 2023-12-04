@@ -497,7 +497,7 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 
 		return std::make_unique<MidoriExpression>(Closure(std::move(keyword), std::move(params), std::move(param_types), std::move(closure_body), std::move(return_type.value()), m_total_variables));
 	}
-	else if (Match(Token::Name::TRUE, Token::Name::FALSE))
+	else if (Match(Token::Name::OP_TRUE, Token::Name::OP_FALSE))
 	{
 		return std::make_unique<MidoriExpression>(BoolLiteral(std::move(Previous())));
 	}
@@ -1087,7 +1087,7 @@ MidoriResult::TypeResult Parser::ParseType()
 	{
 		return std::make_shared<MidoriType>(BoolType());
 	}
-	else if (Match(Token::Name::UNIT))
+	else if (Match(Token::Name::OP_UNIT))
 	{
 		return std::make_shared<MidoriType>(UnitType());
 	}

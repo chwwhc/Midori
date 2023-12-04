@@ -193,14 +193,14 @@ namespace Disassembler
 		case OpCode::CONSTANT_LONG_LONG:
 			ConstantInstruction("CONSTANT_LONG_LONG", stream, static_data, offset);
 			break;
-		case OpCode::UNIT:
-			SimpleInstruction("UNIT", offset);
+		case OpCode::OP_UNIT:
+			SimpleInstruction("OP_UNIT", offset);
 			break;
-		case OpCode::TRUE:
-			SimpleInstruction("TRUE", offset);
+		case OpCode::OP_TRUE:
+			SimpleInstruction("OP_TRUE", offset);
 			break;
-		case OpCode::FALSE:
-			SimpleInstruction("FALSE", offset);
+		case OpCode::OP_FALSE:
+			SimpleInstruction("OP_FALSE", offset);
 			break;
 		case OpCode::CREATE_ARRAY:
 			ArrayCreateInstruction("CREATE_ARRAY", stream, offset);

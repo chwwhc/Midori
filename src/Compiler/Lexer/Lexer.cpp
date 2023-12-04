@@ -7,17 +7,17 @@ const std::unordered_map<std::string, Token::Name> Lexer::s_keywords =
 	{"Integer", Token::Name::INTEGER},
 	{"Text", Token::Name::TEXT},
 	{"Bool", Token::Name::BOOL},
-	{"Unit", Token::Name::UNIT},
+	{"Unit", Token::Name::OP_UNIT},
 	{"Array", Token::Name::ARRAY},
 	{"Maybe", Token::Name::MAYBE},
 
 	// reserved keywords
 	{"else", Token::Name::ELSE},
-	{"false", Token::Name::FALSE},
+	{"false", Token::Name::OP_FALSE},
 	{"for", Token::Name::FOR},
 	{"if", Token::Name::IF},
 	{"return", Token::Name::RETURN},
-	{"true", Token::Name::TRUE},
+	{"true", Token::Name::OP_TRUE},
 	{"var", Token::Name::VAR},
 	{"fixed", Token::Name::FIXED},
 	{"closure", Token::Name::CLOSURE},
@@ -30,6 +30,7 @@ const std::unordered_map<std::string, Token::Name> Lexer::s_keywords =
 	{"struct", Token::Name::STRUCT},
 	{"union", Token::Name::UNION},
 	{"new", Token::Name::NEW},
+	{"extern", Token::Name::EXTERN},
 	{"Just", Token::Name::JUST},
 	{"None", Token::Name::NONE},
 };

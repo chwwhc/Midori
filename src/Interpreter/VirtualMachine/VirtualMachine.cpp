@@ -101,17 +101,17 @@ void VirtualMachine::Execute()
 				Push(ReadConstant(instruction));
 				break;
 			}
-			case OpCode::UNIT:
+			case OpCode::OP_UNIT:
 			{
 				Push(MidoriValue());
 				break;
 			}
-			case OpCode::TRUE:
+			case OpCode::OP_TRUE:
 			{
 				Push(MidoriValue(true));
 				break;
 			}
-			case OpCode::FALSE:
+			case OpCode::OP_FALSE:
 			{
 				Push(MidoriValue(false));
 				break;
@@ -522,14 +522,6 @@ void VirtualMachine::Execute()
 				m_instruction_pointer = m_current_bytecode->cbegin();
 				m_base_pointer = m_value_stack_pointer - arity;
 
-
-				for (VirtualMachine::StackPointer<MidoriValue, s_value_stack_max> it = m_base_pointer; it < m_value_stack_pointer; ++it)
-				{
-					if (it->IsObjectPointer() && it->GetObjectPointer()->IsCellValue())
-					{
-						*it = it->GetObjectPointer()->GetCellValue();
-					}
-				}
 				break;
 			}
 			case OpCode::CONSTRUCT_STRUCT:
@@ -575,16 +567,8 @@ void VirtualMachine::Execute()
 
 				for (StackPointer<MidoriValue, s_value_stack_max> it = m_base_pointer; it < m_base_pointer + captured_count; ++it)
 				{
-					if (it->IsObjectPointer() && it->GetObjectPointer()->IsCellValue())
-					{
-						captured_variables.emplace_back(it->GetObjectPointer());
-					}
-					else
-					{
-						MidoriTraceable* cell_value = AllocateObject(MidoriTraceable::CellValue(*it));
-						*it = MidoriValue(cell_value);
-						captured_variables.emplace_back(cell_value);
-					}
+					MidoriTraceable* cell_value = AllocateObject(MidoriTraceable::CellValue(*it));
+					captured_variables.emplace_back(cell_value);
 				}
 				break;
 			}
@@ -621,14 +605,7 @@ void VirtualMachine::Execute()
 				MidoriValue& var = *(m_base_pointer + offset);
 
 				const MidoriValue& value = Peek();
-				if (var.IsObjectPointer() && var.GetObjectPointer()->IsCellValue())
-				{
-					var.GetObjectPointer()->GetCellValue() = value;
-				}
-				else
-				{
-					var = value;
-				}
+				var = value;
 				break;
 			}
 			case OpCode::GET_CELL:

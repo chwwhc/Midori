@@ -25,14 +25,21 @@ endif()
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR}/src)
 
-# Source files
+# Source files for the main executable including MidoriStdLib
 file(GLOB_RECURSE SRC_FILES
     "src/*.h"
     "src/*.cpp"
+    "src/Library/*.h"
+    "src/Library/*.cpp"
 )
 
 # Add source to this project's executable.
 add_executable(Midori ${SRC_FILES})
+
+# Set the output name for Unix-like systems to follow naming convention
+if (UNIX)
+    set_target_properties(Midori PROPERTIES OUTPUT_NAME "libMidoriStdLib")
+endif()
 
 # Specify where to put the build artifacts (this makes sure they go into 'out')
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/out)

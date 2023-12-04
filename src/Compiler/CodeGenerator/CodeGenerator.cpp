@@ -444,7 +444,7 @@ void CodeGenerator::operator()(TextLiteral& text)
 
 void CodeGenerator::operator()(BoolLiteral& bool_expr)
 {
-	EmitByte(bool_expr.m_token.m_lexeme == "true" ? OpCode::TRUE : OpCode::FALSE, bool_expr.m_token.m_line);
+	EmitByte(bool_expr.m_token.m_lexeme == "true" ? OpCode::OP_TRUE : OpCode::OP_FALSE, bool_expr.m_token.m_line);
 }
 
 void CodeGenerator::operator()(FractionLiteral& fraction)
@@ -459,7 +459,7 @@ void CodeGenerator::operator()(IntegerLiteral& integer)
 
 void CodeGenerator::operator()(UnitLiteral& nil)
 {
-	EmitByte(OpCode::UNIT, nil.m_token.m_line);
+	EmitByte(OpCode::OP_UNIT, nil.m_token.m_line);
 }
 
 void CodeGenerator::operator()(Closure& closure)

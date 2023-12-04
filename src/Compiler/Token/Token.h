@@ -55,12 +55,12 @@ struct Token
 
 		// reserved
 		ELSE,
-		FALSE,
+		OP_FALSE,
 		CLOSURE,
 		FOR,
 		IF,
 		RETURN,
-		TRUE,
+		OP_TRUE,
 		VAR,
 		FIXED,
 		WHILE,
@@ -75,13 +75,14 @@ struct Token
 		NONE,
 		NEW,
 		AS,
+		EXTERN,
 
 		// types
 		FRACTION,
 		INTEGER,
 		TEXT,
 		BOOL,
-		UNIT,
+		OP_UNIT,
 		ARRAY,
 
 		END_OF_FILE,
