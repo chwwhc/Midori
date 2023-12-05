@@ -169,7 +169,30 @@ MidoriResult::ExpressionResult Parser::ParseTernary()
 
 MidoriResult::ExpressionResult Parser::ParseExpression()
 {
-	return ParseBind();
+	return ParseAs();
+}
+
+MidoriResult::ExpressionResult Parser::ParseAs()
+{
+	MidoriResult::ExpressionResult expr = ParseBind();
+	if (!expr.has_value())
+	{
+		return std::unexpected<std::string>(std::move(expr.error()));
+	}
+
+	if (Match(Token::Name::AS))
+	{
+		Token& as = Previous();
+		MidoriResult::TypeResult type = ParseType();
+		if (!type.has_value())
+		{
+			return std::unexpected<std::string>(std::move(type.error()));
+		}
+
+		return std::make_unique<MidoriExpression>(As(std::move(as), std::move(expr.value()), std::move(type.value())));
+	}
+
+	return expr;
 }
 
 MidoriResult::ExpressionResult Parser::ParseArrayAccessHelper(std::unique_ptr<MidoriExpression>&& arr_var)
@@ -1243,20 +1266,20 @@ bool Parser::HasReturnStatement(const MidoriStatement& stmt)
 
 MidoriResult::StatementResult Parser::ParseDeclarationCommon(bool may_throw_error)
 {
-	if (Match(Token::Name::VAR, Token::Name::FIXED)) 
+	if (Match(Token::Name::VAR, Token::Name::FIXED))
 	{
 		return ParseDefineStatement();
 	}
-	else if (Match(Token::Name::STRUCT)) 
+	else if (Match(Token::Name::STRUCT))
 	{
 		return ParseStructDeclaration();
 	}
-	else if (Match(Token::Name::FOREIGN)) 
+	else if (Match(Token::Name::FOREIGN))
 	{
 		return ParseForeignStatement();
 	}
 
-	if (may_throw_error) 
+	if (may_throw_error)
 	{
 		return std::unexpected<std::string>(GenerateParserError("Expected declaration.", Peek(0)));
 	}

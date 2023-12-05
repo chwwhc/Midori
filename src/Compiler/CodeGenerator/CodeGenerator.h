@@ -45,22 +45,22 @@ public:
 
 private:
 
-	inline void EmitByte(OpCode byte, int line) { m_modules[m_current_module_index].AddByteCode(byte, line); }
+	void EmitByte(OpCode byte, int line) { m_modules[m_current_module_index].AddByteCode(byte, line); }
 
-	inline void EmitTwoBytes(int byte1, int byte2, int line)
+	void EmitTwoBytes(int byte1, int byte2, int line)
 	{
 		EmitByte(static_cast<OpCode>(byte1), line);
 		EmitByte(static_cast<OpCode>(byte2), line);
 	}
 
-	inline void EmitThreeBytes(int byte1, int byte2, int byte3, int line)
+	void EmitThreeBytes(int byte1, int byte2, int byte3, int line)
 	{
 		EmitByte(static_cast<OpCode>(byte1), line);
 		EmitByte(static_cast<OpCode>(byte2), line);
 		EmitByte(static_cast<OpCode>(byte3), line);
 	}
 
-	inline void EmitConstant(MidoriValue&& value, int line)
+	void EmitConstant(MidoriValue&& value, int line)
 	{
 		if (value.IsObjectPointer())
 		{
@@ -95,7 +95,7 @@ private:
 		}
 	}
 
-	inline void EmitVariable(int variable_index, OpCode op, int line)
+	void EmitVariable(int variable_index, OpCode op, int line)
 	{
 		if (variable_index > UINT8_MAX)
 		{
@@ -106,7 +106,7 @@ private:
 		EmitByte(static_cast<OpCode>(variable_index), line);
 	}
 
-	inline int EmitJump(OpCode op, int line)
+	int EmitJump(OpCode op, int line)
 	{
 		EmitByte(op, line);
 		EmitByte(static_cast<OpCode>(0xff), line);
@@ -114,7 +114,7 @@ private:
 		return m_modules[m_current_module_index].GetByteCodeSize() - 2;
 	}
 
-	inline void PatchJump(int offset, int line)
+	void PatchJump(int offset, int line)
 	{
 		int jump = m_modules[m_current_module_index].GetByteCodeSize() - offset - 2;
 		if (jump > UINT16_MAX)
@@ -126,7 +126,7 @@ private:
 		m_modules[m_current_module_index].SetByteCode(offset + 1, static_cast<OpCode>((jump >> 8) & 0xff));
 	}
 
-	inline void EmitLoop(int loop_start, int line)
+	void EmitLoop(int loop_start, int line)
 	{
 		EmitByte(OpCode::JUMP_BACK, line);
 
@@ -140,9 +140,9 @@ private:
 		EmitByte(static_cast<OpCode>((offset >> 8) & 0xff), line);
 	}
 
-	inline void BeginLoop(int loop_start) { m_loop_contexts.emplace(std::vector<int>(), loop_start); }
+	void BeginLoop(int loop_start) { m_loop_contexts.emplace(std::vector<int>(), loop_start); }
 
-	inline void EndLoop(int line)
+	void EndLoop(int line)
 	{
 		LoopContext loop = m_loop_contexts.top();
 		m_loop_contexts.pop();
@@ -170,6 +170,8 @@ private:
 	void operator()(Foreign& foreign);
 
 	void operator()(Struct& struct_stmt);
+
+	void operator()(As& as);
 
 	void operator()(Binary& binary);
 

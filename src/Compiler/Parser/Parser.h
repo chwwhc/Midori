@@ -46,23 +46,23 @@ private:
 
 	void Synchronize();
 
-	inline std::string GenerateParserError(std::string&& message, const Token& token)
+	std::string GenerateParserError(std::string&& message, const Token& token)
 	{
 		Synchronize();
 		return MidoriError::GenerateParserError(std::move(message), token);
 	}
 
-	inline bool IsAtEnd() { return Peek(0).m_token_name == Token::Name::END_OF_FILE; }
+	bool IsAtEnd() { return Peek(0).m_token_name == Token::Name::END_OF_FILE; }
 
-	inline bool Check(Token::Name type, int offset) { return !IsAtEnd() && Peek(offset).m_token_name == type; }
+	bool Check(Token::Name type, int offset) { return !IsAtEnd() && Peek(offset).m_token_name == type; }
 
-	inline Token& Peek(int offset) { return m_current_token_index + offset < m_tokens.Size() ? m_tokens[m_current_token_index + offset] : m_tokens[m_tokens.Size() - 1]; }
+	Token& Peek(int offset) { return m_current_token_index + offset < m_tokens.Size() ? m_tokens[m_current_token_index + offset] : m_tokens[m_tokens.Size() - 1]; }
 
-	inline Token& Previous() { return m_tokens[m_current_token_index - 1]; }
+	Token& Previous() { return m_tokens[m_current_token_index - 1]; }
 
-	inline Token& Advance() { if (!IsAtEnd()) { m_current_token_index += 1; } return Previous(); }
+	Token& Advance() { if (!IsAtEnd()) { m_current_token_index += 1; } return Previous(); }
 
-	inline MidoriResult::TokenResult Consume(Token::Name type, std::string_view message)
+	MidoriResult::TokenResult Consume(Token::Name type, std::string_view message)
 	{
 		if (Check(type, 0))
 		{
@@ -73,8 +73,8 @@ private:
 	}
 
 	template <typename... T>
-	requires (std::is_same_v<T, Token::Name> && ...)
-	inline bool Match(T... tokens)
+		requires (std::is_same_v<T, Token::Name> && ...)
+	bool Match(T... tokens)
 	{
 		if ((... || Check(tokens, 0)))
 		{
@@ -85,8 +85,8 @@ private:
 	}
 
 	template <typename... T>
-	requires (std::is_same_v<T, Token::Name> && ...)
-	inline MidoriResult::ExpressionResult ParseBinary(MidoriResult::ExpressionResult(Parser::* operand)(), T... tokens)
+		requires (std::is_same_v<T, Token::Name> && ...)
+	MidoriResult::ExpressionResult ParseBinary(MidoriResult::ExpressionResult(Parser::* operand)(), T... tokens)
 	{
 		MidoriResult::ExpressionResult lower_expr = (this->*operand)();
 		if (!lower_expr.has_value())
@@ -109,12 +109,12 @@ private:
 		return lower_expr;
 	}
 
-	inline void BeginScope() 
-	{ 
-		m_scopes.emplace_back(Scope()); 
+	void BeginScope()
+	{
+		m_scopes.emplace_back(Scope());
 	}
 
-	inline int EndScope()
+	int EndScope()
 	{
 		int block_local_count = static_cast<int>(m_scopes.back().size());
 		m_total_locals_in_curr_scope -= block_local_count;
@@ -123,7 +123,7 @@ private:
 		return block_local_count;
 	}
 
-	inline MidoriResult::TokenResult DefineName(const Token& name, bool is_fixed)
+	MidoriResult::TokenResult DefineName(const Token& name, bool is_fixed)
 	{
 		Scope::const_iterator it = m_scopes.back().find(name.m_lexeme);
 		if (it != m_scopes.back().cend())
@@ -141,7 +141,7 @@ private:
 		return name;
 	}
 
-	inline std::optional<int> GetLocalVariableIndex(const std::string& name, bool is_fixed)
+	std::optional<int> GetLocalVariableIndex(const std::string& name, bool is_fixed)
 	{
 		bool is_global = m_scopes.size() == 1u;
 		std::optional<int> local_index = std::nullopt;
@@ -188,6 +188,8 @@ private:
 	MidoriResult::ExpressionResult ParseTernary();
 
 	MidoriResult::ExpressionResult ParseCall();
+
+	MidoriResult::ExpressionResult ParseAs();
 
 	MidoriResult::ExpressionResult ParseConstruct();
 

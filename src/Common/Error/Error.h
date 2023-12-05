@@ -12,7 +12,7 @@
 class MidoriError
 {
 private:
-	static inline std::string GenerateBaseError(std::string&& message, int line, const Token* token = nullptr)
+	static  std::string GenerateBaseError(std::string&& message, int line, const Token* token = nullptr)
 	{
 		std::string generated_message;
 
@@ -29,22 +29,22 @@ private:
 	}
 
 public:
-	static inline std::string GenerateCodeGeneratorError(std::string_view message, int line)
+	static  std::string GenerateCodeGeneratorError(std::string_view message, int line)
 	{
 		return GenerateBaseError(std::format("Code Generator Error\n{}", message), line);
 	}
 
-	static inline std::string GenerateLexerError(std::string_view message, int line)
+	static  std::string GenerateLexerError(std::string_view message, int line)
 	{
 		return GenerateBaseError(std::format("Lexer Error\n{}", message), line);
 	}
 
-	static inline std::string GenerateParserError(std::string_view message, const Token& token)
+	static  std::string GenerateParserError(std::string_view message, const Token& token)
 	{
 		return GenerateBaseError(std::format("Parser Error\n{}", message), token.m_line, &token);
 	}
 
-	static inline std::string GenerateTypeCheckerError(std::string_view message, const Token& token, const std::vector<const MidoriType*>& expected, const MidoriType& actual)
+	static  std::string GenerateTypeCheckerError(std::string_view message, const Token& token, const std::vector<const MidoriType*>& expected, const MidoriType& actual)
 	{
 		if (expected.empty())
 		{
@@ -71,7 +71,7 @@ public:
 		return GenerateBaseError(std::format("Type Checker Error\n{}\nExpected {}, but got {}", message, expected_types, MidoriTypeUtil::ToString(actual)), token.m_line, &token);
 	}
 
-	static inline std::string GenerateRuntimeError(std::string_view message, int line)
+	static  std::string GenerateRuntimeError(std::string_view message, int line)
 	{
 		return GenerateBaseError(std::format("Runtime Error\n{}", message), line);
 	}

@@ -16,8 +16,8 @@
 #include <format>
 
 // handle std library
-#ifdef _WIN32
-#include <Windows.h>
+#if defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
 #else
 #include <dlfcn.h>
 #endif
@@ -36,9 +36,9 @@ public:
 	VirtualMachine(MidoriResult::ExecutableModule&& executable_module) : m_executable_module(std::move(executable_module)), m_garbage_collector(std::move(m_executable_module.m_constant_roots)),
 		m_current_bytecode(&m_executable_module.m_modules[0]), m_instruction_pointer(m_current_bytecode->cbegin()) {}
 
-	~VirtualMachine() 
-	{ 
-		MidoriTraceable::CleanUp(); 
+	~VirtualMachine()
+	{
+		MidoriTraceable::CleanUp();
 #ifdef _WIN32
 		FreeLibrary(m_library_handle);
 #else
@@ -92,23 +92,23 @@ public:
 
 private:
 
-	inline void DisplayRuntimeError(std::string_view message) noexcept
+	void DisplayRuntimeError(std::string_view message) noexcept
 	{
 		std::cerr << "\033[31m" << message << "\033[0m" << std::endl;
 	}
 
-	inline int GetLine() noexcept { return static_cast<int>(m_instruction_pointer - m_current_bytecode->cbegin()); }
+	int GetLine() noexcept { return static_cast<int>(m_instruction_pointer - m_current_bytecode->cbegin()); }
 
-	inline OpCode ReadByte() noexcept
-	{ 
+	OpCode ReadByte() noexcept
+	{
 		OpCode op_code = static_cast<OpCode>(*m_instruction_pointer);
 		++m_instruction_pointer;
 		return op_code;
 	}
 
-	inline int ReadShort() noexcept { return static_cast<int>(ReadByte()) | (static_cast<int>(ReadByte()) << 8); }
+	int ReadShort() noexcept { return static_cast<int>(ReadByte()) | (static_cast<int>(ReadByte()) << 8); }
 
-	inline int ReadThreeBytes() noexcept
+	int ReadThreeBytes() noexcept
 	{
 		int value = static_cast<int>(ReadByte()) |
 			(static_cast<int>(ReadByte()) << 8) |
@@ -116,7 +116,7 @@ private:
 		return value;
 	}
 
-	inline const MidoriValue& ReadConstant(OpCode operand_length) noexcept
+	const MidoriValue& ReadConstant(OpCode operand_length) noexcept
 	{
 		int index = 0;
 
@@ -149,19 +149,19 @@ private:
 		return m_executable_module.m_static_data.GetConstant(index);
 	}
 
-	inline const std::string& ReadGlobalVariable() noexcept
+	const std::string& ReadGlobalVariable() noexcept
 	{
 		int index = static_cast<int>(ReadByte());
 		return m_executable_module.m_global_table.GetGlobalVariable(index);
 	}
 
-	inline std::string GenerateRuntimeError(std::string_view message, int line) noexcept
+	std::string GenerateRuntimeError(std::string_view message, int line) noexcept
 	{
 		MidoriTraceable::CleanUp();
 		return MidoriError::GenerateRuntimeError(message, line);
 	}
 
-	inline void Push(const MidoriValue& value)
+	void Push(const MidoriValue& value)
 	{
 		if (m_value_stack_pointer == m_value_stack_end)
 		{
@@ -172,13 +172,13 @@ private:
 		++m_value_stack_pointer;
 	}
 
-	inline const MidoriValue& Peek() const noexcept
+	const MidoriValue& Peek() const noexcept
 	{
 		const MidoriValue& value = *(std::prev(m_value_stack_pointer));
 		return value;
 	}
 
-	inline MidoriValue& Pop() noexcept
+	MidoriValue& Pop() noexcept
 	{
 		MidoriValue& value = *(--m_value_stack_pointer);
 		return value;
@@ -186,7 +186,7 @@ private:
 
 	template<typename T>
 		requires (std::is_same_v<T, MidoriValue::MidoriInteger> || std::is_same_v<T, MidoriValue::MidoriFraction>)
-	inline void CheckZeroDivision(const T& value)
+	void CheckZeroDivision(const T& value)
 	{
 		if constexpr (std::is_same_v<T, MidoriValue::MidoriInteger>)
 		{
@@ -204,7 +204,7 @@ private:
 		}
 	}
 
-	inline void CheckIndexBounds(const MidoriValue& index, int64_t size)
+	void CheckIndexBounds(const MidoriValue& index, int64_t size)
 	{
 		MidoriValue::MidoriInteger val = index.GetInteger();
 		if (val < 0ll || val >= size)

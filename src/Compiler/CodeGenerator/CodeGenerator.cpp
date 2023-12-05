@@ -242,10 +242,45 @@ void CodeGenerator::operator()(Struct&)
 	return;
 }
 
+void CodeGenerator::operator()(As& as)
+{
+	int line = as.m_as_keyword.m_line;
+
+	std::visit([this](auto&& arg) {(*this)(arg); }, *as.m_expr);
+
+	const MidoriType& target_type = *as.m_target_type;
+
+	if (MidoriTypeUtil::IsBoolType(target_type))
+	{
+		EmitByte(OpCode::CAST_TO_BOOL, line);
+	}
+	else if (MidoriTypeUtil::IsFractionType(target_type))
+	{
+		EmitByte(OpCode::CAST_TO_FRACTION, line);
+	}
+	else if (MidoriTypeUtil::IsIntegerType(target_type))
+	{
+		EmitByte(OpCode::CAST_TO_INTEGER, line);
+	}
+	else if (MidoriTypeUtil::IsUnitType(target_type))
+	{
+		EmitByte(OpCode::CAST_TO_UNIT, line);
+	}
+	else if (MidoriTypeUtil::IsTextType(target_type), line)
+	{
+		EmitByte(OpCode::CAST_TO_TEXT, line);
+	}
+	else
+	{
+		// the else branch should be unreachable
+		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Failed to emit type casting instruction.", line));
+	}
+}
+
 void CodeGenerator::operator()(Binary& binary)
 {
 	int line = binary.m_op.m_line;
-	MidoriType& expr_type = *binary.m_type.get();
+	MidoriType& expr_type = *binary.m_type;
 	std::visit([this](auto&& arg) { (*this)(arg); }, *binary.m_left);
 	std::visit([this](auto&& arg) { (*this)(arg); }, *binary.m_right);
 

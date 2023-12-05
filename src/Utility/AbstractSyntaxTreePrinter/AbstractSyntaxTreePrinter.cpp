@@ -121,6 +121,16 @@ void PrintAbstractSyntaxTree::operator()(const Struct& struct_stmt, int depth) c
 	PrintWithIndentation(depth, "}");
 }
 
+void PrintAbstractSyntaxTree::operator()(const As& as, int depth) const
+{
+	PrintWithIndentation(depth, "As {");
+	PrintWithIndentation(depth + 1, "Value: ");
+	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *as.m_expr);
+	PrintWithIndentation(depth + 1, "Type: ");
+	PrintWithIndentation(depth + 2, MidoriTypeUtil::ToString(*as.m_target_type));
+	PrintWithIndentation(depth, "}");
+}
+
 void PrintAbstractSyntaxTree::operator()(const Binary& binary, int depth) const
 {
 	PrintWithIndentation(depth, "Binary {");

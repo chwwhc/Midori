@@ -1,8 +1,5 @@
 foreign Print : (Text) -> Unit;
 
-fixed main := closure() : Unit
-{
-
 fixed PrintLine := closure(fixed val : Text) : Unit
 {
 	Print(val);
@@ -10,7 +7,14 @@ fixed PrintLine := closure(fixed val : Text) : Unit
 	return #;
 };
 
-	PrintLine("Hello World!");
+fixed main := closure() : Unit
+{
+	fixed fib := closure(fixed x : Integer) : Integer
+	{
+		return x < 2 ? x : fib(x - 1) + fib(x - 2);
+	};
+
+	PrintLine(fib(35) as Text);
 
 	return #;
 };

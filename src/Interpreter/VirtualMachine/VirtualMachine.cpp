@@ -207,6 +207,142 @@ void VirtualMachine::Execute()
 				Push(value_to_set);
 				break;
 			}
+			case OpCode::CAST_TO_FRACTION:
+			{
+				const MidoriValue& value = Pop();
+
+				if (value.IsBool())
+				{
+					Push(MidoriValue(static_cast<MidoriValue::MidoriFraction>(value.GetBool())));
+				}
+				else if (value.IsInteger())
+				{
+					Push(MidoriValue(static_cast<MidoriValue::MidoriFraction>(value.GetInteger())));
+				}
+				else if (value.IsFraction())
+				{
+					Push(value);
+				}
+				else if (value.IsObjectPointer() && value.GetObjectPointer()->IsText())
+				{
+					MidoriValue::MidoriFraction fraction = std::stod(value.GetObjectPointer()->GetText());
+					Push(MidoriValue(fraction));
+				}
+				else if (value.IsUnit())
+				{
+					Push(MidoriValue(static_cast<MidoriValue::MidoriFraction>(0.0)));
+				}
+				else
+				{
+					// unreachable
+					throw InterpreterException(GenerateRuntimeError("Cannot cast to fraction.", GetLine()));
+				}
+
+				break;
+			}
+			case OpCode::CAST_TO_INTEGER:
+			{
+				const MidoriValue& value = Pop();
+
+				if (value.IsBool())
+				{
+					Push(MidoriValue(static_cast<MidoriValue::MidoriInteger>(value.GetBool())));
+				}
+				else if (value.IsInteger())
+				{
+					Push(value);
+				}
+				else if (value.IsFraction())
+				{
+					Push(MidoriValue(static_cast<MidoriValue::MidoriInteger>(value.GetFraction())));
+				}
+				else if (value.IsObjectPointer() && value.GetObjectPointer()->IsText())
+				{
+					MidoriValue::MidoriInteger integer = std::stoll(value.GetObjectPointer()->GetText());
+					Push(MidoriValue(integer));
+				}
+				else if (value.IsUnit())
+				{
+					Push(MidoriValue(static_cast<MidoriValue::MidoriInteger>(0ll)));
+				}
+				else
+				{
+					// unreachable
+					throw InterpreterException(GenerateRuntimeError("Cannot cast to integer.", GetLine()));
+				}
+
+				break;
+			}
+			case OpCode::CAST_TO_TEXT:
+			{
+				const MidoriValue& value = Pop();
+
+				if (value.IsBool())
+				{
+					Push(CollectGarbageThenAllocateObject(value.GetBool() ? MidoriTraceable::MidoriText("true") : MidoriTraceable::MidoriText("false")));
+				}
+				else if (value.IsInteger())
+				{
+					Push(CollectGarbageThenAllocateObject(std::to_string(value.GetInteger())));
+				}
+				else if (value.IsFraction())
+				{
+					Push(CollectGarbageThenAllocateObject(std::to_string(value.GetFraction())));
+				}
+				else if (value.IsObjectPointer() && value.GetObjectPointer()->IsText())
+				{
+					Push(value);
+				}
+				else if (value.IsUnit())
+				{
+					Push(CollectGarbageThenAllocateObject(MidoriTraceable::MidoriText("#")));
+				}
+				else
+				{
+					// unreachable
+					throw InterpreterException(GenerateRuntimeError("Cannot cast to text.", GetLine()));
+				}
+
+				break;
+			}
+			case OpCode::CAST_TO_BOOL:
+			{
+				const MidoriValue& value = Pop();
+
+				if (value.IsBool())
+				{
+					Push(value);
+				}
+				else if (value.IsInteger())
+				{
+					Push(MidoriValue(value.GetInteger() != 0ll));
+				}
+				else if (value.IsFraction())
+				{
+					Push(MidoriValue(value.GetFraction() != 0.0));
+				}
+				else if (value.IsObjectPointer() && value.GetObjectPointer()->IsText())
+				{
+					Push(MidoriValue(!value.GetObjectPointer()->GetText().empty()));
+				}
+				else if (value.IsUnit())
+				{
+					Push(MidoriValue(false));
+				}
+				else
+				{
+					// unreachable
+					throw InterpreterException(GenerateRuntimeError("Cannot cast to bool.", GetLine()));
+				}
+
+				break;
+			}
+			case OpCode::CAST_TO_UNIT:
+			{
+				Pop();
+				Push(MidoriValue());
+				break;
+			}
 			case OpCode::LEFT_SHIFT:
 			{
 				const MidoriValue& right = Pop();
@@ -513,17 +649,29 @@ void VirtualMachine::Execute()
 				int arity = static_cast<int>(ReadByte());
 				MidoriTraceable::MidoriText& foreign_function_name_ref = foreign_function_name.GetObjectPointer()->GetText();
 
+				// Platform-specific function loading
+#if defined(_WIN32) || defined(_WIN64)
 				FARPROC proc = GetProcAddress(m_library_handle, foreign_function_name_ref.c_str());
-				if (proc == NULL)
+#else
+				void* proc = dlsym(m_library_handle, foreign_function_name_ref.c_str());
+#endif
+				if (proc == nullptr)
 				{
 					throw InterpreterException(GenerateRuntimeError(std::format("Failed to load foreign function '{}'.", foreign_function_name_ref), GetLine()));
 				}
 
-				void(*ffi)(MidoriValue*) = reinterpret_cast<void(*)(MidoriValue*)>(proc);
-				MidoriValue& arg = Pop();
-				ffi(&arg);
+				std::vector<MidoriValue*> args(arity);
+				std::for_each(args.rbegin(), args.rend(), [this](MidoriValue*& value) -> void
+					{
+						value = std::addressof(Pop());
+					});
+				MidoriValue return_val;
 
-				Push(MidoriValue());
+
+				void(*ffi)(const std::vector<MidoriValue*>&, MidoriValue*) = reinterpret_cast<void(*)(const std::vector<MidoriValue*>&, MidoriValue*)>(proc);
+				ffi(args, &return_val);
+
+				Push(return_val);
 
 				break;
 			}

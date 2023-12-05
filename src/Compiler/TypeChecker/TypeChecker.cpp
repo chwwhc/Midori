@@ -258,6 +258,25 @@ void TypeChecker::operator()(Struct& struct_stmt)
 	m_name_type_table.back()[struct_stmt.m_name.m_lexeme] = std::move(struct_constructor_type);
 }
 
+MidoriResult::TypeResult TypeChecker::operator()(As& as)
+{
+	MidoriResult::TypeResult expr_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *as.m_expr);
+	if (!expr_result.has_value())
+	{
+		return expr_result;
+	}
+
+	const MidoriType& actual_type = *expr_result.value();
+	const MidoriType& target_type = *as.m_target_type;
+	if ((std::find(m_atomic_types.cbegin(), m_atomic_types.cend(), actual_type) == m_atomic_types.cend()) || (std::find(m_atomic_types.cbegin(), m_atomic_types.cend(), target_type) == m_atomic_types.cend()))
+	{
+		std::string error_message = std::format("As expression type error: expected atomic types, got {} and {}", MidoriTypeUtil::ToString(actual_type), MidoriTypeUtil::ToString(target_type));
+		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError(error_message, as.m_as_keyword, {}, actual_type));
+	}
+
+	return as.m_target_type;
+}
+
 MidoriResult::TypeResult TypeChecker::operator()(Binary& binary)
 {
 	MidoriResult::TypeResult left_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *binary.m_left);

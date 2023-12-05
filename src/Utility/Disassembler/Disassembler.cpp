@@ -211,6 +211,21 @@ namespace Disassembler
 		case OpCode::SET_ARRAY:
 			ArrayInstruction("SET_ARRAY", stream, offset);
 			break;
+		case OpCode::CAST_TO_FRACTION:
+			SimpleInstruction("CAST_TO_FRACTION", offset);
+			break;
+		case OpCode::CAST_TO_INTEGER:
+			SimpleInstruction("CAST_TO_INTEGER", offset);
+			break;
+		case OpCode::CAST_TO_TEXT:
+			SimpleInstruction("CAST_TO_TEXT", offset);
+			break;
+		case OpCode::CAST_TO_BOOL:
+			SimpleInstruction("CAST_TO_BOOL", offset);
+			break;
+		case OpCode::CAST_TO_UNIT:
+			SimpleInstruction("CAST_TO_UNIT", offset);
+			break;
 		case OpCode::LEFT_SHIFT:
 			SimpleInstruction("LEFT_SHIFT", offset);
 			break;

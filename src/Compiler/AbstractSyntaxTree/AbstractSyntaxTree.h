@@ -6,6 +6,7 @@
 #include "Compiler/Token/Token.h"
 #include "Common/Value/Type.h"
 
+struct As;
 struct Binary;
 struct Group;
 struct Literal;
@@ -27,7 +28,7 @@ struct Array;
 struct ArrayGet;
 struct ArraySet;
 
-using MidoriExpression = std::variant < Binary, Group, TextLiteral, BoolLiteral, FractionLiteral, IntegerLiteral, UnitLiteral, Unary, Bind, Variable, Call, Closure, Construct, Ternary, Get, Set, Array, ArrayGet, ArraySet>;
+using MidoriExpression = std::variant < As, Binary, Group, TextLiteral, BoolLiteral, FractionLiteral, IntegerLiteral, UnitLiteral, Unary, Bind, Variable, Call, Closure, Construct, Ternary, Get, Set, Array, ArrayGet, ArraySet>;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -62,6 +63,13 @@ namespace VariableSemantic
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct As
+{
+	Token m_as_keyword;
+	std::unique_ptr<MidoriExpression> m_expr;
+	std::shared_ptr<MidoriType> m_target_type;
+};
 
 struct Binary
 {

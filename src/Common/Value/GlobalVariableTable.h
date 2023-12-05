@@ -10,12 +10,12 @@ private:
 
 public:
 
-	inline int AddGlobalVariable(std::string&& name)
+	int AddGlobalVariable(std::string&& name)
 	{
 		m_globals.emplace_back(std::move(name));
 		return static_cast<int>(m_globals.size()) - 1;
 	}
 
-	inline const std::string& GetGlobalVariable(int index) const { return m_globals[static_cast<size_t>(index)]; }
+	const std::string& GetGlobalVariable(int index) const { return m_globals[static_cast<size_t>(index)]; }
 
 };
