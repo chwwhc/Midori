@@ -1,4 +1,4 @@
-# �ߥɥ� (MIDORI)
+# ミドリ (MIDORI)
 
 ## Introduction
 
