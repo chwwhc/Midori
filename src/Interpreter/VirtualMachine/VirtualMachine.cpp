@@ -211,11 +211,7 @@ void VirtualMachine::Execute()
 			{
 				const MidoriValue& value = Pop();
 
-				if (value.IsBool())
-				{
-					Push(MidoriValue(static_cast<MidoriValue::MidoriFraction>(value.GetBool())));
-				}
-				else if (value.IsInteger())
+				if (value.IsInteger())
 				{
 					Push(MidoriValue(static_cast<MidoriValue::MidoriFraction>(value.GetInteger())));
 				}
@@ -228,14 +224,9 @@ void VirtualMachine::Execute()
 					MidoriValue::MidoriFraction fraction = std::stod(value.GetObjectPointer()->GetText());
 					Push(MidoriValue(fraction));
 				}
-				else if (value.IsUnit())
-				{
-					Push(MidoriValue(static_cast<MidoriValue::MidoriFraction>(0.0)));
-				}
 				else
 				{
-					// unreachable
-					throw InterpreterException(GenerateRuntimeError("Cannot cast to fraction.", GetLine()));
+					throw InterpreterException(GenerateRuntimeError("Unable to cast to Fraction.", GetLine()));
 				}
 
 				break;
@@ -244,11 +235,7 @@ void VirtualMachine::Execute()
 			{
 				const MidoriValue& value = Pop();
 
-				if (value.IsBool())
-				{
-					Push(MidoriValue(static_cast<MidoriValue::MidoriInteger>(value.GetBool())));
-				}
-				else if (value.IsInteger())
+				if (value.IsInteger())
 				{
 					Push(value);
 				}
@@ -261,14 +248,9 @@ void VirtualMachine::Execute()
 					MidoriValue::MidoriInteger integer = std::stoll(value.GetObjectPointer()->GetText());
 					Push(MidoriValue(integer));
 				}
-				else if (value.IsUnit())
-				{
-					Push(MidoriValue(static_cast<MidoriValue::MidoriInteger>(0ll)));
-				}
 				else
 				{
-					// unreachable
-					throw InterpreterException(GenerateRuntimeError("Cannot cast to integer.", GetLine()));
+					throw InterpreterException(GenerateRuntimeError("Unable to cast to Integer.", GetLine()));
 				}
 
 				break;
@@ -289,9 +271,17 @@ void VirtualMachine::Execute()
 				{
 					Push(CollectGarbageThenAllocateObject(std::to_string(value.GetFraction())));
 				}
-				else if (value.IsObjectPointer() && value.GetObjectPointer()->IsText())
+				else if (value.IsObjectPointer())
 				{
-					Push(value);
+					const MidoriTraceable& ptr = *value.GetObjectPointer();
+					if (ptr.IsText())
+					{
+						Push(value);
+					}
+					else
+					{
+						Push(CollectGarbageThenAllocateObject(ptr.ToString()));
+					}
 				}
 				else if (value.IsUnit())
 				{
@@ -299,8 +289,7 @@ void VirtualMachine::Execute()
 				}
 				else
 				{
-					// unreachable
-					throw InterpreterException(GenerateRuntimeError("Cannot cast to text.", GetLine()));
+					throw InterpreterException(GenerateRuntimeError("Unable to cast to Text.", GetLine()));
 				}
 
 				break;
@@ -321,18 +310,9 @@ void VirtualMachine::Execute()
 				{
 					Push(MidoriValue(value.GetFraction() != 0.0));
 				}
-				else if (value.IsObjectPointer() && value.GetObjectPointer()->IsText())
-				{
-					Push(MidoriValue(!value.GetObjectPointer()->GetText().empty()));
-				}
-				else if (value.IsUnit())
-				{
-					Push(MidoriValue(false));
-				}
 				else
 				{
-					// unreachable
-					throw InterpreterException(GenerateRuntimeError("Cannot cast to bool.", GetLine()));
+					throw InterpreterException(GenerateRuntimeError("Unable to cast to Bool.", GetLine()));
 				}
 
 				break;

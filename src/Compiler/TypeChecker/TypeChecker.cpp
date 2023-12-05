@@ -49,7 +49,7 @@ void TypeChecker::operator()(Define& def)
 	if (std::holds_alternative<Closure>(*def.m_value))
 	{
 		Closure& closure = std::get<Closure>(*def.m_value);
-		m_name_type_table.back().emplace(def.m_name.m_lexeme, std::make_shared<MidoriType>(FunctionType(closure.m_param_types, closure.m_return_type)));
+		m_name_type_table.back().emplace(def.m_name.m_lexeme, std::make_shared<MidoriType>(FunctionType{ closure.m_param_types, closure.m_return_type }));
 		const MidoriType& actual_type = *m_name_type_table.back()[def.m_name.m_lexeme];
 
 		BeginScope();
@@ -250,11 +250,11 @@ void TypeChecker::operator()(Struct& struct_stmt)
 	const StructType& struct_type = MidoriTypeUtil::GetStructType(*struct_stmt.m_self_type);
 	std::vector<std::shared_ptr<MidoriType>> member_types;
 	member_types.reserve(struct_type.m_member_types.size());
-	std::for_each(struct_type.m_member_types.cbegin(), struct_type.m_member_types.cend(), [&member_types, this](const std::pair<const std::string, StructType::MemberTypeInfo>& member_type)
+	std::for_each(struct_type.m_member_types.cbegin(), struct_type.m_member_types.cend(), [&member_types](const std::pair<const std::string, StructType::MemberTypeInfo>& member_type)
 		{
 			member_types.emplace_back(member_type.second.second);
 		});
-	std::shared_ptr<MidoriType> struct_constructor_type = std::make_shared<MidoriType>(FunctionType(std::move(member_types), struct_stmt.m_self_type));
+	std::shared_ptr<MidoriType> struct_constructor_type = std::make_shared<MidoriType>(FunctionType{ std::move(member_types), struct_stmt.m_self_type });
 	m_name_type_table.back()[struct_stmt.m_name.m_lexeme] = std::move(struct_constructor_type);
 }
 
@@ -264,14 +264,6 @@ MidoriResult::TypeResult TypeChecker::operator()(As& as)
 	if (!expr_result.has_value())
 	{
 		return expr_result;
-	}
-
-	const MidoriType& actual_type = *expr_result.value();
-	const MidoriType& target_type = *as.m_target_type;
-	if ((std::find(m_atomic_types.cbegin(), m_atomic_types.cend(), actual_type) == m_atomic_types.cend()) || (std::find(m_atomic_types.cbegin(), m_atomic_types.cend(), target_type) == m_atomic_types.cend()))
-	{
-		std::string error_message = std::format("As expression type error: expected atomic types, got {} and {}", MidoriTypeUtil::ToString(actual_type), MidoriTypeUtil::ToString(target_type));
-		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError(error_message, as.m_as_keyword, {}, actual_type));
 	}
 
 	return as.m_target_type;
@@ -562,33 +554,33 @@ MidoriResult::TypeResult TypeChecker::operator()(Bind& bind)
 
 MidoriResult::TypeResult TypeChecker::operator()(TextLiteral&)
 {
-	return std::make_shared<MidoriType>(TextType());
+	return std::make_shared<MidoriType>(TextType{});
 }
 
 MidoriResult::TypeResult TypeChecker::operator()(BoolLiteral&)
 {
-	return std::make_shared<MidoriType>(BoolType());
+	return std::make_shared<MidoriType>(BoolType{});
 }
 
 MidoriResult::TypeResult TypeChecker::operator()(FractionLiteral&)
 {
-	return std::make_shared<MidoriType>(FractionType());
+	return std::make_shared<MidoriType>(FractionType{});
 }
 
 MidoriResult::TypeResult TypeChecker::operator()(IntegerLiteral&)
 {
-	return std::make_shared<MidoriType>(IntegerType());
+	return std::make_shared<MidoriType>(IntegerType{});
 }
 
 MidoriResult::TypeResult TypeChecker::operator()(UnitLiteral&)
 {
-	return std::make_shared<MidoriType>(UnitType());
+	return std::make_shared<MidoriType>(UnitType{});
 }
 
 MidoriResult::TypeResult TypeChecker::operator()(Closure& closure)
 {
-	std::shared_ptr<MidoriType> prev_return_type = std::move(m_curr_closure_return_type);
-	m_curr_closure_return_type = closure.m_return_type;
+	const MidoriType* prev_return_type = m_curr_closure_return_type;
+	m_curr_closure_return_type = closure.m_return_type.get();
 
 	BeginScope();
 	for (size_t i = 0u; i < closure.m_param_types.size(); i += 1u)
@@ -600,8 +592,8 @@ MidoriResult::TypeResult TypeChecker::operator()(Closure& closure)
 
 	EndScope();
 
-	m_curr_closure_return_type = std::move(prev_return_type);
-	return std::make_shared<MidoriType>(FunctionType(std::move(closure.m_param_types), std::move(closure.m_return_type)));
+	m_curr_closure_return_type = prev_return_type;
+	return std::make_shared<MidoriType>(FunctionType{ std::move(closure.m_param_types), std::move(closure.m_return_type) });
 }
 
 MidoriResult::TypeResult TypeChecker::operator()(Construct& construct)

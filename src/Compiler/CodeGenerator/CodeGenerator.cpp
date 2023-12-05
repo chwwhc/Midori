@@ -272,8 +272,7 @@ void CodeGenerator::operator()(As& as)
 	}
 	else
 	{
-		// the else branch should be unreachable
-		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Failed to emit type casting instruction.", line));
+		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Unsupported type casting instruction.", line));
 	}
 }
 
@@ -399,7 +398,7 @@ void CodeGenerator::operator()(Call& call)
 		return;
 	}
 
-	std::for_each(call.m_arguments.begin(), call.m_arguments.end(), [&line, this](std::unique_ptr<MidoriExpression>& arg) { std::visit([this](auto&& arg) {(*this)(arg); }, *arg); });
+	std::for_each(call.m_arguments.begin(), call.m_arguments.end(), [this](std::unique_ptr<MidoriExpression>& arg) { std::visit([this](auto&& arg) {(*this)(arg); }, *arg); });
 	std::visit([this](auto&& arg) {(*this)(arg); }, *call.m_callee);
 
 	if (call.m_is_foreign)

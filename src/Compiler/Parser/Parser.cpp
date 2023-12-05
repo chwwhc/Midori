@@ -80,17 +80,17 @@ MidoriResult::ExpressionResult Parser::ParseBind()
 				// global
 				if (found_scope_it == std::prev(m_scopes.rend()))
 				{
-					return std::make_unique<MidoriExpression>(Bind(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Global()));
+					return std::make_unique<MidoriExpression>(Bind{ std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Global() });
 				}
 				// local
 				else if (m_closure_depth == 0 || find_result->second.m_closure_depth == m_closure_depth)
 				{
-					return std::make_unique<MidoriExpression>(Bind(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Local(find_result->second.m_relative_index)));
+					return std::make_unique<MidoriExpression>(Bind{ std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Local(find_result->second.m_relative_index) });
 				}
 				// cell
 				else
 				{
-					return std::make_unique<MidoriExpression>(Bind(std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Cell(find_result->second.m_absolute_index)));
+					return std::make_unique<MidoriExpression>(Bind{ std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Cell(find_result->second.m_absolute_index) });
 				}
 			}
 
@@ -99,12 +99,12 @@ MidoriResult::ExpressionResult Parser::ParseBind()
 		else if (std::holds_alternative<Get>(*expr.value()))
 		{
 			Get& get_expr = std::get<Get>(*expr.value());
-			return std::make_unique<MidoriExpression>(Set(std::move(get_expr.m_member_name), std::move(get_expr.m_struct), std::move(value.value())));
+			return std::make_unique<MidoriExpression>(Set{ std::move(get_expr.m_member_name), std::move(get_expr.m_struct), std::move(value.value()) });
 		}
 		else if (std::holds_alternative<ArrayGet>(*expr.value()))
 		{
 			ArrayGet& access_expr = std::get<ArrayGet>(*expr.value());
-			return std::make_unique<MidoriExpression>(ArraySet(std::move(access_expr.m_op), std::move(access_expr.m_arr_var), std::move(access_expr.m_indices), std::move(value.value())));
+			return std::make_unique<MidoriExpression>(ArraySet{ std::move(access_expr.m_op), std::move(access_expr.m_arr_var), std::move(access_expr.m_indices), std::move(value.value()) });
 		}
 
 		return std::unexpected<std::string>(GenerateParserError("Invalid binding target.", equal));
@@ -124,7 +124,7 @@ MidoriResult::ExpressionResult Parser::ParseUnary()
 			return std::unexpected<std::string>(std::move(right.error()));
 		}
 
-		return std::make_unique<MidoriExpression>(Unary(std::move(op), std::move(right.value())));
+		return std::make_unique<MidoriExpression>(Unary{ std::move(op), std::move(right.value()) });
 	}
 
 	return ParseConstruct();
@@ -156,7 +156,7 @@ MidoriResult::ExpressionResult Parser::ParseTernary()
 				return std::unexpected<std::string>(std::move(else_branch.error()));
 			}
 
-			return std::make_unique<MidoriExpression>(Ternary(std::move(question), std::move(colon), std::move(condition.value()), std::move(true_branch.value()), std::move(else_branch.value())));
+			return std::make_unique<MidoriExpression>(Ternary{ std::move(question), std::move(colon), std::move(condition.value()), std::move(true_branch.value()), std::move(else_branch.value()) });
 		}
 		else
 		{
@@ -189,7 +189,7 @@ MidoriResult::ExpressionResult Parser::ParseAs()
 			return std::unexpected<std::string>(std::move(type.error()));
 		}
 
-		return std::make_unique<MidoriExpression>(As(std::move(as), std::move(expr.value()), std::move(type.value())));
+		return std::make_unique<MidoriExpression>(As{ std::move(as), std::move(expr.value()), std::move(type.value()) });
 	}
 
 	return expr;
@@ -212,7 +212,7 @@ MidoriResult::ExpressionResult Parser::ParseArrayAccessHelper(std::unique_ptr<Mi
 		Consume(Token::Name::RIGHT_BRACKET, "Expected ']' after index.");
 	}
 
-	return std::make_unique<MidoriExpression>(ArrayGet(std::move(op), std::move(arr_var), std::move(indices)));
+	return std::make_unique<MidoriExpression>(ArrayGet{ std::move(op), std::move(arr_var), std::move(indices) });
 }
 
 MidoriResult::ExpressionResult Parser::ParseArrayAccess()
@@ -257,7 +257,7 @@ MidoriResult::ExpressionResult Parser::ParseCall()
 				return std::unexpected<std::string>(std::move(name.error()));
 			}
 
-			expr = std::make_unique<MidoriExpression>(Get(std::move(name.value()), std::move(expr.value())));
+			expr = std::make_unique<MidoriExpression>(Get{ std::move(name.value()), std::move(expr.value()) });
 		}
 		else
 		{
@@ -311,7 +311,7 @@ MidoriResult::ExpressionResult Parser::ParseConstruct()
 			return std::unexpected<std::string>(std::move(paren.error()));
 		}
 
-		return std::make_unique<MidoriExpression>(Construct(std::move(keyword), std::move(arguments), struct_type));
+		return std::make_unique<MidoriExpression>(Construct{ std::move(keyword), std::move(arguments), struct_type });
 	}
 	else
 	{
@@ -337,7 +337,7 @@ MidoriResult::ExpressionResult Parser::FinishCall(std::unique_ptr<MidoriExpressi
 	}
 
 	std::expected<Token, std::string> paren = Consume(Token::Name::RIGHT_PAREN, "Expected ')' after arguments.");
-	return paren.has_value() ? MidoriResult::ExpressionResult(std::make_unique<MidoriExpression>(Call(std::move(paren.value()), std::move(callee), std::move(arguments)))) : std::unexpected<std::string>(paren.error());
+	return paren.has_value() ? MidoriResult::ExpressionResult(std::make_unique<MidoriExpression>(Call{ std::move(paren.value()), std::move(callee), std::move(arguments) })) : std::unexpected<std::string>(paren.error());
 }
 
 MidoriResult::ExpressionResult Parser::ParsePrimary()
@@ -356,7 +356,7 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 			return std::unexpected<std::string>(std::move(paren.error()));
 		}
 
-		return std::make_unique<MidoriExpression>(Group(std::move(expr_in.value())));
+		return std::make_unique<MidoriExpression>(Group{ std::move(expr_in.value()) });
 	}
 	else if (Match(Token::Name::IDENTIFIER_LITERAL))
 	{
@@ -374,17 +374,17 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 			// global
 			if (found_scope_it == std::prev(m_scopes.rend()))
 			{
-				return std::make_unique<MidoriExpression>(Variable(std::move(Previous()), VariableSemantic::Global()));
+				return std::make_unique<MidoriExpression>(Variable{ std::move(Previous()), VariableSemantic::Global() });
 			}
 			// local
 			else if (m_closure_depth == 0 || find_result->second.m_closure_depth == m_closure_depth)
 			{
-				return std::make_unique<MidoriExpression>(Variable(std::move(Previous()), VariableSemantic::Local(find_result->second.m_relative_index)));
+				return std::make_unique<MidoriExpression>(Variable{ std::move(Previous()), VariableSemantic::Local(find_result->second.m_relative_index) });
 			}
 			// cell
 			else
 			{
-				return std::make_unique<MidoriExpression>(Variable(std::move(Previous()), VariableSemantic::Cell(find_result->second.m_absolute_index)));
+				return std::make_unique<MidoriExpression>(Variable{ std::move(Previous()), VariableSemantic::Cell(find_result->second.m_absolute_index) });
 			}
 		}
 
@@ -499,7 +499,7 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 		Token& right_brace = Previous();
 		int block_local_count = EndScope();
 
-		std::unique_ptr<MidoriStatement> closure_body = std::make_unique<MidoriStatement>(Block(std::move(right_brace), std::move(statements), block_local_count));
+		std::unique_ptr<MidoriStatement> closure_body = std::make_unique<MidoriStatement>(Block{ std::move(right_brace), std::move(statements), block_local_count });
 		if (!HasReturnStatement(*closure_body))
 		{
 			return std::unexpected<std::string>(GenerateParserError("Closure does not return in all paths.", keyword));
@@ -508,27 +508,27 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 		m_closure_depth -= 1;
 		m_total_locals_in_curr_scope = prev_total_locals;
 
-		return std::make_unique<MidoriExpression>(Closure(std::move(keyword), std::move(params), std::move(param_types), std::move(closure_body), std::move(return_type.value()), m_total_variables));
+		return std::make_unique<MidoriExpression>(Closure{ std::move(keyword), std::move(params), std::move(param_types), std::move(closure_body), std::move(return_type.value()), m_total_variables });
 	}
 	else if (Match(Token::Name::OP_TRUE, Token::Name::OP_FALSE))
 	{
-		return std::make_unique<MidoriExpression>(BoolLiteral(std::move(Previous())));
+		return std::make_unique<MidoriExpression>(BoolLiteral{ std::move(Previous()) });
 	}
 	else if (Match(Token::Name::HASH))
 	{
-		return std::make_unique<MidoriExpression>(UnitLiteral(std::move(Previous())));
+		return std::make_unique<MidoriExpression>(UnitLiteral{ std::move(Previous()) });
 	}
 	else if (Match(Token::Name::FRACTION_LITERAL))
 	{
-		return std::make_unique<MidoriExpression>(FractionLiteral(std::move(Previous())));
+		return std::make_unique<MidoriExpression>(FractionLiteral{ std::move(Previous()) });
 	}
 	else if (Match(Token::Name::INTEGER_LITERAL))
 	{
-		return std::make_unique<MidoriExpression>(IntegerLiteral(std::move(Previous())));
+		return std::make_unique<MidoriExpression>(IntegerLiteral{ std::move(Previous()) });
 	}
 	else if (Match(Token::Name::TEXT_LITERAL))
 	{
-		return std::make_unique<MidoriExpression>(TextLiteral(std::move(Previous())));
+		return std::make_unique<MidoriExpression>(TextLiteral{ std::move(Previous()) });
 	}
 	else if (Match(Token::Name::LEFT_BRACKET))
 	{
@@ -558,7 +558,7 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 			return std::unexpected<std::string>(std::move(bracket.error()));
 		}
 
-		return std::make_unique<MidoriExpression>(Array(std::move(op), std::move(expr_vector)));
+		return std::make_unique<MidoriExpression>(Array{ std::move(op), std::move(expr_vector) });
 	}
 	else
 	{
@@ -583,7 +583,7 @@ MidoriResult::ExpressionResult Parser::ParseLogicalAnd()
 			return std::unexpected<std::string>(std::move(right.error()));
 		}
 
-		expr = MidoriResult::ExpressionResult(std::make_unique<MidoriExpression>(Binary(std::move(op), std::move(expr.value()), std::move(right.value()))));
+		expr = MidoriResult::ExpressionResult(std::make_unique<MidoriExpression>(Binary{ std::move(op), std::move(expr.value()), std::move(right.value()) }));
 	}
 
 	return expr;
@@ -606,7 +606,7 @@ MidoriResult::ExpressionResult Parser::ParseLogicalOr()
 			return std::unexpected<std::string>(std::move(right.error()));
 		}
 
-		expr = MidoriResult::ExpressionResult(std::make_unique<MidoriExpression>(Binary(std::move(op), std::move(expr.value()), std::move(right.value()))));
+		expr = MidoriResult::ExpressionResult(std::make_unique<MidoriExpression>(Binary{ std::move(op), std::move(expr.value()), std::move(right.value()) }));
 	}
 
 	return expr;
@@ -651,7 +651,7 @@ MidoriResult::StatementResult Parser::ParseBlockStatement()
 	Token& right_brace = Previous();
 	int block_local_count = EndScope();
 
-	return std::make_unique<MidoriStatement>(Block(std::move(right_brace), std::move(statements), std::move(block_local_count)));
+	return std::make_unique<MidoriStatement>(Block{ std::move(right_brace), std::move(statements), std::move(block_local_count) });
 }
 
 MidoriResult::StatementResult Parser::ParseDefineStatement()
@@ -703,7 +703,7 @@ MidoriResult::StatementResult Parser::ParseDefineStatement()
 		}
 		else
 		{
-			return std::make_unique<MidoriStatement>(Define(std::move(name), std::move(expr.value()), std::move(type_annotation), std::move(local_index)));
+			return std::make_unique<MidoriStatement>(Define{ std::move(name), std::move(expr.value()), std::move(type_annotation), std::move(local_index) });
 		}
 	}
 }
@@ -773,7 +773,7 @@ MidoriResult::StatementResult Parser::ParseStructDeclaration()
 		}
 	}
 
-	std::shared_ptr<MidoriType> struct_type = std::make_shared<MidoriType>(StructType(name.value().m_lexeme, std::move(member_types)));
+	std::shared_ptr<MidoriType> struct_type = std::make_shared<MidoriType>(StructType{ name.value().m_lexeme, std::move(member_types) });
 	m_structs[name.value().m_lexeme] = struct_type;
 
 	brace = Consume(Token::Name::RIGHT_BRACE, "Expected '}' after struct body.");
@@ -783,7 +783,7 @@ MidoriResult::StatementResult Parser::ParseStructDeclaration()
 	}
 
 	m_struct_count += 1;
-	return std::make_unique<MidoriStatement>(Struct(std::move(name.value()), struct_type));
+	return std::make_unique<MidoriStatement>(Struct{ std::move(name.value()), struct_type });
 }
 
 MidoriResult::StatementResult Parser::ParseIfStatement()
@@ -828,7 +828,7 @@ MidoriResult::StatementResult Parser::ParseIfStatement()
 		else_branch.emplace(std::move(else_branch_result.value()));
 	}
 
-	return std::make_unique<MidoriStatement>(If(std::move(if_token), std::move(else_token), std::move(else_branch), std::move(condition.value()), std::move(then_branch.value())));
+	return std::make_unique<MidoriStatement>(If{ std::move(if_token), std::move(else_token), std::move(else_branch), std::move(condition.value()), std::move(then_branch.value()) });
 }
 
 MidoriResult::StatementResult Parser::ParseWhileStatement()
@@ -861,7 +861,7 @@ MidoriResult::StatementResult Parser::ParseWhileStatement()
 	}
 
 	m_local_count_before_loop.pop();
-	return std::make_unique<MidoriStatement>(While(std::move(keyword), std::move(condition.value()), std::move(body.value())));
+	return std::make_unique<MidoriStatement>(While{ std::move(keyword), std::move(condition.value()), std::move(body.value()) });
 }
 
 MidoriResult::StatementResult Parser::ParseForStatement()
@@ -932,7 +932,7 @@ MidoriResult::StatementResult Parser::ParseForStatement()
 		}
 		else
 		{
-			increment.emplace(std::make_unique<MidoriStatement>(Simple(std::move(semi_colon.value()), std::move(expr.value()))));
+			increment.emplace(std::make_unique<MidoriStatement>(Simple{ std::move(semi_colon.value()), std::move(expr.value()) }));
 		}
 	}
 	paren = Consume(Token::Name::RIGHT_PAREN, "Expected ')' after \"for\" clauses.");
@@ -950,9 +950,7 @@ MidoriResult::StatementResult Parser::ParseForStatement()
 	int control_block_local_count = EndScope();
 	m_local_count_before_loop.pop();
 
-	body = std::make_unique<MidoriStatement>(For(std::move(keyword), std::move(condition), std::move(increment), std::move(initializer), std::move(body.value()), control_block_local_count));
-
-	return body;
+	return std::make_unique<MidoriStatement>(For{ std::move(keyword), std::move(condition), std::move(increment), std::move(initializer), std::move(body.value()), control_block_local_count });
 }
 
 MidoriResult::StatementResult Parser::ParseBreakStatement()
@@ -970,7 +968,7 @@ MidoriResult::StatementResult Parser::ParseBreakStatement()
 		return std::unexpected<std::string>(std::move(semi_colon.error()));
 	}
 
-	return std::make_unique<MidoriStatement>(Break(std::move(keyword), m_total_variables - m_local_count_before_loop.top()));
+	return std::make_unique<MidoriStatement>(Break{ std::move(keyword), m_total_variables - m_local_count_before_loop.top() });
 }
 
 MidoriResult::StatementResult Parser::ParseContinueStatement()
@@ -988,7 +986,7 @@ MidoriResult::StatementResult Parser::ParseContinueStatement()
 		return std::unexpected<std::string>(std::move(semi_colon.error()));
 	}
 
-	return std::make_unique<MidoriStatement>(Continue(std::move(keyword), m_total_variables - m_local_count_before_loop.top() - 1));
+	return std::make_unique<MidoriStatement>(Continue{ std::move(keyword), m_total_variables - m_local_count_before_loop.top() - 1 });
 }
 
 MidoriResult::StatementResult Parser::ParseSimpleStatement()
@@ -1005,7 +1003,7 @@ MidoriResult::StatementResult Parser::ParseSimpleStatement()
 		return std::unexpected<std::string>(std::move(semi_colon.error()));
 	}
 
-	return std::make_unique<MidoriStatement>(Simple(std::move(semi_colon.value()), std::move(expr.value())));
+	return std::make_unique<MidoriStatement>(Simple{ std::move(semi_colon.value()), std::move(expr.value()) });
 }
 
 MidoriResult::StatementResult Parser::ParseReturnStatement()
@@ -1028,7 +1026,7 @@ MidoriResult::StatementResult Parser::ParseReturnStatement()
 		return std::unexpected<std::string>(std::move(semi_colon.error()));
 	}
 
-	return std::make_unique<MidoriStatement>(Return(std::move(keyword), std::move(expr.value())));
+	return std::make_unique<MidoriStatement>(Return{ std::move(keyword), std::move(expr.value()) });
 }
 
 MidoriResult::StatementResult Parser::ParseForeignStatement()
@@ -1071,7 +1069,7 @@ MidoriResult::StatementResult Parser::ParseForeignStatement()
 		return std::unexpected<std::string>(std::move(semi_colon.error()));
 	}
 
-	return std::make_unique<MidoriStatement>(Foreign(std::move(name.value()), std::move(type.value()), std::move(local_index)));
+	return std::make_unique<MidoriStatement>(Foreign{ std::move(name.value()), std::move(type.value()), std::move(local_index) });
 }
 
 
@@ -1115,23 +1113,23 @@ MidoriResult::TypeResult Parser::ParseType()
 {
 	if (Match(Token::Name::TEXT))
 	{
-		return std::make_shared<MidoriType>(TextType());
+		return std::make_shared<MidoriType>(TextType{});
 	}
 	else if (Match(Token::Name::FRACTION))
 	{
-		return std::make_shared<MidoriType>(FractionType());
+		return std::make_shared<MidoriType>(FractionType{});
 	}
 	else if (Match(Token::Name::INTEGER))
 	{
-		return std::make_shared<MidoriType>(IntegerType());
+		return std::make_shared<MidoriType>(IntegerType{});
 	}
 	else if (Match(Token::Name::BOOL))
 	{
-		return std::make_shared<MidoriType>(BoolType());
+		return std::make_shared<MidoriType>(BoolType{});
 	}
 	else if (Match(Token::Name::OP_UNIT))
 	{
-		return std::make_shared<MidoriType>(UnitType());
+		return std::make_shared<MidoriType>(UnitType{});
 	}
 	else if (Match(Token::Name::ARRAY))
 	{
@@ -1144,7 +1142,7 @@ MidoriResult::TypeResult Parser::ParseType()
 		else
 		{
 			Consume(Token::Name::RIGHT_ANGLE, "Expected '>' after array type_token.");
-			return std::make_shared<MidoriType>(ArrayType(std::move(type.value())));
+			return std::make_shared<MidoriType>(ArrayType{ std::move(type.value()) });
 		}
 	}
 	else if (Match(Token::Name::MAYBE))
@@ -1158,7 +1156,7 @@ MidoriResult::TypeResult Parser::ParseType()
 		else
 		{
 			Consume(Token::Name::RIGHT_ANGLE, "Expected '>' after maybe type_token.");
-			return std::make_shared<MidoriType>(MaybeType(std::move(type.value())));
+			return std::make_shared<MidoriType>(MaybeType{ std::move(type.value()) });
 		}
 	}
 	else if (Match(Token::Name::LEFT_PAREN))
@@ -1191,7 +1189,7 @@ MidoriResult::TypeResult Parser::ParseType()
 		}
 		else
 		{
-			return std::make_shared<MidoriType>(FunctionType(std::move(types), std::move(return_type.value())));
+			return std::make_shared<MidoriType>(FunctionType{ std::move(types), std::move(return_type.value()) });
 		}
 	}
 	else if (Match(Token::Name::IDENTIFIER_LITERAL))
