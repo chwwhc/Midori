@@ -149,7 +149,7 @@ struct Closure
 
 struct Construct
 {
-	Token m_new_keyword;
+	Token m_type_name;
 	std::vector<std::unique_ptr<MidoriExpression>> m_params;
 	std::shared_ptr<MidoriType> m_return_type;
 };
@@ -278,4 +278,5 @@ struct Struct
 {
 	Token m_name;
 	std::shared_ptr<MidoriType> m_self_type;
+	std::optional<int> m_local_index;
 };

@@ -94,6 +94,11 @@ std::string MidoriTraceable::ToString() const
 			}
 			else if constexpr (std::is_same_v<T, MidoriArray>)
 			{
+				if (arg.empty())
+				{
+					return "[]";
+				}
+
 				std::string result = "[";
 				std::for_each(arg.begin(), arg.end(), [&result](const MidoriValue& value) -> void
 					{
@@ -162,11 +167,15 @@ void MidoriTraceable::Trace()
 	{
 		return;
 	}
+#ifdef DEBUG
+	std::cout << "Marking object: " << ToString() << '\n';
+#endif
 	Mark();
 
 	if (IsArray())
 	{
-		std::for_each(GetArray().begin(), GetArray().end(), [](MidoriValue& value) -> void
+		MidoriArray& array = GetArray();
+		std::for_each(array.begin(), array.end(), [](MidoriValue& value) -> void
 			{
 				if (value.IsObjectPointer())
 				{

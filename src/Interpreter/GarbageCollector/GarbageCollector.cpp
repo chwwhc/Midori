@@ -2,6 +2,10 @@
 
 #include <algorithm>
 
+#ifdef DEBUG
+#include <iostream>
+#endif
+
 void GarbageCollector::Mark(MidoriTraceable::GarbageCollectionRoots&& roots)
 {
 	roots.insert(m_constant_roots.begin(), m_constant_roots.end());
@@ -22,6 +26,10 @@ void GarbageCollector::Sweep()
 		}
 		else
 		{
+#ifdef DEBUG
+			std::cout << "Deleting object: " << obj->ToString() << '\n';
+#endif
+
 			it = MidoriTraceable::s_objects.erase(it);
 			delete obj;
 		}

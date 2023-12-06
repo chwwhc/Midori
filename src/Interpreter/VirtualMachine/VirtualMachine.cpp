@@ -44,7 +44,7 @@ MidoriTraceable::GarbageCollectionRoots VirtualMachine::GetGarbageCollectionRoot
 	MidoriTraceable::GarbageCollectionRoots stack_roots = GetValueStackGarbageCollectionRoots();
 	MidoriTraceable::GarbageCollectionRoots global_roots = GetGlobalTableGarbageCollectionRoots();
 
-	stack_roots.insert(global_roots.begin(), global_roots.end());
+	stack_roots.insert(global_roots.cbegin(), global_roots.cend());
 	return stack_roots;
 }
 
@@ -62,13 +62,14 @@ void VirtualMachine::CollectGarbage()
 	}
 
 #ifdef DEBUG
-	std::cout << "\nBefore garbage collection:";
+	std::cout << "\033[34m" << "\nBefore garbage collection:"; // Blue
 	MidoriTraceable::PrintMemoryTelemetry();
 #endif
 	m_garbage_collector.ReclaimMemory(std::move(roots));
 #ifdef DEBUG
 	std::cout << "\nAfter garbage collection:";
 	MidoriTraceable::PrintMemoryTelemetry();
+	std::cout << "\033[0m"; // Reset color
 #endif
 }
 
@@ -139,7 +140,7 @@ void VirtualMachine::Execute()
 					{
 						value = Pop();
 					});
-				Push(CollectGarbageThenAllocateObject(std::move(arr)));
+				Push(AllocateObject(std::move(arr)));
 				break;
 			}
 			case OpCode::GET_ARRAY:
@@ -471,7 +472,7 @@ void VirtualMachine::Execute()
 					right_value_vector_ref.begin(),
 					right_value_vector_ref.end());
 
-				Push(CollectGarbageThenAllocateObject(std::move(new_value_vector)));
+				Push(AllocateObject(std::move(new_value_vector)));
 				break;
 			}
 			case OpCode::CONCAT_TEXT:

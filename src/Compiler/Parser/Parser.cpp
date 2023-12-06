@@ -63,14 +63,14 @@ MidoriResult::ExpressionResult Parser::ParseBind()
 		{
 			Variable& variable_expr = std::get<Variable>(*expr.value());
 
-			std::vector<Scope>::reverse_iterator found_scope_it = std::find_if(m_scopes.rbegin(), m_scopes.rend(), [&variable_expr](const Scope& scope)
+			std::vector<Scope>::const_reverse_iterator found_scope_it = std::find_if(m_scopes.crbegin(), m_scopes.crend(), [&variable_expr](const Scope& scope)
 				{
-					return scope.find(variable_expr.m_name.m_lexeme) != scope.cend();
+					return scope.m_variables.find(variable_expr.m_name.m_lexeme) != scope.m_variables.cend();
 				});
 
-			if (found_scope_it != m_scopes.rend())
+			if (found_scope_it != m_scopes.crend())
 			{
-				Scope::const_iterator find_result = found_scope_it->find(variable_expr.m_name.m_lexeme);
+				Scope::VariableTable::const_iterator find_result = found_scope_it->m_variables.find(variable_expr.m_name.m_lexeme);
 
 				if (find_result->second.m_is_fixed)
 				{
@@ -78,7 +78,7 @@ MidoriResult::ExpressionResult Parser::ParseBind()
 				}
 
 				// global
-				if (found_scope_it == std::prev(m_scopes.rend()))
+				if (found_scope_it == std::prev(m_scopes.crend()))
 				{
 					return std::make_unique<MidoriExpression>(Bind{ std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Global() });
 				}
@@ -272,19 +272,25 @@ MidoriResult::ExpressionResult Parser::ParseConstruct()
 {
 	if (Match(Token::Name::NEW))
 	{
-		Token& keyword = Previous();
-		MidoriResult::TokenResult type_token = Consume(Token::Name::IDENTIFIER_LITERAL, "Expected type_token name after 'new'.");
+		MidoriResult::TokenResult type_token = Consume(Token::Name::IDENTIFIER_LITERAL, "Expected type name after 'new'.");
 		if (!type_token.has_value())
 		{
 			return std::unexpected<std::string>(std::move(type_token.error()));
 		}
-		else if (m_structs.find(type_token.value().m_lexeme) == m_structs.end())
+		
+		Token& type_token_value = type_token.value();
+		std::vector<Scope>::const_reverse_iterator found_scope_it = std::find_if(m_scopes.crbegin(), m_scopes.crend(), [&type_token_value](const Scope& scope)
+			{
+				return scope.m_structs.find(type_token_value.m_lexeme) != scope.m_structs.cend();
+			});
+
+		if (found_scope_it == m_scopes.crend())
 		{
 			return std::unexpected<std::string>(GenerateParserError("Undefined struct.", type_token.value()));
 		}
-		const std::shared_ptr<MidoriType> struct_type = m_structs[type_token.value().m_lexeme];
+		const std::shared_ptr<MidoriType>& struct_type = found_scope_it->m_structs.at(type_token_value.m_lexeme);
 
-		MidoriResult::TokenResult paren = Consume(Token::Name::LEFT_PAREN, "Expected '(' after type_token.");
+		MidoriResult::TokenResult paren = Consume(Token::Name::LEFT_PAREN, "Expected '(' after type.");
 		if (!paren.has_value())
 		{
 			return std::unexpected<std::string>(std::move(paren.error()));
@@ -311,7 +317,7 @@ MidoriResult::ExpressionResult Parser::ParseConstruct()
 			return std::unexpected<std::string>(std::move(paren.error()));
 		}
 
-		return std::make_unique<MidoriExpression>(Construct{ std::move(keyword), std::move(arguments), struct_type });
+		return std::make_unique<MidoriExpression>(Construct{ std::move(type_token_value), std::move(arguments), struct_type });
 	}
 	else
 	{
@@ -362,14 +368,14 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 	{
 		Token& variable = Previous();
 
-		std::vector<Scope>::reverse_iterator found_scope_it = std::find_if(m_scopes.rbegin(), m_scopes.rend(), [&variable](const Scope& scope)
+		std::vector<Scope>::const_reverse_iterator found_scope_it = std::find_if(m_scopes.crbegin(), m_scopes.crend(), [&variable](const Scope& scope)
 			{
-				return scope.find(variable.m_lexeme) != scope.end();
+				return scope.m_variables.find(variable.m_lexeme) != scope.m_variables.cend();
 			});
 
 		if (found_scope_it != m_scopes.rend())
 		{
-			Scope::const_iterator find_result = found_scope_it->find(variable.m_lexeme);
+			Scope::VariableTable::const_iterator find_result = found_scope_it->m_variables.find(variable.m_lexeme);
 
 			// global
 			if (found_scope_it == std::prev(m_scopes.rend()))
@@ -709,11 +715,6 @@ MidoriResult::StatementResult Parser::ParseDefineStatement()
 
 MidoriResult::StatementResult Parser::ParseStructDeclaration()
 {
-	if (m_scopes.size() > 1u)
-	{
-		return std::unexpected<std::string>(GenerateParserError("Struct declaration must be in global scope.", Peek(0)));
-	}
-
 	MidoriResult::TokenResult name = Consume(Token::Name::IDENTIFIER_LITERAL, "Expected struct name.");
 	if (!name.has_value())
 	{
@@ -723,6 +724,16 @@ MidoriResult::StatementResult Parser::ParseStructDeclaration()
 	{
 		return std::unexpected<std::string>(GenerateParserError("Struct name must start with a capital letter.", name.value()));
 	}
+
+	const Token& name_value = name.value();
+	constexpr bool is_fixed = true;
+	MidoriResult::TokenResult define_name_result = DefineName(name_value, is_fixed);
+	if (!define_name_result.has_value())
+	{
+		return std::unexpected<std::string>(std::move(define_name_result.error()));
+	}
+
+	std::optional<int> local_index = GetLocalVariableIndex(name_value.m_lexeme, is_fixed);
 
 	MidoriResult::TokenResult brace = Consume(Token::Name::LEFT_BRACE, "Expected '{' before struct body.");
 	if (!brace.has_value())
@@ -773,7 +784,7 @@ MidoriResult::StatementResult Parser::ParseStructDeclaration()
 	}
 
 	std::shared_ptr<MidoriType> struct_type = std::make_shared<MidoriType>(StructType{ name.value().m_lexeme, std::move(member_types) });
-	m_structs[name.value().m_lexeme] = struct_type;
+	m_scopes.back().m_structs[name.value().m_lexeme] = struct_type;
 
 	brace = Consume(Token::Name::RIGHT_BRACE, "Expected '}' after struct body.");
 	if (!brace.has_value())
@@ -781,8 +792,14 @@ MidoriResult::StatementResult Parser::ParseStructDeclaration()
 		return std::unexpected<std::string>(std::move(brace.error()));
 	}
 
+	MidoriResult::TokenResult semi_colon = Consume(Token::Name::SINGLE_SEMICOLON, "Expected ';' after struct body.");
+	if (!semi_colon.has_value())
+	{
+		return std::unexpected<std::string>(std::move(semi_colon.error()));
+	}
+
 	m_struct_count += 1;
-	return std::make_unique<MidoriStatement>(Struct{ std::move(name.value()), struct_type });
+	return std::make_unique<MidoriStatement>(Struct{ std::move(name.value()), struct_type, std::move(local_index)});
 }
 
 MidoriResult::StatementResult Parser::ParseIfStatement()
@@ -1195,14 +1212,17 @@ MidoriResult::TypeResult Parser::ParseType()
 	{
 		Token& type_name = Previous();
 
-		if (m_structs.find(type_name.m_lexeme) != m_structs.cend())
-		{
-			return m_structs[type_name.m_lexeme];
-		}
-		else
+		std::vector<Scope>::const_reverse_iterator found_scope_it = std::find_if(m_scopes.crbegin(), m_scopes.crend(), [&type_name](const Scope& scope)
+			{
+				return scope.m_structs.find(type_name.m_lexeme) != scope.m_structs.cend();
+			});
+
+		if (found_scope_it == m_scopes.crend())
 		{
 			return std::unexpected<std::string>(GenerateParserError("Undefined struct.", type_name));
 		}
+
+		return found_scope_it->m_structs.at(type_name.m_lexeme);
 	}
 	else
 	{

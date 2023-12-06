@@ -24,12 +24,18 @@ private:
 		VariableContext(int relative_index, int absolute_index, int closure_depth, bool is_fixed) : m_relative_index(relative_index), m_absolute_index(absolute_index), m_closure_depth(closure_depth), m_is_fixed(is_fixed) {}
 	};
 
-	using Scope = std::unordered_map<std::string, VariableContext>;
+	struct Scope
+	{
+		using VariableTable = std::unordered_map<std::string, VariableContext>;
+		using StructTable = std::unordered_map<std::string, std::shared_ptr<MidoriType>>;
+
+		VariableTable m_variables;
+		StructTable m_structs;
+	};
 
 	TokenStream m_tokens;
 	std::vector<Scope> m_scopes;
 	std::stack<int> m_local_count_before_loop;
-	std::unordered_map<std::string, std::shared_ptr<MidoriType>> m_structs;
 	int m_closure_depth = 0;
 	int m_current_token_index = 0;
 	int m_total_locals_in_curr_scope = 0;
@@ -116,7 +122,7 @@ private:
 
 	int EndScope()
 	{
-		int block_local_count = static_cast<int>(m_scopes.back().size());
+		int block_local_count = static_cast<int>(m_scopes.back().m_variables.size());
 		m_total_locals_in_curr_scope -= block_local_count;
 		m_total_variables -= block_local_count;
 		m_scopes.pop_back();
@@ -125,8 +131,8 @@ private:
 
 	MidoriResult::TokenResult DefineName(const Token& name, bool is_fixed)
 	{
-		Scope::const_iterator it = m_scopes.back().find(name.m_lexeme);
-		if (it != m_scopes.back().cend())
+		Scope::VariableTable::const_iterator it = m_scopes.back().m_variables.find(name.m_lexeme);
+		if (it != m_scopes.back().m_variables.cend())
 		{
 			return std::unexpected<std::string>(MidoriError::GenerateParserError("Name already declared in this scope.", name));
 		}
@@ -135,7 +141,7 @@ private:
 			constexpr int relative_index = -1;
 			constexpr int absolute_index = -1;
 			constexpr int closure_depth = -1;
-			m_scopes.back()[name.m_lexeme] = VariableContext(relative_index, absolute_index, closure_depth, is_fixed);
+			m_scopes.back().m_variables[name.m_lexeme] = VariableContext(relative_index, absolute_index, closure_depth, is_fixed);
 		}
 
 		return name;
@@ -148,8 +154,8 @@ private:
 
 		if (!is_global)
 		{
-			m_scopes.back()[name] = VariableContext(m_total_locals_in_curr_scope++, m_total_variables++, m_closure_depth, is_fixed);
-			local_index.emplace(m_scopes.back()[name].m_relative_index);
+			m_scopes.back().m_variables[name] = VariableContext(m_total_locals_in_curr_scope++, m_total_variables++, m_closure_depth, is_fixed);
+			local_index.emplace(m_scopes.back().m_variables[name].m_relative_index);
 		}
 
 		return local_index;

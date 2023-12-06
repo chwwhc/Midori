@@ -229,7 +229,7 @@ void CodeGenerator::operator()(Foreign& foreign)
 		m_global_variables[foreign.m_function_name.m_lexeme] = index.value();
 	}
 
-	EmitConstant(MidoriTraceable::AllocateObject(std::move(foreign.m_function_name.m_lexeme)), foreign.m_function_name.m_line);
+	EmitConstant(MidoriTraceable::AllocateObject(std::move(foreign.m_function_name.m_lexeme)), line);
 
 	if (is_global)
 	{
@@ -237,9 +237,25 @@ void CodeGenerator::operator()(Foreign& foreign)
 	}
 }
 
-void CodeGenerator::operator()(Struct&)
+void CodeGenerator::operator()(Struct& struct_stmt)
 {
-	return;
+	int line = struct_stmt.m_name.m_line;
+	bool is_global = !struct_stmt.m_local_index.has_value();
+	std::optional<int> index = std::nullopt;
+	if (is_global)
+	{
+		std::string struct_name = struct_stmt.m_name.m_lexeme;
+		index.emplace(m_global_table.AddGlobalVariable(std::move(struct_name)));
+		m_global_variables[struct_stmt.m_name.m_lexeme] = index.value();
+	}
+
+	// TODO: Improve this placeholder
+	EmitConstant(MidoriValue(), line);
+
+	if (is_global)
+	{
+		EmitVariable(index.value(), OpCode::DEFINE_GLOBAL, line);
+	}
 }
 
 void CodeGenerator::operator()(As& as)
@@ -546,7 +562,7 @@ void CodeGenerator::operator()(Closure& closure)
 
 void CodeGenerator::operator()(Construct& construct)
 {
-	int line = construct.m_new_keyword.m_line;
+	int line = construct.m_type_name.m_line;
 	OpCode size = static_cast<OpCode>(construct.m_params.size());
 
 	EmitByte(OpCode::ALLOCATE_STRUCT, line);

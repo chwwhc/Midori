@@ -23,6 +23,7 @@ std::optional<std::string> ReadFile(const char* filename)
 
 int main()
 {
+	std::cout << "\033[0m"; // Reset color
 	const char* filename = "C:\\Users\\JK\\Documents\\GitHub\\Midori\\test\\test.mdr";
 
 	std::optional<std::string> script = ReadFile(filename);
