@@ -727,13 +727,6 @@ MidoriResult::StatementResult Parser::ParseStructDeclaration()
 
 	const Token& name_value = name.value();
 	constexpr bool is_fixed = true;
-	MidoriResult::TokenResult define_name_result = DefineName(name_value, is_fixed);
-	if (!define_name_result.has_value())
-	{
-		return std::unexpected<std::string>(std::move(define_name_result.error()));
-	}
-
-	std::optional<int> local_index = GetLocalVariableIndex(name_value.m_lexeme, is_fixed);
 
 	MidoriResult::TokenResult brace = Consume(Token::Name::LEFT_BRACE, "Expected '{' before struct body.");
 	if (!brace.has_value())
@@ -798,8 +791,7 @@ MidoriResult::StatementResult Parser::ParseStructDeclaration()
 		return std::unexpected<std::string>(std::move(semi_colon.error()));
 	}
 
-	m_struct_count += 1;
-	return std::make_unique<MidoriStatement>(Struct{ std::move(name.value()), struct_type, std::move(local_index)});
+	return std::make_unique<MidoriStatement>(Struct{ std::move(name.value()), struct_type });
 }
 
 MidoriResult::StatementResult Parser::ParseIfStatement()

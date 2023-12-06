@@ -237,25 +237,9 @@ void CodeGenerator::operator()(Foreign& foreign)
 	}
 }
 
-void CodeGenerator::operator()(Struct& struct_stmt)
+void CodeGenerator::operator()(Struct&)
 {
-	int line = struct_stmt.m_name.m_line;
-	bool is_global = !struct_stmt.m_local_index.has_value();
-	std::optional<int> index = std::nullopt;
-	if (is_global)
-	{
-		std::string struct_name = struct_stmt.m_name.m_lexeme;
-		index.emplace(m_global_table.AddGlobalVariable(std::move(struct_name)));
-		m_global_variables[struct_stmt.m_name.m_lexeme] = index.value();
-	}
-
-	// TODO: Improve this placeholder
-	EmitConstant(MidoriValue(), line);
-
-	if (is_global)
-	{
-		EmitVariable(index.value(), OpCode::DEFINE_GLOBAL, line);
-	}
+	return;
 }
 
 void CodeGenerator::operator()(As& as)

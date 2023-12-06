@@ -40,7 +40,6 @@ private:
 	int m_current_token_index = 0;
 	int m_total_locals_in_curr_scope = 0;
 	int m_total_variables = 0;
-	int m_struct_count = 0;
 	bool m_error = false;
 
 public:

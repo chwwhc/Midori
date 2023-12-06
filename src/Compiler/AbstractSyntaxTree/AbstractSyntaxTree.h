@@ -278,5 +278,4 @@ struct Struct
 {
 	Token m_name;
 	std::shared_ptr<MidoriType> m_self_type;
-	std::optional<int> m_local_index;
 };
