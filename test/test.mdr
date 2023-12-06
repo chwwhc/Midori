@@ -37,6 +37,10 @@ fixed main := closure() : Unit
 		return output;
 	};
 
+	var arr : Array<Array<Fraction>> := [];
+	arr = arr ++ [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
+	PrintLine(arr as Text);
+
 	Print("Calculate the 35th Fibonacci number: ");
 	PrintLine(fib(35) as Text);
 

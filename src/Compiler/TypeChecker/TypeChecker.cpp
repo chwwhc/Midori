@@ -105,6 +105,46 @@ void TypeChecker::operator()(Define& def)
 
 		return;
 	}
+	else if (std::holds_alternative<Array>(*def.m_value))
+	{
+		const Array& array = std::get<Array>(*def.m_value);
+		if (array.m_elems.empty())
+		{
+			if (!def.m_annotated_type.has_value() || !MidoriTypeUtil::IsArrayType(*def.m_annotated_type.value()))
+			{
+				// TODO: improve error message
+				MidoriType unit_type = UnitType{};
+				m_errors.emplace_back(MidoriError::GenerateTypeCheckerError("Must provide type annotation for empty array", def.m_name, {}, unit_type));
+				return;
+			}
+
+			m_name_type_table.back().emplace(def.m_name.m_lexeme, def.m_annotated_type.value());
+		}
+		else
+		{
+			MidoriResult::TypeResult init_expr_type = std::visit([this](auto&& arg) { return (*this)(arg); }, *def.m_value);
+			if (!init_expr_type.has_value())
+			{
+				m_errors.emplace_back(init_expr_type.error());
+				return;
+			}
+
+			if (def.m_annotated_type.has_value())
+			{
+				const MidoriType& annotated_type = *def.m_annotated_type.value();
+				const MidoriType& actual_type = *init_expr_type.value();
+
+				if (annotated_type != actual_type)
+				{
+					std::vector<const MidoriType*> expected_types = { &annotated_type };
+					m_errors.emplace_back(MidoriError::GenerateTypeCheckerError("Define statement type error", def.m_name, expected_types, actual_type));
+					return;
+				}
+			}
+
+			m_name_type_table.back().emplace(def.m_name.m_lexeme, init_expr_type.value());
+		}
+	}
 	else
 	{
 		MidoriResult::TypeResult init_expr_type = std::visit([this](auto&& arg) { return (*this)(arg); }, *def.m_value);

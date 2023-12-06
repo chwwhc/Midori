@@ -537,8 +537,7 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 
 		if (Match(Token::Name::RIGHT_BRACKET))
 		{
-			return std::unexpected<std::string>(GenerateParserError("Cannot initialize an empty array.", Peek(0)));
-			//return std::make_unique<MidoriExpression>(Array(std::move(op), std::move(expr_vector), std::nullopt));
+			return std::make_unique<MidoriExpression>(Array{ std::move(op), std::move(expr_vector) });
 		}
 
 		do

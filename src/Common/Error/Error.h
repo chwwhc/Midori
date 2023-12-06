@@ -48,7 +48,7 @@ public:
 	{
 		if (expected.empty())
 		{
-			return GenerateBaseError(std::format("Type Checker Error\n{}", message, MidoriTypeUtil::ToString(actual)), token.m_line, &token);
+			return GenerateBaseError(std::format("Type Checker Error\n{}", message), token.m_line, &token);
 		}
 
 		std::string expected_types;
