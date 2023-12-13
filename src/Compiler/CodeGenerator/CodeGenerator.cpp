@@ -18,17 +18,18 @@ MidoriResult::CodeGeneratorResult CodeGenerator::GenerateCode(MidoriProgramTree&
 	}
 
 	// invoke the program entry (main)
-	const CodeGenerator::MainModuleContext& main_module_ctx = m_main_module_ctx.value();
-	m_current_module_index = main_module_ctx.m_main_module_index;
-	EmitVariable(main_module_ctx.m_main_module_global_table_index, OpCode::GET_GLOBAL, main_module_ctx.m_main_module_line);
-	EmitByte(OpCode::CALL_DEFINED, main_module_ctx.m_main_module_line);
-	EmitByte(static_cast<OpCode>(0), main_module_ctx.m_main_module_line);
+	const CodeGenerator::MainProcedureContext& main_module_ctx = m_main_module_ctx.value();
+	m_current_procedure_index = main_module_ctx.m_main_procedure_index;
+	EmitVariable(main_module_ctx.m_main_procedure_global_table_index, OpCode::GET_GLOBAL, main_module_ctx.m_main_procedure_line);
+	EmitByte(OpCode::CALL_DEFINED, main_module_ctx.m_main_procedure_line);
+	EmitByte(static_cast<OpCode>(0), main_module_ctx.m_main_procedure_line);
 
 #ifdef DEBUG
-	return MidoriResult::ExecutableModule(std::move(m_modules), std::move(m_module_names), std::move(m_traceable_constants), std::move(m_static_data), std::move(m_global_table));
-#else
-	return MidoriResult::ExecutableModule(std::move(m_modules), std::move(m_traceable_constants), std::move(m_static_data), std::move(m_global_table));
+	m_executable.AttachProcedureNames(std::move(m_procedure_names));
 #endif
+	m_executable.AttachProcedures(std::move(m_procedures));
+
+	return m_executable;
 }
 
 void CodeGenerator::operator()(Block& block)
@@ -37,7 +38,7 @@ void CodeGenerator::operator()(Block& block)
 		{
 			std::visit([this](auto&& arg) { (*this)(arg); }, *statement);
 		});
-	if (m_modules[m_current_module_index].ReadByteCode(m_modules[m_current_module_index].GetByteCodeSize() - 1) == OpCode::RETURN)
+	if (m_procedures[m_current_procedure_index].ReadByteCode(m_procedures[m_current_procedure_index].GetByteCodeSize() - 1) == OpCode::RETURN)
 	{
 		return;
 	}
@@ -65,7 +66,7 @@ void CodeGenerator::operator()(Define& def)
 	if (is_global)
 	{
 		std::string variable_name = def.m_name.m_lexeme;
-		index.emplace(m_global_table.AddGlobalVariable(std::move(variable_name)));
+		index.emplace(m_executable.AddGlobalVariable(std::move(variable_name)));
 		m_global_variables[def.m_name.m_lexeme] = index.value();
 	}
 
@@ -83,7 +84,7 @@ void CodeGenerator::operator()(Define& def)
 			else
 			{
 				constexpr int main_module_arity = 0;
-				m_main_module_ctx.emplace(m_current_module_index, index.value(), main_module_arity, line);
+				m_main_module_ctx.emplace(m_current_procedure_index, index.value(), main_module_arity, line);
 			}
 		}
 	}
@@ -111,7 +112,7 @@ void CodeGenerator::operator()(If& if_stmt)
 
 void CodeGenerator::operator()(While& while_stmt)
 {
-	int loop_start = m_modules[m_current_module_index].GetByteCodeSize();
+	int loop_start = m_procedures[m_current_procedure_index].GetByteCodeSize();
 	BeginLoop(loop_start);
 
 	std::visit([this](auto&& arg) {(*this)(arg); }, *while_stmt.m_condition);
@@ -137,7 +138,7 @@ void CodeGenerator::operator()(For& for_stmt)
 		std::visit([this](auto&& arg) {(*this)(arg); }, *for_stmt.m_condition_intializer.value());
 	}
 
-	int loop_start = m_modules[m_current_module_index].GetByteCodeSize();
+	int loop_start = m_procedures[m_current_procedure_index].GetByteCodeSize();
 	int line = for_stmt.m_for_keyword.m_line;
 
 	int exit_jump = -1;
@@ -150,7 +151,7 @@ void CodeGenerator::operator()(For& for_stmt)
 	if (for_stmt.m_condition_incrementer.has_value())
 	{
 		int body_jump = EmitJump(OpCode::JUMP, line);
-		int incrementer_start = m_modules[m_current_module_index].GetByteCodeSize();
+		int incrementer_start = m_procedures[m_current_procedure_index].GetByteCodeSize();
 		std::visit([this](auto&& arg) {(*this)(arg); }, *for_stmt.m_condition_incrementer.value());
 
 		EmitLoop(loop_start, line);
@@ -225,7 +226,7 @@ void CodeGenerator::operator()(Foreign& foreign)
 	if (is_global)
 	{
 		std::string foreign_function_name = foreign.m_function_name.m_lexeme;
-		index.emplace(m_global_table.AddGlobalVariable(std::move(foreign_function_name)));
+		index.emplace(m_executable.AddGlobalVariable(std::move(foreign_function_name)));
 		m_global_variables[foreign.m_function_name.m_lexeme] = index.value();
 	}
 
@@ -527,21 +528,21 @@ void CodeGenerator::operator()(Closure& closure)
 		return;
 	}
 
-	int prev_index = m_current_module_index;
-	m_modules.emplace_back(BytecodeStream());
-	m_current_module_index = static_cast<int>(m_modules.size() - 1u);
+	int prev_index = m_current_procedure_index;
+	m_current_procedure_index = static_cast<int>(m_procedures.size());
+	m_procedures.emplace_back(BytecodeStream());
 	std::visit([this](auto&& arg) {(*this)(arg); }, *closure.m_body);
 
-	int closure_module_index = m_current_module_index;
+	int closure_proc_index = m_current_procedure_index;
 #ifdef DEBUG
-	std::string closure_line = "Closure at line: " + std::to_string(line) + "(index: " + std::to_string(closure_module_index) + ")";
-	m_module_names.emplace_back(std::move(closure_line));
+	std::string closure_line = "Closure at line: " + std::to_string(line) + "(index: " + std::to_string(closure_proc_index) + ")";
+	m_procedure_names.emplace_back(std::move(closure_line));
 #endif
 
-	m_current_module_index = prev_index;
+	m_current_procedure_index = prev_index;
 
 	EmitByte(OpCode::CREATE_CLOSURE, line);
-	EmitThreeBytes(static_cast<int>(closure.m_captured_count), static_cast<int>(arity), static_cast<int>(closure_module_index), line);
+	EmitThreeBytes(static_cast<int>(closure.m_captured_count), static_cast<int>(arity), static_cast<int>(closure_proc_index), line);
 }
 
 void CodeGenerator::operator()(Construct& construct)

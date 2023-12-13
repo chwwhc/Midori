@@ -2,9 +2,6 @@
 
 #include "Compiler/AbstractSyntaxTree/AbstractSyntaxTree.h"
 #include "Compiler/Token/Token.h"
-#include "Common/BytecodeStream/BytecodeStream.h"
-#include "Common/Value/StaticData.h"
-#include "Common/Value/GlobalVariableTable.h"
 #include "Common/Value/Value.h"
 
 #include <format>

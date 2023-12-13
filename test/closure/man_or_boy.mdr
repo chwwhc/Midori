@@ -1,12 +1,12 @@
-fixed x := closure(fixed x : Integer) : () -> Integer
+fixed x = closure(fixed x : Integer) : () -> Integer
 {
     return closure() : Integer { return x; };
 };
 
-fixed A := closure(var k : Integer, fixed x1 : () -> Integer, fixed x2 : () -> Integer, 
+fixed A = closure(var k : Integer, fixed x1 : () -> Integer, fixed x2 : () -> Integer, 
         fixed x3 : () -> Integer, fixed x4 : () -> Integer, fixed x5 : () -> Integer) : Integer
 {
-    fixed B := closure() : Integer
+    fixed B = closure() : Integer
     {
         k = k - 1;
         return A(k, B, x1, x2, x3, x4); 
@@ -14,7 +14,7 @@ fixed A := closure(var k : Integer, fixed x1 : () -> Integer, fixed x2 : () -> I
     return k > 0 ? B() : x4() + x5();
 };
 
-fixed main := closure() : Integer
+fixed main = closure() : Integer
 {
     PrintLine(A(10, x(1), x(-1), x(-1), x(1), x(0)));   
 

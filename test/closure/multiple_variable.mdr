@@ -1,11 +1,11 @@
-var makeAdder := closure(var a : Integer, var b : Integer) : (Integer) -> Integer 
+var makeAdder = closure(var a : Integer, var b : Integer) : (Integer) -> Integer 
 {
   return closure(var x : Integer) : Integer { return a + b + x; };
 };
 
-var adder := makeAdder(3, 4);
+var adder = makeAdder(3, 4);
 
-fixed main := closure() : Integer
+fixed main = closure() : Integer
 {
 	PrintLine(adder(5));  // Should print 12
 

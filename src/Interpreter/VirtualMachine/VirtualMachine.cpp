@@ -28,7 +28,7 @@ MidoriTraceable::GarbageCollectionRoots VirtualMachine::GetValueStackGarbageColl
 {
 	MidoriTraceable::GarbageCollectionRoots roots;
 
-	std::for_each_n(m_value_stack->begin(), std::distance(m_value_stack->begin(), m_value_stack_pointer), [&roots](MidoriValue& value) -> void
+	std::for_each_n(m_value_stack->begin(), m_value_stack_pointer - &*m_value_stack->begin(), [&roots](MidoriValue& value) -> void
 		{
 			if (value.IsObjectPointer())
 			{
@@ -102,8 +102,17 @@ void VirtualMachine::Execute()
 					std::cout << "[ " << value.ToString() << " ]";
 				});
 			std::cout << std::endl;
-			int dbg_instruction_pointer = static_cast<int>(std::distance(m_current_bytecode->cbegin(), m_instruction_pointer));
-			Disassembler::DisassembleInstruction(*m_current_bytecode, m_executable_module.m_static_data, m_executable_module.m_global_table, dbg_instruction_pointer);
+			int dbg_instruction_pointer = -1;
+			int dbg_proc_index = -1;
+			for (int i = 0; i < m_executable.GetProcedureCount(); i += 1)
+			{
+				if (&*m_instruction_pointer >= &*m_executable.GetBytecodeStream(i).cbegin() && &*m_instruction_pointer <= &*std::prev(m_executable.GetBytecodeStream(i).cend()))
+				{
+					dbg_proc_index = i;
+					dbg_instruction_pointer = static_cast<int>(m_instruction_pointer - &*m_executable.GetBytecodeStream(i).cbegin());
+				}
+			}
+			Disassembler::DisassembleInstruction(m_executable, dbg_proc_index, dbg_instruction_pointer);
 #endif
 			OpCode instruction = ReadByte();
 
@@ -118,17 +127,17 @@ void VirtualMachine::Execute()
 			}
 			case OpCode::OP_UNIT:
 			{
-				Push(MidoriValue());
+				Push();
 				break;
 			}
 			case OpCode::OP_TRUE:
 			{
-				Push(MidoriValue(true));
+				Push(true);
 				break;
 			}
 			case OpCode::OP_FALSE:
 			{
-				Push(MidoriValue(false));
+				Push(false);
 				break;
 			}
 			case OpCode::CREATE_ARRAY:
@@ -214,7 +223,7 @@ void VirtualMachine::Execute()
 
 				if (value.IsInteger())
 				{
-					Push(MidoriValue(static_cast<MidoriValue::MidoriFraction>(value.GetInteger())));
+					Push(static_cast<MidoriValue::MidoriFraction>(value.GetInteger()));
 				}
 				else if (value.IsFraction())
 				{
@@ -223,7 +232,7 @@ void VirtualMachine::Execute()
 				else if (value.IsObjectPointer() && value.GetObjectPointer()->IsText())
 				{
 					MidoriValue::MidoriFraction fraction = std::stod(value.GetObjectPointer()->GetText());
-					Push(MidoriValue(fraction));
+					Push(fraction);
 				}
 				else
 				{
@@ -242,12 +251,12 @@ void VirtualMachine::Execute()
 				}
 				else if (value.IsFraction())
 				{
-					Push(MidoriValue(static_cast<MidoriValue::MidoriInteger>(value.GetFraction())));
+					Push(static_cast<MidoriValue::MidoriInteger>(value.GetFraction()));
 				}
 				else if (value.IsObjectPointer() && value.GetObjectPointer()->IsText())
 				{
 					MidoriValue::MidoriInteger integer = std::stoll(value.GetObjectPointer()->GetText());
-					Push(MidoriValue(integer));
+					Push(integer);
 				}
 				else
 				{
@@ -305,11 +314,11 @@ void VirtualMachine::Execute()
 				}
 				else if (value.IsInteger())
 				{
-					Push(MidoriValue(value.GetInteger() != 0ll));
+					Push(value.GetInteger() != 0ll);
 				}
 				else if (value.IsFraction())
 				{
-					Push(MidoriValue(value.GetFraction() != 0.0));
+					Push(value.GetFraction() != 0.0);
 				}
 				else
 				{
@@ -321,69 +330,69 @@ void VirtualMachine::Execute()
 			case OpCode::CAST_TO_UNIT:
 			{
 				Pop();
-				Push(MidoriValue());
+				Push();
 				break;
 			}
 			case OpCode::LEFT_SHIFT:
 			{
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
-				Push(MidoriValue(left.GetInteger() << right.GetInteger()));
+				Push(left.GetInteger() << right.GetInteger());
 				break;
 			}
 			case OpCode::RIGHT_SHIFT:
 			{
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
-				Push(MidoriValue(left.GetInteger() >> right.GetInteger()));
+				Push(left.GetInteger() >> right.GetInteger());
 				break;
 			}
 			case OpCode::BITWISE_AND:
 			{
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
-				Push(MidoriValue(left.GetInteger() & right.GetInteger()));
+				Push(left.GetInteger() & right.GetInteger());
 				break;
 			}
 			case OpCode::BITWISE_OR:
 			{
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
-				Push(MidoriValue(left.GetInteger() | right.GetInteger()));
+				Push(left.GetInteger() | right.GetInteger());
 				break;
 			}
 			case OpCode::BITWISE_XOR:
 			{
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
-				Push(MidoriValue(left.GetInteger() ^ right.GetInteger()));
+				Push(left.GetInteger() ^ right.GetInteger());
 				break;
 			}
 			case OpCode::BITWISE_NOT:
 			{
 				const MidoriValue& right = Pop();
-				Push(MidoriValue(~right.GetInteger()));
+				Push(~right.GetInteger());
 				break;
 			}
 			case OpCode::ADD_FRACTION:
 			{
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
-				Push(MidoriValue(left.GetFraction() + right.GetFraction()));
+				Push(left.GetFraction() + right.GetFraction());
 				break;
 			}
 			case OpCode::SUBTRACT_FRACTION:
 			{
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
-				Push(MidoriValue(left.GetFraction() - right.GetFraction()));
+				Push(left.GetFraction() - right.GetFraction());
 				break;
 			}
 			case OpCode::MULTIPLY_FRACTION:
 			{
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
-				Push(MidoriValue(left.GetFraction() * right.GetFraction()));
+				Push(left.GetFraction() * right.GetFraction());
 				break;
 			}
 			case OpCode::DIVIDE_FRACTION:
@@ -396,7 +405,7 @@ void VirtualMachine::Execute()
 
 				CheckZeroDivision(right_fraction);
 
-				Push(MidoriValue(left_fraction / right_fraction));
+				Push(left_fraction / right_fraction);
 				break;
 			}
 			case OpCode::MODULO_FRACTION:
@@ -409,28 +418,28 @@ void VirtualMachine::Execute()
 
 				CheckZeroDivision(right_fraction);
 
-				Push(MidoriValue(std::fmod(left_fraction, right_fraction)));
+				Push(std::fmod(left_fraction, right_fraction));
 				break;
 			}
 			case OpCode::ADD_INTEGER:
 			{
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
-				Push(MidoriValue(left.GetInteger() + right.GetInteger()));
+				Push(left.GetInteger() + right.GetInteger());
 				break;
 			}
 			case OpCode::SUBTRACT_INTEGER:
 			{
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
-				Push(MidoriValue(left.GetInteger() - right.GetInteger()));
+				Push(left.GetInteger() - right.GetInteger());
 				break;
 			}
 			case OpCode::MULTIPLY_INTEGER:
 			{
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
-				Push(MidoriValue(left.GetInteger() * right.GetInteger()));
+				Push(left.GetInteger() * right.GetInteger());
 				break;
 			}
 			case OpCode::DIVIDE_INTEGER:
@@ -443,7 +452,7 @@ void VirtualMachine::Execute()
 
 				CheckZeroDivision(right_integer);
 
-				Push(MidoriValue(left_integer / right_integer));
+				Push(left_integer / right_integer);
 				break;
 			}
 			case OpCode::MODULO_INTEGER:
@@ -456,7 +465,7 @@ void VirtualMachine::Execute()
 
 				CheckZeroDivision(right_integer);
 
-				Push(MidoriValue(left_integer % right_integer));
+				Push(left_integer % right_integer);
 				break;
 			}
 			case OpCode::CONCAT_ARRAY:
@@ -492,102 +501,102 @@ void VirtualMachine::Execute()
 			{
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
-				Push(MidoriValue(left.GetFraction() == right.GetFraction()));
+				Push(left.GetFraction() == right.GetFraction());
 				break;
 			}
 			case OpCode::NOT_EQUAL_FRACTION:
 			{
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
-				Push(MidoriValue(left.GetFraction() != right.GetFraction()));
+				Push(left.GetFraction() != right.GetFraction());
 				break;
 			}
 			case OpCode::GREATER_FRACTION:
 			{
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
-				Push(MidoriValue(left.GetFraction() > right.GetFraction()));
+				Push(left.GetFraction() > right.GetFraction());
 				break;
 			}
 			case OpCode::GREATER_EQUAL_FRACTION:
 			{
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
-				Push(MidoriValue(left.GetFraction() >= right.GetFraction()));
+				Push(left.GetFraction() >= right.GetFraction());
 				break;
 			}
 			case OpCode::LESS_FRACTION:
 			{
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
-				Push(MidoriValue(left.GetFraction() < right.GetFraction()));
+				Push(left.GetFraction() < right.GetFraction());
 				break;
 			}
 			case OpCode::LESS_EQUAL_FRACTION:
 			{
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
-				Push(MidoriValue(left.GetFraction() <= right.GetFraction()));
+				Push(left.GetFraction() <= right.GetFraction());
 				break;
 			}
 			case OpCode::EQUAL_INTEGER:
 			{
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
-				Push(MidoriValue(left.GetInteger() == right.GetInteger()));
+				Push(left.GetInteger() == right.GetInteger());
 				break;
 			}
 			case OpCode::NOT_EQUAL_INTEGER:
 			{
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
-				Push(MidoriValue(left.GetInteger() != right.GetInteger()));
+				Push(left.GetInteger() != right.GetInteger());
 				break;
 			}
 			case OpCode::GREATER_INTEGER:
 			{
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
-				Push(MidoriValue(left.GetInteger() > right.GetInteger()));
+				Push(left.GetInteger() > right.GetInteger());
 				break;
 			}
 			case OpCode::GREATER_EQUAL_INTEGER:
 			{
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
-				Push(MidoriValue(left.GetInteger() >= right.GetInteger()));
+				Push(left.GetInteger() >= right.GetInteger());
 				break;
 			}
 			case OpCode::LESS_INTEGER:
 			{
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
-				Push(MidoriValue(left.GetInteger() < right.GetInteger()));
+				Push(left.GetInteger() < right.GetInteger());
 				break;
 			}
 			case OpCode::LESS_EQUAL_INTEGER:
 			{
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
-				Push(MidoriValue(left.GetInteger() <= right.GetInteger()));
+				Push(left.GetInteger() <= right.GetInteger());
 				break;
 			}
 			case OpCode::NOT:
 			{
 				const MidoriValue& value = Pop();
-				Push(MidoriValue(!value.GetBool()));
+				Push(!value.GetBool());
 				break;
 			}
 			case OpCode::NEGATE_FRACTION:
 			{
 				const MidoriValue& value = Pop();
-				Push(MidoriValue(-value.GetFraction()));
+				Push(-value.GetFraction());
 				break;
 			}
 			case OpCode::NEGATE_INTEGER:
 			{
 				const MidoriValue& value = Pop();
-				Push(MidoriValue(-value.GetInteger()));
+				Push(-value.GetInteger());
 				break;
 			}
 			case OpCode::JUMP_IF_FALSE:
@@ -665,17 +674,10 @@ void VirtualMachine::Execute()
 
 				m_closure_stack.emplace_back(std::addressof(closure.m_cell_values));
 
-				if (std::next(m_call_stack_pointer) == m_call_stack_end)
-				{
-					throw InterpreterException(GenerateRuntimeError("Call stack overflow.", GetLine()));
-				}
-
 				// Return address := pop all the arguments and the callee
-				*m_call_stack_pointer = { m_current_bytecode , m_base_pointer, m_value_stack_pointer - arity, m_instruction_pointer };
-				++m_call_stack_pointer;
+				PushCallFrame(m_base_pointer, m_value_stack_pointer - arity, m_instruction_pointer);
 
-				m_current_bytecode = &m_executable_module.m_modules[closure.m_module_index];
-				m_instruction_pointer = m_current_bytecode->cbegin();
+				m_instruction_pointer = &*m_executable.GetBytecodeStream(closure.m_proc_index).cbegin();
 				m_base_pointer = m_value_stack_pointer - arity;
 
 				break;
@@ -697,16 +699,16 @@ void VirtualMachine::Execute()
 			}
 			case OpCode::ALLOCATE_STRUCT:
 			{
-				Push(MidoriValue(AllocateObject(MidoriTraceable::MidoriStruct())));
+				Push(AllocateObject(MidoriTraceable::MidoriStruct()));
 				break;
 			}
 			case OpCode::CREATE_CLOSURE:
 			{
 				int captured_count = static_cast<int>(ReadByte());
 				int arity = static_cast<int>(ReadByte());
-				int module_index = static_cast<int>(ReadByte());
+				int proc_index = static_cast<int>(ReadByte());
 
-				Push(MidoriValue(AllocateObject(MidoriTraceable::Closure(std::vector<MidoriTraceable*>(), module_index, arity))));
+				Push(AllocateObject(MidoriTraceable::Closure(std::vector<MidoriTraceable*>(), proc_index, arity)));
 				if (captured_count == 0)
 				{
 					break;
@@ -721,7 +723,7 @@ void VirtualMachine::Execute()
 					captured_count -= static_cast<int>(parent_closure.size());
 				}
 
-				for (StackPointer<MidoriValue, s_value_stack_max> it = m_base_pointer; it < m_base_pointer + captured_count; ++it)
+				for (StackPointer<MidoriValue> it = m_base_pointer; it < m_base_pointer + captured_count; ++it)
 				{
 					MidoriTraceable* cell_value = AllocateObject(MidoriTraceable::CellValue(*it));
 					captured_variables.emplace_back(cell_value);
@@ -739,7 +741,7 @@ void VirtualMachine::Execute()
 			case OpCode::GET_GLOBAL:
 			{
 				const std::string& name = ReadGlobalVariable();
-				Push(MidoriValue(m_global_vars[name]));
+				Push(m_global_vars[name]);
 				break;
 			}
 			case OpCode::SET_GLOBAL:
@@ -810,14 +812,13 @@ void VirtualMachine::Execute()
 				CallFrame& top_frame = *m_call_stack_pointer;
 				m_closure_stack.pop_back();
 
-				m_current_bytecode = top_frame.m_return_module;
 				m_base_pointer = top_frame.m_return_bp;
 				m_instruction_pointer = top_frame.m_return_ip;
 				m_value_stack_pointer = top_frame.m_return_sp;
 
 				Push(value);
 
-				if ((m_call_stack_pointer == m_call_stack_begin) && (m_instruction_pointer == m_current_bytecode->cend()))
+				if (m_call_stack_pointer == m_call_stack_begin)
 				{
 					return;
 				}

@@ -1,4 +1,4 @@
-var makeAdder := closure(var a : Integer) : (Integer) -> (Integer) -> Integer 
+var makeAdder = closure(var a : Integer) : (Integer) -> (Integer) -> Integer 
 {
   return closure(var b : Integer) : (Integer) -> Integer
   {
@@ -9,9 +9,9 @@ var makeAdder := closure(var a : Integer) : (Integer) -> (Integer) -> Integer
   };
 };
 
-var adder : (Integer) -> Integer := makeAdder(3)(4);
+var adder : (Integer) -> Integer = makeAdder(3)(4);
 
-fixed main := closure() : Unit
+fixed main = closure() : Unit
 {
     PrintLine(adder(5));  // Should print 12
 

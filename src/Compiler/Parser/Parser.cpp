@@ -692,7 +692,7 @@ MidoriResult::StatementResult Parser::ParseDefineStatement()
 
 	std::optional<int> local_index = GetLocalVariableIndex(name.m_lexeme, is_fixed);
 
-	Consume(Token::Name::COLON_EQUAL, "Expected ':=' after defining a name.");
+	Consume(Token::Name::SINGLE_EQUAL, "Expected '=' after defining a name.");
 
 	MidoriResult::ExpressionResult expr = ParseExpression();
 	if (!expr.has_value())
@@ -724,9 +724,6 @@ MidoriResult::StatementResult Parser::ParseStructDeclaration()
 	{
 		return std::unexpected<std::string>(GenerateParserError("Struct name must start with a capital letter.", name.value()));
 	}
-
-	const Token& name_value = name.value();
-	constexpr bool is_fixed = true;
 
 	MidoriResult::TokenResult brace = Consume(Token::Name::LEFT_BRACE, "Expected '{' before struct body.");
 	if (!brace.has_value())
@@ -1151,20 +1148,6 @@ MidoriResult::TypeResult Parser::ParseType()
 		{
 			Consume(Token::Name::RIGHT_ANGLE, "Expected '>' after array type_token.");
 			return std::make_shared<MidoriType>(ArrayType{ std::move(type.value()) });
-		}
-	}
-	else if (Match(Token::Name::MAYBE))
-	{
-		Consume(Token::Name::LEFT_ANGLE, "Expected '<' after maybe type_token.");
-		MidoriResult::TypeResult type = ParseType();
-		if (!type.has_value())
-		{
-			return std::unexpected<std::string>(std::move(type.error()));
-		}
-		else
-		{
-			Consume(Token::Name::RIGHT_ANGLE, "Expected '>' after maybe type_token.");
-			return std::make_shared<MidoriType>(MaybeType{ std::move(type.value()) });
 		}
 	}
 	else if (Match(Token::Name::LEFT_PAREN))

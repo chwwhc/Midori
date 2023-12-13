@@ -54,12 +54,12 @@ namespace Compiler
 				else
 				{
 #ifdef DEBUG
-					const MidoriResult::ExecutableModule& executable_module = compilation_result.value();
-					for (size_t i = 0u; i < executable_module.m_modules.size(); i += 1u)
+					const MidoriExecutable& executable = compilation_result.value();
+					for (size_t i = 0u; i < executable.m_procedure_names.size(); i += 1u)
 					{
-						const BytecodeStream& bytecode = executable_module.m_modules[i];
-						std::string variable_name = executable_module.m_module_names[i];
-						Disassembler::DisassembleBytecodeStream(bytecode, executable_module.m_static_data, executable_module.m_global_table, variable_name.data());
+						const BytecodeStream& bytecode = executable.GetBytecodeStream(static_cast<int>(i));
+						std::string variable_name = executable.m_procedure_names[i];
+						Disassembler::DisassembleBytecodeStream(executable, static_cast<int>(i), variable_name);
 					}
 #endif
 					return compilation_result.value();

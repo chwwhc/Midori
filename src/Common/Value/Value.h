@@ -8,8 +8,6 @@
 #include <unordered_set>
 #include <memory>
 
-#include "Common/BytecodeStream/BytecodeStream.h"
-
 class MidoriTraceable;
 
 class MidoriValue
@@ -89,7 +87,7 @@ public:
 		using Environment = std::vector<MidoriTraceable*>;
 
 		Environment m_cell_values;
-		int m_module_index;
+		int m_proc_index;
 		int m_arity;
 	};
 

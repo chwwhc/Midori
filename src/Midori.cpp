@@ -36,7 +36,7 @@ int main()
 	MidoriResult::CompilerResult compilation_result = Compiler::Compile(std::move(script.value()));
 	if (compilation_result.has_value())
 	{
-		MidoriResult::ExecutableModule& compilation_result_value = compilation_result.value();
+		MidoriExecutable& compilation_result_value = compilation_result.value();
 		VirtualMachine vm(std::move(compilation_result_value));
 		vm.Execute();
 	}

@@ -1,4 +1,4 @@
-fixed foo := closure() : Integer
+fixed foo = closure() : Integer
 {
 	var getFunc : () -> Integer := closure() : Integer { return 1; };
 	if (true)
@@ -9,7 +9,7 @@ fixed foo := closure() : Integer
 	return getFunc();
 };
 
-fixed main := closure() : Unit
+fixed main = closure() : Unit
 {
 	PrintLine(foo());  // Should print 5
 

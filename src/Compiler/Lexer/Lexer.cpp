@@ -9,7 +9,6 @@ const std::unordered_map<std::string, Token::Name> Lexer::s_keywords =
 	{"Bool", Token::Name::BOOL},
 	{"Unit", Token::Name::OP_UNIT},
 	{"Array", Token::Name::ARRAY},
-	{"Maybe", Token::Name::MAYBE},
 
 	// reserved keywords
 	{"else", Token::Name::ELSE},
@@ -31,8 +30,6 @@ const std::unordered_map<std::string, Token::Name> Lexer::s_keywords =
 	{"union", Token::Name::UNION},
 	{"new", Token::Name::NEW},
 	{"foreign", Token::Name::FOREIGN },
-	{"Just", Token::Name::JUST},
-	{"None", Token::Name::NONE},
 };
 
 std::optional<std::string> Lexer::SkipWhitespaceAndComments()
@@ -271,10 +268,6 @@ MidoriResult::TokenResult Lexer::LexOneToken()
 		if (MatchNext(':'))
 		{
 			return MakeToken(Token::Name::DOUBLE_COLON);
-		}
-		else if (MatchNext('='))
-		{
-			return MakeToken(Token::Name::COLON_EQUAL);
 		}
 		else
 		{

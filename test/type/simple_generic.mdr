@@ -1,0 +1,12 @@
+fixed Add = closure<T>(fixed a : T, fixed b : T) : T 
+{
+	return a + b
+};
+
+fixed main = closure() : Integer 
+{
+	fixed fraction_add = Add<Fraction>(1.2, 1.3);
+	fixed integer_add = Add<Integer>(1, 2);
+
+	return 0;
+};

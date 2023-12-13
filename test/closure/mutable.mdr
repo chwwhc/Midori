@@ -1,11 +1,11 @@
-var x := closure(var y : Integer) : (Integer) -> Integer
+var x = closure(var y : Integer) : (Integer) -> Integer
 {
   return closure(var z : Integer) : Integer { y = y - 1; return y + z; };
 };
 
-var f := x(5);
+var f = x(5);
 
-fixed main := closure() : Integer
+fixed main = closure() : Integer
 {
 	PrintLine(f(2)); // Should print 6
 	PrintLine(f(2)); // Should print 5

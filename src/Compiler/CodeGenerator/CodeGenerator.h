@@ -11,12 +11,12 @@ class CodeGenerator
 public:
 
 private:
-	struct MainModuleContext
+	struct MainProcedureContext
 	{
-		int m_main_module_index = 0;
-		int m_main_module_global_table_index = 0;
-		int m_main_module_arity = 0;
-		int m_main_module_line = 0;
+		int m_main_procedure_index = 0;
+		int m_main_procedure_global_table_index = 0;
+		int m_main_procedure_arity = 0;
+		int m_main_procedure_line = 0;
 	};
 
 	struct LoopContext
@@ -25,19 +25,17 @@ private:
 		int m_loop_start = 0;
 	};
 
-	std::vector<BytecodeStream> m_modules = { BytecodeStream() };
+	MidoriExecutable::Procedures m_procedures = { BytecodeStream() };
 #ifdef DEBUG
-	std::vector<std::string> m_module_names = { "runtime startup" };
+	std::vector<std::string> m_procedure_names = { "runtime startup" };
 #endif
 	std::vector<std::string> m_errors;
 	std::stack<LoopContext> m_loop_contexts;
 	std::unordered_map<std::string, int> m_global_variables;
 
-	StaticData m_static_data;
-	GlobalVariableTable m_global_table;
-	MidoriTraceable::GarbageCollectionRoots m_traceable_constants;
-	std::optional<MainModuleContext> m_main_module_ctx = std::nullopt;
-	int m_current_module_index = 0;
+	MidoriExecutable m_executable;
+	std::optional<MainProcedureContext> m_main_module_ctx = std::nullopt;
+	int m_current_procedure_index = 0;
 
 public:
 
@@ -45,7 +43,7 @@ public:
 
 private:
 
-	void EmitByte(OpCode byte, int line) { m_modules[m_current_module_index].AddByteCode(byte, line); }
+	void EmitByte(OpCode byte, int line) { m_procedures[m_current_procedure_index].AddByteCode(byte, line); }
 
 	void EmitTwoBytes(int byte1, int byte2, int line)
 	{
@@ -65,11 +63,11 @@ private:
 		if (value.IsObjectPointer())
 		{
 			MidoriTraceable* traceable = static_cast<MidoriTraceable*>(value.GetObjectPointer());
-			m_traceable_constants.emplace(traceable);
+			m_executable.AddConstantRoot(traceable);
 			MidoriTraceable::s_static_bytes_allocated += traceable->GetSize();
 		}
 
-		int index = m_static_data.AddConstant(std::move(value));
+		int index = m_executable.AddConstant(std::move(value));
 
 		if (index <= UINT8_MAX) // 1 byte
 		{
@@ -111,26 +109,26 @@ private:
 		EmitByte(op, line);
 		EmitByte(static_cast<OpCode>(0xff), line);
 		EmitByte(static_cast<OpCode>(0xff), line);
-		return m_modules[m_current_module_index].GetByteCodeSize() - 2;
+		return m_procedures[m_current_procedure_index].GetByteCodeSize() - 2;
 	}
 
 	void PatchJump(int offset, int line)
 	{
-		int jump = m_modules[m_current_module_index].GetByteCodeSize() - offset - 2;
+		int jump = m_procedures[m_current_procedure_index].GetByteCodeSize() - offset - 2;
 		if (jump > UINT16_MAX)
 		{
 			m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too much code to jump over (max 65535).", line));
 		}
 
-		m_modules[m_current_module_index].SetByteCode(offset, static_cast<OpCode>(jump & 0xff));
-		m_modules[m_current_module_index].SetByteCode(offset + 1, static_cast<OpCode>((jump >> 8) & 0xff));
+		m_procedures[m_current_procedure_index].SetByteCode(offset, static_cast<OpCode>(jump & 0xff));
+		m_procedures[m_current_procedure_index].SetByteCode(offset + 1, static_cast<OpCode>((jump >> 8) & 0xff));
 	}
 
 	void EmitLoop(int loop_start, int line)
 	{
 		EmitByte(OpCode::JUMP_BACK, line);
 
-		int offset = m_modules[m_current_module_index].GetByteCodeSize() - loop_start + 2;
+		int offset = m_procedures[m_current_procedure_index].GetByteCodeSize() - loop_start + 2;
 		if (offset > UINT16_MAX)
 		{
 			m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Loop body too large (max 65535).", line));

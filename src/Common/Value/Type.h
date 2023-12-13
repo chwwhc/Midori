@@ -13,10 +13,9 @@ struct BoolType {};
 struct UnitType {};
 struct ArrayType;
 struct FunctionType;
-struct MaybeType;
 struct StructType;
 
-using MidoriType = std::variant<FractionType, TextType, BoolType, UnitType, ArrayType, FunctionType, IntegerType, MaybeType, StructType>;
+using MidoriType = std::variant<FractionType, TextType, BoolType, UnitType, ArrayType, FunctionType, IntegerType, StructType>;
 
 struct ArrayType
 {
@@ -28,11 +27,6 @@ struct FunctionType
 	std::vector<std::shared_ptr<MidoriType>> m_param_types;
 	std::shared_ptr<MidoriType> m_return_type;
 	bool m_is_foreign = false;
-};
-
-struct MaybeType
-{
-	std::shared_ptr<MidoriType> m_element_type;
 };
 
 struct StructType
@@ -86,10 +80,6 @@ inline bool operator==(const FunctionType& lhs, const FunctionType& rhs)
 
 inline bool operator!=(const FunctionType& lhs, const FunctionType& rhs) { return !(lhs == rhs); }
 
-inline bool operator==(const MaybeType& lhs, const MaybeType& rhs) { return *lhs.m_element_type == *rhs.m_element_type; }
-
-inline bool operator!=(const MaybeType& lhs, const MaybeType& rhs) { return !(lhs == rhs); }
-
 inline bool operator==(const StructType& lhs, const StructType& rhs) { return lhs.m_name == rhs.m_name; }
 
 inline bool operator!=(const StructType& lhs, const StructType& rhs) { return !(lhs == rhs); }
@@ -142,10 +132,6 @@ namespace MidoriTypeUtil
 
 	inline const FunctionType& GetFunctionType(const MidoriType& type) { return std::get<FunctionType>(type); }
 
-	inline bool IsMaybeType(const MidoriType& type) { return std::holds_alternative<MaybeType>(type); }
-
-	inline const MaybeType& GetMaybeType(const MidoriType& type) { return std::get<MaybeType>(type); }
-
 	inline bool IsStructType(const MidoriType& type) { return std::holds_alternative<StructType>(type); }
 
 	inline const StructType& GetStructType(const MidoriType& type) { return std::get<StructType>(type); }
@@ -194,10 +180,6 @@ namespace MidoriTypeUtil
 					}
 					result += ") -> " + ToString(*arg.m_return_type);
 					return result;
-				}
-				else if constexpr (std::is_same_v<T, MaybeType>)
-				{
-					return "Maybe<" + ToString(*arg.m_element_type) + ">";
 				}
 				else if constexpr (std::is_same_v<T, StructType>)
 				{

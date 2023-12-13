@@ -1,13 +1,13 @@
 #pragma once
 
-class BytecodeStream;
-class GlobalVariableTable;
-class StaticData;
+#include <string_view>
+
+class MidoriExecutable;
 
 namespace Disassembler
 {
-    void DisassembleBytecodeStream(const BytecodeStream& stream, const StaticData& static_data, const GlobalVariableTable& global_table, const char* name);
+    void DisassembleBytecodeStream(const MidoriExecutable& executable, int proc_index, std::string_view proc_name);
 
-    void DisassembleInstruction(const BytecodeStream& stream, const StaticData& static_data, const GlobalVariableTable& global_table, int& offset);
+    void DisassembleInstruction(const MidoriExecutable& executable, int proc_index, int& offset);
   
 };

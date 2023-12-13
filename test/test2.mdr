@@ -1,0 +1,28 @@
+foreign Print : (Text) -> Unit;
+
+foreign GetTime : () -> Fraction;
+
+fixed main = closure() : Unit
+{
+	fixed PrintLine = closure(fixed text : Text) : Unit
+	{
+		Print(text);
+		return Print("\n");
+	};
+
+	fixed fib = closure(fixed n : Integer) : Integer
+	{
+		if (n <= 1) return n;
+		return fib(n - 1) + fib(n - 2);
+	};
+
+	fixed start = GetTime();
+
+	fixed fib_35 = fib(10);
+
+	fixed end = GetTime();
+
+	PrintLine("Benchmark took " ++ ((end - start) as Text) ++ " milliseconds");
+
+	return #;
+};

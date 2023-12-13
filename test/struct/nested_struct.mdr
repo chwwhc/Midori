@@ -1,6 +1,6 @@
 foreign Print : (Text) -> Unit;
 
-fixed PrintLine := closure(fixed val : Text) : Unit
+fixed PrintLine = closure(fixed val : Text) : Unit
 {
 	Print(val);
 	Print("\n");
@@ -20,16 +20,16 @@ struct Complex
 	img : Fraction;
 };
 
-fixed main := closure() : Unit
+fixed main = closure() : Unit
 {
 	struct Test
 	{
 		x : Integer;
 	};
 
-	var test := new Test(1);
+	var test = new Test(1);
 
-	fixed struct_in_closure := closure() : Unit
+	fixed struct_in_closure = closure() : Unit
 	{
 		struct Test2
 		{
@@ -44,13 +44,13 @@ fixed main := closure() : Unit
 				y : Complex;
 			};
 
-			var test3 := new Test3(new Vec3(1.2, 2.4, 3.2), new Complex(1.12, 2.22));
+			var test3 = new Test3(new Vec3(1.2, 2.4, 3.2), new Complex(1.12, 2.22));
 
 			PrintLine(test as Text);
 			return PrintLine(test3 as Text);
 		}();
 
-		var test2 := new Test2(2);
+		var test2 = new Test2(2);
 		return PrintLine(test2 as Text);
 	};
 

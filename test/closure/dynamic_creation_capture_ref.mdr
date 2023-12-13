@@ -1,4 +1,4 @@
-fixed foo := closure() : Unit
+fixed foo = closure() : Unit
 {
 	var arr : Array<() -> Integer> := [closure() : Integer { return 1; }, closure() : Integer { return 1; }, closure() : Integer { return 1; }];
 	for (var i : Integer := 0; i < 3; i = i + 1)
@@ -16,7 +16,7 @@ fixed foo := closure() : Unit
 	return #;
 };
 
-fixed main := closure() : Unit
+fixed main = closure() : Unit
 {
 	foo();
 	return #;

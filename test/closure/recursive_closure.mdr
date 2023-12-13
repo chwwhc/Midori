@@ -1,12 +1,12 @@
-var makeRecursive := closure(var n : Integer) : (Integer) -> Integer 
+var makeRecursive = closure(var n : Integer) : (Integer) -> Integer 
 {
   if (n == 0) return closure(var x : Integer) : Integer { return 1; };
   return closure(var x : Integer) : Integer { return x * makeRecursive(n - 1)(x - 1); };
 };
 
-var factorial := makeRecursive(5);
+var factorial = makeRecursive(5);
 
-fixed main := closure() : Integer
+fixed main = closure() : Integer
 {
 	factorial = makeRecursive(5);
 	PrintLine(factorial(5));  // Should print 120

@@ -3,9 +3,7 @@
 #include "Common/Error/Error.h"
 #include "Common/Result/Result.h"
 #include "Common/Value/Value.h"
-#include "Common/BytecodeStream/BytecodeStream.h"
-#include "Common/Value/StaticData.h"
-#include "Common/Value/GlobalVariableTable.h"
+#include "Common/Executable/Executable.h"
 #include "Interpreter/GarbageCollector/GarbageCollector.h"
 
 #include <array>
@@ -14,6 +12,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <format>
+#include <string_view>
 
 // handle std library
 #if defined(_WIN32) || defined(_WIN64)
@@ -33,8 +32,11 @@ class VirtualMachine
 
 public:
 
-	VirtualMachine(MidoriResult::ExecutableModule&& executable_module) : m_executable_module(std::move(executable_module)), m_garbage_collector(std::move(m_executable_module.m_constant_roots)),
-		m_current_bytecode(&m_executable_module.m_modules[0]), m_instruction_pointer(m_current_bytecode->cbegin()) {}
+	VirtualMachine(MidoriExecutable&& executable) : m_executable(std::move(executable)), m_garbage_collector(m_executable.GetConstantRoots())
+	{
+		constexpr int runtime_startup_proc_index = 0;
+		m_instruction_pointer = &*m_executable.GetBytecodeStream(runtime_startup_proc_index).cbegin();
+	}
 
 	~VirtualMachine()
 	{
@@ -52,38 +54,36 @@ private:
 	static constexpr int s_frame_stack_max = 8000;
 	static constexpr int s_garbage_collection_threshold = 1024;
 
-	template <typename T, int Size>
-	using StackPointer = std::array<T, Size>::iterator;
-	using InstructionPointer = BytecodeStream::const_iterator;
+	template <typename T>
+	using StackPointer = T*;
+	using InstructionPointer = const OpCode*;
 	using GlobalVariables = std::unordered_map<std::string, MidoriValue>;
 
 	struct CallFrame
 	{
-		BytecodeStream* m_return_module;
-		StackPointer<MidoriValue, s_value_stack_max>  m_return_bp;
-		StackPointer<MidoriValue, s_value_stack_max>  m_return_sp;
-		InstructionPointer m_return_ip;
+		StackPointer<MidoriValue>  m_return_bp = nullptr;
+		StackPointer<MidoriValue>  m_return_sp = nullptr;
+		InstructionPointer m_return_ip = nullptr;
 	};
 
-	MidoriResult::ExecutableModule m_executable_module;
+	MidoriExecutable m_executable;
 	GlobalVariables m_global_vars;
 	GarbageCollector m_garbage_collector;
 	std::vector<MidoriTraceable::Closure::Environment*> m_closure_stack;
-	BytecodeStream* m_current_bytecode;
 	std::unique_ptr<std::array<MidoriValue, s_value_stack_max>> m_value_stack = std::make_unique<std::array<MidoriValue, s_value_stack_max>>();
 	std::unique_ptr<std::array<CallFrame, s_frame_stack_max>> m_call_stack = std::make_unique<std::array<CallFrame, s_frame_stack_max>>();
-	StackPointer<MidoriValue, s_value_stack_max> m_base_pointer = m_value_stack->begin();
-	StackPointer<MidoriValue, s_value_stack_max> m_value_stack_pointer = m_value_stack->begin();
-	StackPointer<MidoriValue, s_value_stack_max> m_value_stack_end = m_value_stack->end();
-	StackPointer<CallFrame, s_frame_stack_max> m_call_stack_pointer = m_call_stack->begin();
-	StackPointer<CallFrame, s_frame_stack_max> m_call_stack_begin = m_call_stack->begin();
-	StackPointer<CallFrame, s_frame_stack_max> m_call_stack_end = m_call_stack->end();
+	StackPointer<MidoriValue> m_base_pointer = &*m_value_stack->begin();
+	StackPointer<MidoriValue> m_value_stack_pointer = &*m_value_stack->begin();
+	StackPointer<MidoriValue> m_value_stack_end = &*std::prev(m_value_stack->end());
+	StackPointer<CallFrame> m_call_stack_pointer = &*m_call_stack->begin();
+	StackPointer<CallFrame> m_call_stack_begin = &*m_call_stack->begin();
+	StackPointer<CallFrame> m_call_stack_end = &*std::prev(m_call_stack->end());
 	InstructionPointer m_instruction_pointer;
 
 #ifdef _WIN32
-	HMODULE m_library_handle;
+	HMODULE m_library_handle = nullptr;
 #else
-	void* m_library_handle;
+	void* m_library_handle = nullptr;
 #endif
 
 public:
@@ -97,7 +97,19 @@ private:
 		std::cerr << "\033[31m" << message << "\033[0m" << std::endl;
 	}
 
-	int GetLine() noexcept { return static_cast<int>(m_instruction_pointer - m_current_bytecode->cbegin()); }
+	// only used for error reporting, efficiency is not a concern
+	int GetLine()
+	{
+		for (int i = 0; i < m_executable.GetProcedureCount(); i += 1)
+		{
+			if (m_instruction_pointer >= &*m_executable.GetBytecodeStream(i).cbegin() && m_instruction_pointer <= &*std::prev(m_executable.GetBytecodeStream(i).cend()))
+			{
+				return m_executable.GetLine(static_cast<int>(m_instruction_pointer - &*m_executable.GetBytecodeStream(i).cbegin()), i);
+			}
+		}
+
+		throw InterpreterException(GenerateRuntimeError("Invalid instruction pointer.", 0));
+	}
 
 	OpCode ReadByte() noexcept
 	{
@@ -146,13 +158,13 @@ private:
 		}
 		}
 
-		return m_executable_module.m_static_data.GetConstant(index);
+		return m_executable.GetConstant(index);
 	}
 
 	const std::string& ReadGlobalVariable() noexcept
 	{
 		int index = static_cast<int>(ReadByte());
-		return m_executable_module.m_global_table.GetGlobalVariable(index);
+		return m_executable.GetGlobalVariable(index);
 	}
 
 	std::string GenerateRuntimeError(std::string_view message, int line) noexcept
@@ -161,15 +173,27 @@ private:
 		return MidoriError::GenerateRuntimeError(message, line);
 	}
 
-	void Push(const MidoriValue& value)
+	template<typename... Args>
+	void Push(Args&&... args)
 	{
-		if (m_value_stack_pointer == m_value_stack_end)
+		if (m_value_stack_pointer == m_value_stack_end + 1)
 		{
 			throw InterpreterException(GenerateRuntimeError("Value stack overflow.", GetLine()));
 		}
 
-		*m_value_stack_pointer = value;
+		*m_value_stack_pointer = MidoriValue(std::forward<Args>(args)...);
 		++m_value_stack_pointer;
+	}
+
+	void PushCallFrame(StackPointer<MidoriValue> m_return_bp, StackPointer<MidoriValue> m_return_sp, InstructionPointer m_return_ip)
+	{
+		if (m_call_stack_pointer == m_call_stack_end + 1)
+		{
+			throw InterpreterException(GenerateRuntimeError("Call stack overflow.", GetLine()));
+		}
+
+		*m_call_stack_pointer = { m_return_bp, m_return_sp, m_return_ip };
+		++m_call_stack_pointer;
 	}
 
 	const MidoriValue& Peek() const noexcept

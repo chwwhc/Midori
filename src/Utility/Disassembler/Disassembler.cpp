@@ -1,7 +1,5 @@
 #include "Disassembler.h"
-#include "Common/BytecodeStream/BytecodeStream.h"
-#include "Common/Value/GlobalVariableTable.h"
-#include "Common/Value/StaticData.h"
+#include "Common/Executable/Executable.h"
 
 #include <iostream>
 #include <iomanip>
@@ -20,46 +18,46 @@ namespace
 		std::cout << std::left << std::setw(instr_width) << name << std::endl;
 	}
 
-	void PopMultipleInstruction(std::string_view name, const BytecodeStream& stream, int& offset)
+	void PopMultipleInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
-		int operand = static_cast<int>(stream.ReadByteCode(offset + 1));
+		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
 		offset += 2;
 
 		std::cout << std::left << std::setw(instr_width) << name;
 		std::cout << ' ' << std::dec << operand << std::endl;
 	}
 
-	void ConstantInstruction(std::string_view name, const BytecodeStream& stream, const StaticData& static_data, int& offset)
+	void ConstantInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
 		int operand;
 		if (name == "CONSTANT_LONG_LONG")
 		{
-			operand = static_cast<int>(stream.ReadByteCode(offset + 1)) |
-				(static_cast<int>(stream.ReadByteCode(offset + 2)) << 8) |
-				(static_cast<int>(stream.ReadByteCode(offset + 3)) << 16);
+			operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index)) |
+				(static_cast<int>(executable.ReadByteCode(offset + 2, proc_index)) << 8) |
+				(static_cast<int>(executable.ReadByteCode(offset + 3, proc_index)) << 16);
 			offset += 4;
 		}
 		else if (name == "CONSTANT_LONG")
 		{
-			operand = static_cast<int>(stream.ReadByteCode(offset + 1)) |
-				(static_cast<int>(stream.ReadByteCode(offset + 2)) << 8);
+			operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index)) |
+				(static_cast<int>(executable.ReadByteCode(offset + 2, proc_index)) << 8);
 			offset += 3;
 		}
 		else
 		{
-			operand = static_cast<int>(stream.ReadByteCode(offset + 1));
+			operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
 			offset += 2;
 		}
 
 		std::cout << std::left << std::setw(instr_width) << name;
 		std::cout << ' ' << std::dec << operand;
-		std::cout << two_tabs << std::setw(comment_width) << " // static value: " << static_data.GetConstant(operand).ToString() << std::setfill(' ') << std::endl;
+		std::cout << two_tabs << std::setw(comment_width) << " // static value: " << executable.GetConstant(operand).ToString() << std::setfill(' ') << std::endl;
 	}
 
-	void JumpInstruction(std::string_view name, int sign, const BytecodeStream& stream, int& offset)
+	void JumpInstruction(std::string_view name, int sign, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
-		int operand = static_cast<int>(stream.ReadByteCode(offset + 1)) |
-			(static_cast<int>(stream.ReadByteCode(offset + 2)) << 8);
+		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index)) |
+			(static_cast<int>(executable.ReadByteCode(offset + 2, proc_index)) << 8);
 		offset += 3;
 
 		std::cout << std::left << std::setw(instr_width) << name;
@@ -67,19 +65,19 @@ namespace
 		std::cout << two_tabs << std::setw(comment_width) << " // destination: " << '[' << std::right << std::setfill('0') << std::setw(address_width) << std::hex << (offset + sign * operand) << ']' << std::setfill(' ') << std::endl;
 	}
 
-	void GlobalVariableInstruction(std::string_view name, const BytecodeStream& stream, const GlobalVariableTable& global_table, int& offset)
+	void GlobalVariableInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
-		int operand = static_cast<int>(stream.ReadByteCode(offset + 1));
+		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
 		offset += 2;
 
 		std::cout << std::left << std::setw(instr_width) << name;
 		std::cout << ' ' << std::dec << operand;
-		std::cout << two_tabs << std::setw(comment_width) << " // global variable: " << global_table.GetGlobalVariable(operand) << std::setfill(' ') << std::endl;
+		std::cout << two_tabs << std::setw(comment_width) << " // global variable: " << executable.GetGlobalVariable(operand) << std::setfill(' ') << std::endl;
 	}
 
-	void LocalOrCellVariableInstruction(std::string_view name, const BytecodeStream& stream, int& offset)
+	void LocalOrCellVariableInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
-		int operand = static_cast<int>(stream.ReadByteCode(offset + 1));
+		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
 		offset += 2;
 
 		std::cout << std::left << std::setw(instr_width) << name;
@@ -87,9 +85,9 @@ namespace
 		std::cout << two_tabs << std::setw(comment_width) << " // stack offset: " << std::dec << operand << std::setfill(' ') << std::endl;
 	}
 
-	void ArrayInstruction(std::string_view name, const BytecodeStream& stream, int& offset)
+	void ArrayInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
-		int operand = static_cast<int>(stream.ReadByteCode(offset + 1));
+		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
 		offset += 2;
 
 		std::cout << std::left << std::setw(instr_width) << name;
@@ -97,11 +95,11 @@ namespace
 		std::cout << two_tabs << std::setw(comment_width) << " // number of indices: " << std::dec << operand << std::setfill(' ') << std::endl;
 	}
 
-	void ArrayCreateInstruction(std::string_view name, const BytecodeStream& stream, int& offset)
+	void ArrayCreateInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
-		int operand = static_cast<int>(stream.ReadByteCode(offset + 1)) |
-			(static_cast<int>(stream.ReadByteCode(offset + 2)) << 8) |
-			(static_cast<int>(stream.ReadByteCode(offset + 3)) << 16);
+		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index)) |
+			(static_cast<int>(executable.ReadByteCode(offset + 2, proc_index)) << 8) |
+			(static_cast<int>(executable.ReadByteCode(offset + 3, proc_index)) << 16);
 		offset += 4;
 
 		std::cout << std::left << std::setw(instr_width) << name;
@@ -109,12 +107,12 @@ namespace
 		std::cout << two_tabs << std::setw(comment_width) << " // array length: " << std::dec << operand << std::setfill(' ') << std::endl;
 	}
 
-	void ClosureCreateInstruction(std::string_view name, const BytecodeStream& stream, int& offset)
+	void ClosureCreateInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
 		// TODO: fix this	
-		int captured_count = static_cast<int>(stream.ReadByteCode(offset + 1));
-		int arity = static_cast<int>(stream.ReadByteCode(offset + 2));
-		int index = static_cast<int>(stream.ReadByteCode(offset + 3));
+		int captured_count = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
+		int arity = static_cast<int>(executable.ReadByteCode(offset + 2, proc_index));
+		int index = static_cast<int>(executable.ReadByteCode(offset + 3, proc_index));
 		offset += 4;
 
 		std::cout << std::left << std::setw(instr_width) << name;
@@ -122,9 +120,9 @@ namespace
 		std::cout << std::setw(comment_width) << " // number of captured variables: " << std::dec << captured_count << std::setfill(' ') << std::endl;
 	}
 
-	void CallInstruction(std::string_view name, const BytecodeStream& stream, int& offset)
+	void CallInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
-		int operand = static_cast<int>(stream.ReadByteCode(offset + 1));
+		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
 		offset += 2;
 
 		std::cout << std::left << std::setw(instr_width) << name;
@@ -132,9 +130,9 @@ namespace
 		std::cout << two_tabs << std::setw(comment_width) << " // number of parameters: " << std::dec << operand << std::setfill(' ') << std::endl;
 	}
 
-	void MemberInstruction(std::string_view name, const BytecodeStream& stream, int& offset)
+	void MemberInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
-		int operand = static_cast<int>(stream.ReadByteCode(offset + 1));
+		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
 		offset += 2;
 
 		std::cout << std::left << std::setw(instr_width) << name;
@@ -142,9 +140,9 @@ namespace
 		std::cout << two_tabs << std::setw(comment_width) << " // member index: " << std::dec << operand << std::setfill(' ') << std::endl;
 	}
 
-	void StructInstruction(std::string_view name, const BytecodeStream& stream, int& offset)
+	void StructInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
-		int operand = static_cast<int>(stream.ReadByteCode(offset + 1));
+		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
 		offset += 2;
 
 		std::cout << std::left << std::setw(instr_width) << name;
@@ -155,43 +153,43 @@ namespace
 
 namespace Disassembler
 {
-	void DisassembleBytecodeStream(const BytecodeStream& stream, const StaticData& static_data, const GlobalVariableTable& global_table, const char* name)
+	void DisassembleBytecodeStream(const MidoriExecutable& executable, int proc_index, std::string_view proc_name)
 	{
-		std::cout << "================================================== " << name << " ==================================================" << std::endl;
+		std::cout << "================================================== " << proc_name << " ==================================================" << std::endl;
 
 		int offset = 0;
-		while (offset < stream.GetByteCodeSize())
+		while (offset < executable.GetByteCodeSize(proc_index))
 		{
-			DisassembleInstruction(stream, static_data, global_table, offset);
+			DisassembleInstruction(executable, proc_index, offset);
 		}
 		std::cout << "-----------------------------------------------------------------------------------------------\n" << std::endl;
 	}
 
-	void DisassembleInstruction(const BytecodeStream& stream, const StaticData& static_data, const GlobalVariableTable& global_table, int& offset)
+	void DisassembleInstruction(const MidoriExecutable& executable, int proc_index, int& offset)
 	{
 		std::cout << '[' << std::right << std::setfill('0') << std::setw(::address_width) << std::hex << offset << "] " << std::setfill(' ');
 
 		std::cout << std::setw(::address_width) << std::left;
-		if (offset > 0 && stream.GetLine(offset) == stream.GetLine(offset - 1))
+		if (offset > 0 && executable.GetLine(offset, proc_index) == executable.GetLine(offset - 1, proc_index))
 		{
 			std::cout << "|" << std::setfill(' ');
 		}
 		else
 		{
-			std::cout << std::dec << stream.GetLine(offset) << std::setfill(' ');
+			std::cout << std::dec << executable.GetLine(offset, proc_index) << std::setfill(' ');
 		}
 		std::cout << std::right << ' ';
 
-		OpCode instruction = stream.ReadByteCode(offset);
+		OpCode instruction = executable.ReadByteCode(offset, proc_index);
 		switch (instruction) {
 		case OpCode::CONSTANT:
-			ConstantInstruction("CONSTANT", stream, static_data, offset);
+			ConstantInstruction("CONSTANT", executable, proc_index, offset);
 			break;
 		case OpCode::CONSTANT_LONG:
-			ConstantInstruction("CONSTANT_LONG", stream, static_data, offset);
+			ConstantInstruction("CONSTANT_LONG", executable, proc_index, offset);
 			break;
 		case OpCode::CONSTANT_LONG_LONG:
-			ConstantInstruction("CONSTANT_LONG_LONG", stream, static_data, offset);
+			ConstantInstruction("CONSTANT_LONG_LONG", executable, proc_index, offset);
 			break;
 		case OpCode::OP_UNIT:
 			SimpleInstruction("OP_UNIT", offset);
@@ -203,13 +201,13 @@ namespace Disassembler
 			SimpleInstruction("OP_FALSE", offset);
 			break;
 		case OpCode::CREATE_ARRAY:
-			ArrayCreateInstruction("CREATE_ARRAY", stream, offset);
+			ArrayCreateInstruction("CREATE_ARRAY", executable, proc_index, offset);
 			break;
 		case OpCode::GET_ARRAY:
-			ArrayInstruction("GET_ARRAY", stream, offset);
+			ArrayInstruction("GET_ARRAY", executable, proc_index, offset);
 			break;
 		case OpCode::SET_ARRAY:
-			ArrayInstruction("SET_ARRAY", stream, offset);
+			ArrayInstruction("SET_ARRAY", executable, proc_index, offset);
 			break;
 		case OpCode::CAST_TO_FRACTION:
 			SimpleInstruction("CAST_TO_FRACTION", offset);
@@ -326,64 +324,64 @@ namespace Disassembler
 			SimpleInstruction("NEGATE_INTEGER", offset);
 			break;
 		case OpCode::JUMP_IF_FALSE:
-			JumpInstruction("JUMP_IF_FALSE", 1, stream, offset);
+			JumpInstruction("JUMP_IF_FALSE", 1, executable, proc_index, offset);
 			break;
 		case OpCode::JUMP_IF_TRUE:
-			JumpInstruction("JUMP_IF_TRUE", 1, stream, offset);
+			JumpInstruction("JUMP_IF_TRUE", 1, executable, proc_index, offset);
 			break;
 		case OpCode::JUMP:
-			JumpInstruction("JUMP", 1, stream, offset);
+			JumpInstruction("JUMP", 1, executable, proc_index, offset);
 			break;
 		case OpCode::JUMP_BACK:
-			JumpInstruction("JUMP_BACK", -1, stream, offset);
+			JumpInstruction("JUMP_BACK", -1, executable, proc_index, offset);
 			break;
 		case OpCode::CALL_FOREIGN:
-			CallInstruction("CALL_FOREIGN", stream, offset);
+			CallInstruction("CALL_FOREIGN", executable, proc_index, offset);
 			break;
 		case OpCode::CALL_DEFINED:
-			CallInstruction("CALL_DEFINED", stream, offset);
+			CallInstruction("CALL_DEFINED", executable, proc_index, offset);
 			break;
 		case OpCode::CONSTRUCT_STRUCT:
-			StructInstruction("CONSTRUCT_STRUCT", stream, offset);
+			StructInstruction("CONSTRUCT_STRUCT", executable, proc_index, offset);
 			break;
 		case OpCode::ALLOCATE_STRUCT:
 			SimpleInstruction("ALLOCATE_STRUCT", offset);
 			break;
 		case OpCode::CREATE_CLOSURE:
-			ClosureCreateInstruction("CREATE_CLOSURE", stream, offset);
+			ClosureCreateInstruction("CREATE_CLOSURE", executable, proc_index, offset);
 			break;
 		case OpCode::DEFINE_GLOBAL:
-			GlobalVariableInstruction("DEFINE_GLOBAL", stream, global_table, offset);
+			GlobalVariableInstruction("DEFINE_GLOBAL", executable, proc_index, offset);
 			break;
 		case OpCode::GET_GLOBAL:
-			GlobalVariableInstruction("GET_GLOBAL", stream, global_table, offset);
+			GlobalVariableInstruction("GET_GLOBAL", executable, proc_index, offset);
 			break;
 		case OpCode::SET_GLOBAL:
-			GlobalVariableInstruction("SET_GLOBAL", stream, global_table, offset);
+			GlobalVariableInstruction("SET_GLOBAL", executable, proc_index, offset);
 			break;
 		case OpCode::GET_LOCAL:
-			LocalOrCellVariableInstruction("GET_LOCAL", stream, offset);
+			LocalOrCellVariableInstruction("GET_LOCAL", executable, proc_index, offset);
 			break;
 		case OpCode::SET_LOCAL:
-			LocalOrCellVariableInstruction("SET_LOCAL", stream, offset);
+			LocalOrCellVariableInstruction("SET_LOCAL", executable, proc_index, offset);
 			break;
 		case OpCode::GET_CELL:
-			LocalOrCellVariableInstruction("GET_CELL", stream, offset);
+			LocalOrCellVariableInstruction("GET_CELL", executable, proc_index, offset);
 			break;
 		case OpCode::SET_CELL:
-			LocalOrCellVariableInstruction("SET_CELL", stream, offset);
+			LocalOrCellVariableInstruction("SET_CELL", executable, proc_index, offset);
 			break;
 		case OpCode::GET_MEMBER:
-			MemberInstruction("GET_MEMBER", stream, offset);
+			MemberInstruction("GET_MEMBER", executable, proc_index, offset);
 			break;
 		case OpCode::SET_MEMBER:
-			MemberInstruction("SET_MEMBER", stream, offset);
+			MemberInstruction("SET_MEMBER", executable, proc_index, offset);
 			break;
 		case OpCode::POP:
 			SimpleInstruction("POP", offset);
 			break;
 		case OpCode::POP_MULTIPLE:
-			PopMultipleInstruction("POP_MULTIPLE", stream, offset);
+			PopMultipleInstruction("POP_MULTIPLE", executable, proc_index, offset);
 			break;
 		case OpCode::RETURN:
 			SimpleInstruction("RETURN", offset);
