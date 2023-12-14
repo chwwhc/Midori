@@ -142,6 +142,8 @@ public:
 	int GetLine(int index) const;
 
 	void Append(BytecodeStream&& other);
+
+	const OpCode* operator[](int index) const;
 };
 
 class MidoriExecutable

@@ -9,6 +9,121 @@
 #include <iostream>
 #endif
 
+void VirtualMachine::DisplayRuntimeError(std::string_view message) noexcept
+{
+	std::cerr << "\033[31m" << message << "\033[0m" << std::endl;
+}
+
+int VirtualMachine::GetLine()
+{
+	for (int i = 0; i < m_executable.GetProcedureCount(); i += 1)
+	{
+		if (m_instruction_pointer >= &*m_executable.GetBytecodeStream(i).cbegin() && m_instruction_pointer <= &*std::prev(m_executable.GetBytecodeStream(i).cend()))
+		{
+			return m_executable.GetLine(static_cast<int>(m_instruction_pointer - &*m_executable.GetBytecodeStream(i).cbegin()), i);
+		}
+	}
+
+	throw InterpreterException(GenerateRuntimeError("Invalid instruction pointer.", 0));
+}
+
+OpCode VirtualMachine::ReadByte() noexcept
+{
+	OpCode op_code = *m_instruction_pointer;
+	++m_instruction_pointer;
+	return op_code;
+}
+
+int VirtualMachine::ReadShort() noexcept
+{
+	return static_cast<int>(ReadByte()) | (static_cast<int>(ReadByte()) << 8); 
+}
+
+int VirtualMachine::ReadThreeBytes() noexcept
+{
+	return static_cast<int>(ReadByte()) |
+		(static_cast<int>(ReadByte()) << 8) |
+		(static_cast<int>(ReadByte()) << 16);
+}
+
+const MidoriValue& VirtualMachine::ReadConstant(OpCode operand_length) noexcept
+{
+	int index = 0;
+
+	switch (operand_length)
+	{
+	case OpCode::CONSTANT:
+	{
+		index = static_cast<int>(ReadByte());
+		break;
+	}
+	case OpCode::CONSTANT_LONG:
+	{
+		index = static_cast<int>(ReadByte()) |
+			(static_cast<int>(ReadByte()) << 8);
+		break;
+	}
+	case OpCode::CONSTANT_LONG_LONG:
+	{
+		index = static_cast<int>(ReadByte()) |
+			(static_cast<int>(ReadByte()) << 8) |
+			(static_cast<int>(ReadByte()) << 16);
+		break;
+	}
+	default:
+	{
+		break; // unreachable
+	}
+	}
+
+	return m_executable.GetConstant(index);
+}
+
+const std::string& VirtualMachine::ReadGlobalVariable() noexcept
+{
+	int index = static_cast<int>(ReadByte());
+	return m_executable.GetGlobalVariable(index);
+}
+
+std::string VirtualMachine::GenerateRuntimeError(std::string_view message, int line) noexcept
+{
+	MidoriTraceable::CleanUp();
+	return MidoriError::GenerateRuntimeError(message, line);
+}
+
+void VirtualMachine::PushCallFrame(StackPointer<MidoriValue, s_value_stack_max> m_return_bp, StackPointer<MidoriValue, s_value_stack_max> m_return_sp, InstructionPointer m_return_ip)
+{
+	if (m_call_stack_pointer != m_call_stack_end)
+	{
+		*m_call_stack_pointer = { m_return_bp, m_return_sp, m_return_ip };
+		++m_call_stack_pointer;
+		return;
+	}
+
+	throw InterpreterException(GenerateRuntimeError("Call stack overflow.", GetLine()));
+}
+
+const MidoriValue& VirtualMachine::Peek() const noexcept
+{
+	const MidoriValue& value = *(std::prev(m_value_stack_pointer));
+	return value;
+}
+
+MidoriValue& VirtualMachine::Pop() noexcept
+{
+	MidoriValue& value = *(--m_value_stack_pointer);
+	return value;
+}
+
+void VirtualMachine::CheckIndexBounds(const MidoriValue& index, MidoriValue::MidoriInteger size)
+{
+	MidoriValue::MidoriInteger val = index.GetInteger();
+	if (val < 0ll || val >= size)
+	{
+		throw InterpreterException(GenerateRuntimeError(std::format("Index out of bounds at index: {}.", val), GetLine()));
+	}
+}
+
 MidoriTraceable::GarbageCollectionRoots VirtualMachine::GetGlobalTableGarbageCollectionRoots()
 {
 	MidoriTraceable::GarbageCollectionRoots roots;
@@ -28,7 +143,7 @@ MidoriTraceable::GarbageCollectionRoots VirtualMachine::GetValueStackGarbageColl
 {
 	MidoriTraceable::GarbageCollectionRoots roots;
 
-	std::for_each_n(m_value_stack->begin(), m_value_stack_pointer - &*m_value_stack->begin(), [&roots](MidoriValue& value) -> void
+	std::for_each_n(m_value_stack->begin(), m_value_stack_pointer - m_value_stack->begin(), [&roots](MidoriValue& value) -> void
 		{
 			if (value.IsObjectPointer())
 			{
@@ -677,7 +792,7 @@ void VirtualMachine::Execute()
 				// Return address := pop all the arguments and the callee
 				PushCallFrame(m_base_pointer, m_value_stack_pointer - arity, m_instruction_pointer);
 
-				m_instruction_pointer = &*m_executable.GetBytecodeStream(closure.m_proc_index).cbegin();
+				m_instruction_pointer = m_executable.GetBytecodeStream(closure.m_proc_index)[0];
 				m_base_pointer = m_value_stack_pointer - arity;
 
 				break;
@@ -723,7 +838,7 @@ void VirtualMachine::Execute()
 					captured_count -= static_cast<int>(parent_closure.size());
 				}
 
-				for (StackPointer<MidoriValue> it = m_base_pointer; it < m_base_pointer + captured_count; ++it)
+				for (StackPointer<MidoriValue, s_value_stack_max> it = m_base_pointer; it < m_base_pointer + captured_count; ++it)
 				{
 					MidoriTraceable* cell_value = AllocateObject(MidoriTraceable::CellValue(*it));
 					captured_variables.emplace_back(cell_value);
@@ -818,12 +933,12 @@ void VirtualMachine::Execute()
 
 				Push(value);
 
-				if (m_call_stack_pointer == m_call_stack_begin)
+				if (m_call_stack_pointer != m_call_stack_begin)
 				{
-					return;
+					break;
 				}
 
-				break;
+				return;
 			}
 			case OpCode::HALT:
 			{

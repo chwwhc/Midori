@@ -95,6 +95,11 @@ void BytecodeStream::Append(BytecodeStream&& other)
 	m_line_info.insert(m_line_info.end(), other.m_line_info.begin(), other.m_line_info.end());
 }
 
+const OpCode* BytecodeStream::operator[](int index) const
+{
+	return &m_bytecode[static_cast<size_t>(index)];
+}
+
 const MidoriValue& MidoriExecutable::GetConstant(int index) const
 {
 	return m_constants[static_cast<size_t>(index)];

@@ -24,21 +24,21 @@ private:
 
 public:
 
-	MidoriValue() : m_value(MidoriUnit()) {}
+	MidoriValue() noexcept : m_value(MidoriUnit()) {}
 
-	MidoriValue(MidoriFraction d) : m_value(d) {}
+	MidoriValue(MidoriFraction d) noexcept : m_value(d) {}
 
-	MidoriValue(MidoriInteger l) : m_value(l) {}
+	MidoriValue(MidoriInteger l) noexcept : m_value(l) {}
 
-	MidoriValue(bool b) : m_value(b) {}
+	MidoriValue(bool b) noexcept : m_value(b) {}
 
-	MidoriValue(MidoriTraceable* o) : m_value(o) {}
+	MidoriValue(MidoriTraceable* o) noexcept : m_value(o) {}
 
-	MidoriValue(const MidoriValue& other) = default;
+	MidoriValue(const MidoriValue& other) noexcept = default;
 
 	MidoriValue(MidoriValue&& other) noexcept = default;
 
-	MidoriValue& operator=(const MidoriValue& other) = default;
+	MidoriValue& operator=(const MidoriValue& other) noexcept = default;
 
 	MidoriValue& operator=(MidoriValue&& other) noexcept = default;
 

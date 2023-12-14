@@ -100,7 +100,6 @@ void CodeGenerator::operator()(If& if_stmt)
 
 	int else_jump = EmitJump(OpCode::JUMP, line);
 	PatchJump(true_jump, line);
-	EmitByte(OpCode::POP, line);
 
 	if (if_stmt.m_else_branch.has_value())
 	{
@@ -635,7 +634,6 @@ void CodeGenerator::operator()(Ternary& ternary)
 	std::visit([this](auto&& arg) {(*this)(arg); }, *ternary.m_true_branch);
 	int jump = EmitJump(OpCode::JUMP, line);
 	PatchJump(jump_if_false, line);
-	EmitByte(OpCode::POP, line);
 	std::visit([this](auto&& arg) {(*this)(arg); }, *ternary.m_else_branch);
 	PatchJump(jump, line);
 }
