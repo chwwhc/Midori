@@ -49,34 +49,6 @@ public:
 
 private:
 
-	void Synchronize();
-
-	std::string GenerateParserError(std::string&& message, const Token& token)
-	{
-		Synchronize();
-		return MidoriError::GenerateParserError(std::move(message), token);
-	}
-
-	bool IsAtEnd() { return Peek(0).m_token_name == Token::Name::END_OF_FILE; }
-
-	bool Check(Token::Name type, int offset) { return !IsAtEnd() && Peek(offset).m_token_name == type; }
-
-	Token& Peek(int offset) { return m_current_token_index + offset < m_tokens.Size() ? m_tokens[m_current_token_index + offset] : m_tokens[m_tokens.Size() - 1]; }
-
-	Token& Previous() { return m_tokens[m_current_token_index - 1]; }
-
-	Token& Advance() { if (!IsAtEnd()) { m_current_token_index += 1; } return Previous(); }
-
-	MidoriResult::TokenResult Consume(Token::Name type, std::string_view message)
-	{
-		if (Check(type, 0))
-		{
-			return Advance();
-		}
-
-		return std::unexpected<std::string>(MidoriError::GenerateParserError(message, Previous()));
-	}
-
 	template <typename... T>
 		requires (std::is_same_v<T, Token::Name> && ...)
 	bool Match(T... tokens)
@@ -114,51 +86,29 @@ private:
 		return lower_expr;
 	}
 
-	void BeginScope()
-	{
-		m_scopes.emplace_back(Scope());
-	}
+	void Synchronize();
 
-	int EndScope()
-	{
-		int block_local_count = static_cast<int>(m_scopes.back().m_variables.size());
-		m_total_locals_in_curr_scope -= block_local_count;
-		m_total_variables -= block_local_count;
-		m_scopes.pop_back();
-		return block_local_count;
-	}
+	std::string GenerateParserError(std::string&& message, const Token& token);
 
-	MidoriResult::TokenResult DefineName(const Token& name, bool is_fixed)
-	{
-		Scope::VariableTable::const_iterator it = m_scopes.back().m_variables.find(name.m_lexeme);
-		if (it != m_scopes.back().m_variables.cend())
-		{
-			return std::unexpected<std::string>(MidoriError::GenerateParserError("Name already declared in this scope.", name));
-		}
-		else
-		{
-			constexpr int relative_index = -1;
-			constexpr int absolute_index = -1;
-			constexpr int closure_depth = -1;
-			m_scopes.back().m_variables[name.m_lexeme] = VariableContext(relative_index, absolute_index, closure_depth, is_fixed);
-		}
+	bool IsAtEnd();
 
-		return name;
-	}
+	bool Check(Token::Name type, int offset);
 
-	std::optional<int> GetLocalVariableIndex(const std::string& name, bool is_fixed)
-	{
-		bool is_global = m_scopes.size() == 1u;
-		std::optional<int> local_index = std::nullopt;
+	Token& Peek(int offset);
 
-		if (!is_global)
-		{
-			m_scopes.back().m_variables[name] = VariableContext(m_total_locals_in_curr_scope++, m_total_variables++, m_closure_depth, is_fixed);
-			local_index.emplace(m_scopes.back().m_variables[name].m_relative_index);
-		}
+	Token& Previous();
 
-		return local_index;
-	}
+	Token& Advance();
+
+	MidoriResult::TokenResult Consume(Token::Name type, std::string_view message);
+
+	void BeginScope();
+
+	int EndScope();
+
+	MidoriResult::TokenResult DefineName(const Token& name, bool is_fixed);
+
+	std::optional<int> GetLocalVariableIndex(const std::string& name, bool is_fixed);
 
 	bool HasReturnStatement(const MidoriStatement& stmt);
 

@@ -5,6 +5,16 @@
 #include <iterator>
 #include <format>
 
+void TypeChecker::BeginScope()
+{ 
+	m_name_type_table.emplace_back(); 
+}
+
+void TypeChecker::EndScope() 
+{ 
+	m_name_type_table.pop_back(); 
+}
+
 MidoriResult::TypeCheckerResult TypeChecker::TypeCheck(MidoriProgramTree& program_tree)
 {
 	m_name_type_table.emplace_back();

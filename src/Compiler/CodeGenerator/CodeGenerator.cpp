@@ -1,5 +1,115 @@
 #include "CodeGenerator.h"
 
+void CodeGenerator::EmitByte(OpCode byte, int line)
+{ 
+	m_procedures[m_current_procedure_index].AddByteCode(byte, line); 
+}
+
+void CodeGenerator::EmitTwoBytes(int byte1, int byte2, int line)
+{
+	EmitByte(static_cast<OpCode>(byte1), line);
+	EmitByte(static_cast<OpCode>(byte2), line);
+}
+
+void CodeGenerator::EmitThreeBytes(int byte1, int byte2, int byte3, int line)
+{
+	EmitByte(static_cast<OpCode>(byte1), line);
+	EmitByte(static_cast<OpCode>(byte2), line);
+	EmitByte(static_cast<OpCode>(byte3), line);
+}
+
+void CodeGenerator::EmitConstant(MidoriValue&& value, int line)
+{
+	if (value.IsObjectPointer())
+	{
+		MidoriTraceable* traceable = static_cast<MidoriTraceable*>(value.GetObjectPointer());
+		m_executable.AddConstantRoot(traceable);
+		MidoriTraceable::s_static_bytes_allocated += traceable->GetSize();
+	}
+
+	int index = m_executable.AddConstant(std::move(value));
+
+	if (index <= UINT8_MAX) // 1 byte
+	{
+		EmitByte(OpCode::CONSTANT, line);
+		EmitByte(static_cast<OpCode>(index), line);
+	}
+	else if (index <= UINT16_MAX) // 2 bytes
+	{
+		EmitByte(OpCode::CONSTANT_LONG, line);
+		EmitByte(static_cast<OpCode>(index & 0xff), line);
+		EmitByte(static_cast<OpCode>((index >> 8) & 0xff), line);
+	}
+	else if (index <= ((UINT16_MAX << 8) | 0xffff)) // 3 bytes
+	{
+		EmitByte(OpCode::CONSTANT_LONG_LONG, line);
+		EmitByte(static_cast<OpCode>(index & 0xff), line);
+		EmitByte(static_cast<OpCode>((index >> 8) & 0xff), line);
+		EmitByte(static_cast<OpCode>((index >> 16) & 0xff), line);
+	}
+	else
+	{
+		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too many constants (max 16777215).", line));
+	}
+}
+
+void CodeGenerator::EmitVariable(int variable_index, OpCode op, int line)
+{
+	if (variable_index > UINT8_MAX)
+	{
+		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too many variables (max 255).", line));
+	}
+
+	EmitByte(op, line);
+	EmitByte(static_cast<OpCode>(variable_index), line);
+}
+
+int CodeGenerator::EmitJump(OpCode op, int line)
+{
+	EmitByte(op, line);
+	EmitByte(static_cast<OpCode>(0xff), line);
+	EmitByte(static_cast<OpCode>(0xff), line);
+	return m_procedures[m_current_procedure_index].GetByteCodeSize() - 2;
+}
+
+void CodeGenerator::PatchJump(int offset, int line)
+{
+	int jump = m_procedures[m_current_procedure_index].GetByteCodeSize() - offset - 2;
+	if (jump > UINT16_MAX)
+	{
+		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too much code to jump over (max 65535).", line));
+	}
+
+	m_procedures[m_current_procedure_index].SetByteCode(offset, static_cast<OpCode>(jump & 0xff));
+	m_procedures[m_current_procedure_index].SetByteCode(offset + 1, static_cast<OpCode>((jump >> 8) & 0xff));
+}
+
+void CodeGenerator::EmitLoop(int loop_start, int line)
+{
+	EmitByte(OpCode::JUMP_BACK, line);
+
+	int offset = m_procedures[m_current_procedure_index].GetByteCodeSize() - loop_start + 2;
+	if (offset > UINT16_MAX)
+	{
+		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Loop body too large (max 65535).", line));
+	}
+
+	EmitByte(static_cast<OpCode>(offset & 0xff), line);
+	EmitByte(static_cast<OpCode>((offset >> 8) & 0xff), line);
+}
+
+void CodeGenerator::BeginLoop(int loop_start) 
+{ 
+	m_loop_contexts.emplace(std::vector<int>(), loop_start); 
+}
+
+void CodeGenerator::EndLoop(int line)
+{
+	LoopContext loop = m_loop_contexts.top();
+	m_loop_contexts.pop();
+	std::for_each(loop.m_break_positions.begin(), loop.m_break_positions.end(), [line, this](int break_position) { PatchJump(break_position, line); });
+}
+
 MidoriResult::CodeGeneratorResult CodeGenerator::GenerateCode(MidoriProgramTree&& program_tree)
 {
 	std::for_each(program_tree.begin(), program_tree.end(), [this](std::unique_ptr<MidoriStatement>& statement)

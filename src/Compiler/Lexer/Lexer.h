@@ -26,23 +26,23 @@ public:
 
 private:
 
-	bool IsAtEnd(int offset) { return m_current + offset >= static_cast<int>(m_source_code.size()); }
+	bool IsAtEnd(int offset) const;
 
-	bool IsDigit(char c) { return isdigit(c); }
+	bool IsDigit(char c) const;
 
-	bool IsAlpha(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c == '_'); }
+	bool IsAlpha(char c) const;
 
-	bool IsAlphaNumeric(char c) { return IsDigit(c) || IsAlpha(c); }
+	bool IsAlphaNumeric(char c) const;
 
-	char Advance() { return m_source_code[m_current++]; }
+	char Advance();
 
-	char LookAhead(int offset) { return (IsAtEnd(0u) || m_current + offset >= static_cast<int>(m_source_code.size())) ? '\0' : m_source_code[m_current + offset]; }
+	char LookAhead(int offset) const;
 
-	bool MatchNext(char expected) { return ((IsAtEnd(0u) || m_source_code[m_current] != expected) ? false : (++m_current, true)); }
+	bool MatchNext(char expected);
 
-	Token MakeToken(Token::Name type) { return Token(type, m_source_code.substr(m_begin, m_current - m_begin), m_line); }
+	Token MakeToken(Token::Name type) const;
 
-	Token MakeToken(Token::Name type, std::string&& lexeme) { return Token(type, std::move(lexeme), m_line); }
+	Token MakeToken(Token::Name type, std::string&& lexeme) const;
 
 	MidoriResult::TokenResult LexOneToken();
 

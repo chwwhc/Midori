@@ -2,6 +2,97 @@
 
 #include <algorithm>
 
+std::string Parser::GenerateParserError(std::string&& message, const Token& token)
+{
+	Synchronize();
+	return MidoriError::GenerateParserError(std::move(message), token);
+}
+
+bool Parser::IsAtEnd() 
+{
+	return Peek(0).m_token_name == Token::Name::END_OF_FILE; 
+}
+
+bool Parser::Check(Token::Name type, int offset) 
+{
+	return !IsAtEnd() && Peek(offset).m_token_name == type; 
+}
+
+Token& Parser::Peek(int offset) 
+{
+	return m_current_token_index + offset < m_tokens.Size() ? m_tokens[m_current_token_index + offset] : m_tokens[m_tokens.Size() - 1]; 
+}
+
+Token& Parser::Previous() 
+{ 
+	return m_tokens[m_current_token_index - 1]; 
+}
+
+Token& Parser::Advance() 
+{ 
+	if (!IsAtEnd()) 
+	{ 
+		m_current_token_index += 1; 
+	}
+	return Previous(); 
+}
+
+MidoriResult::TokenResult Parser::Consume(Token::Name type, std::string_view message)
+{
+	if (Check(type, 0))
+	{
+		return Advance();
+	}
+
+	return std::unexpected<std::string>(MidoriError::GenerateParserError(message, Previous()));
+}
+
+void Parser::BeginScope()
+{
+	m_scopes.emplace_back(Scope());
+}
+
+int Parser::EndScope()
+{
+	int block_local_count = static_cast<int>(m_scopes.back().m_variables.size());
+	m_total_locals_in_curr_scope -= block_local_count;
+	m_total_variables -= block_local_count;
+	m_scopes.pop_back();
+	return block_local_count;
+}
+
+MidoriResult::TokenResult Parser::DefineName(const Token& name, bool is_fixed)
+{
+	Scope::VariableTable::const_iterator it = m_scopes.back().m_variables.find(name.m_lexeme);
+	if (it != m_scopes.back().m_variables.cend())
+	{
+		return std::unexpected<std::string>(MidoriError::GenerateParserError("Name already declared in this scope.", name));
+	}
+	else
+	{
+		constexpr int relative_index = -1;
+		constexpr int absolute_index = -1;
+		constexpr int closure_depth = -1;
+		m_scopes.back().m_variables[name.m_lexeme] = VariableContext(relative_index, absolute_index, closure_depth, is_fixed);
+	}
+
+	return name;
+}
+
+std::optional<int> Parser::GetLocalVariableIndex(const std::string& name, bool is_fixed)
+{
+	bool is_global = m_scopes.size() == 1u;
+	std::optional<int> local_index = std::nullopt;
+
+	if (!is_global)
+	{
+		m_scopes.back().m_variables[name] = VariableContext(m_total_locals_in_curr_scope++, m_total_variables++, m_closure_depth, is_fixed);
+		local_index.emplace(m_scopes.back().m_variables[name].m_relative_index);
+	}
+
+	return local_index;
+}
+
 MidoriResult::ExpressionResult Parser::ParseFactor()
 {
 	return ParseBinary(&Parser::ParseUnary, Token::Name::STAR, Token::Name::SLASH, Token::Name::PERCENT);
@@ -350,6 +441,11 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 {
 	if (Match(Token::Name::LEFT_PAREN))
 	{
+		if (Match(Token::Name::RIGHT_PAREN))
+		{
+			return std::make_unique<MidoriExpression>(UnitLiteral{ std::move(Previous()) });
+		}
+
 		MidoriResult::ExpressionResult expr_in = ParseExpression();
 		if (!expr_in.has_value())
 		{
@@ -519,10 +615,6 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 	else if (Match(Token::Name::OP_TRUE, Token::Name::OP_FALSE))
 	{
 		return std::make_unique<MidoriExpression>(BoolLiteral{ std::move(Previous()) });
-	}
-	else if (Match(Token::Name::HASH))
-	{
-		return std::make_unique<MidoriExpression>(UnitLiteral{ std::move(Previous()) });
 	}
 	else if (Match(Token::Name::FRACTION_LITERAL))
 	{

@@ -4,7 +4,7 @@
 #include <memory>
 
 #include "Compiler/Token/Token.h"
-#include "Common/Value/Type.h"
+#include "Common/Type/Type.h"
 
 struct As;
 struct Binary;

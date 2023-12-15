@@ -97,25 +97,20 @@ private:
 	std::vector<Token> m_tokens;
 
 public:
-
-	// Adding iterator support
 	using iterator = std::vector<Token>::iterator;
 	using const_iterator = std::vector<Token>::const_iterator;
 
-	iterator begin() { return m_tokens.begin(); }
-	iterator end() { return m_tokens.end(); }
+	iterator begin();
 
-	const_iterator begin() const { return m_tokens.begin(); }
-	const_iterator end() const { return m_tokens.end(); }
+	iterator end();
 
-	const_iterator cbegin() const { return m_tokens.cbegin(); }
-	const_iterator cend() const { return m_tokens.cend(); }
+	const_iterator cbegin() const;
 
-	inline void AddToken(Token&& token) { m_tokens.emplace_back(std::move(token)); }
+	const_iterator cend() const;
 
-	inline Token& operator[](int index) const { return const_cast<Token&>(m_tokens[index]); }
+	void AddToken(Token&& token);
 
-	inline int Size() const { return static_cast<int>(m_tokens.size()); }
+	Token& operator[](int index) const;
 
-private:
+	int Size() const;
 };

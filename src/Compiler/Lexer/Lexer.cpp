@@ -32,6 +32,51 @@ const std::unordered_map<std::string, Token::Name> Lexer::s_keywords =
 	{"foreign", Token::Name::FOREIGN },
 };
 
+bool Lexer::IsAtEnd(int offset) const 
+{ 
+	return m_current + offset >= static_cast<int>(m_source_code.size()); 
+}
+
+bool Lexer::IsDigit(char c) const
+{ 
+	return isdigit(c); 
+}
+
+bool Lexer::IsAlpha(char c) const 
+{ 
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c == '_'); 
+}
+
+bool Lexer::IsAlphaNumeric(char c) const 
+{ 
+	return IsDigit(c) || IsAlpha(c); 
+}
+
+char Lexer::Advance() 
+{ 
+	return m_source_code[m_current++]; 
+}
+
+char Lexer::LookAhead(int offset) const
+{ 
+	return (IsAtEnd(0u) || m_current + offset >= static_cast<int>(m_source_code.size())) ? '\0' : m_source_code[m_current + offset]; 
+}
+
+bool Lexer::MatchNext(char expected) 
+{ 
+	return ((IsAtEnd(0u) || m_source_code[m_current] != expected) ? false : (++m_current, true));
+}
+
+Token Lexer::MakeToken(Token::Name type) const
+{ 
+	return Token(type, m_source_code.substr(m_begin, m_current - m_begin), m_line);
+}
+
+Token Lexer::MakeToken(Token::Name type, std::string&& lexeme) const
+{ 
+	return Token(type, std::move(lexeme), m_line); 
+}
+
 std::optional<std::string> Lexer::SkipWhitespaceAndComments()
 {
 	while (!IsAtEnd(0))

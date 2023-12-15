@@ -31,9 +31,9 @@ public:
 
 private:
 
-	void BeginScope() { m_name_type_table.emplace_back(); }
+	void BeginScope();
 
-	void EndScope() { m_name_type_table.pop_back(); }
+	void EndScope();
 
 	void operator()(Block& block);
 
