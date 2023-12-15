@@ -94,6 +94,8 @@ private:
 
 	bool Check(Token::Name type, int offset);
 
+	bool IsAtGlobalScope() const;
+
 	Token& Peek(int offset);
 
 	Token& Previous();

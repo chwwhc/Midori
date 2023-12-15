@@ -2,6 +2,11 @@
 
 #include <algorithm>
 
+bool Parser::IsAtGlobalScope() const
+{
+	return m_scopes.size() == 1u;
+}
+
 std::string Parser::GenerateParserError(std::string&& message, const Token& token)
 {
 	Synchronize();
@@ -81,10 +86,9 @@ MidoriResult::TokenResult Parser::DefineName(const Token& name, bool is_fixed)
 
 std::optional<int> Parser::GetLocalVariableIndex(const std::string& name, bool is_fixed)
 {
-	bool is_global = m_scopes.size() == 1u;
 	std::optional<int> local_index = std::nullopt;
 
-	if (!is_global)
+	if (!IsAtGlobalScope())
 	{
 		m_scopes.back().m_variables[name] = VariableContext(m_total_locals_in_curr_scope++, m_total_variables++, m_closure_depth, is_fixed);
 		local_index.emplace(m_scopes.back().m_variables[name].m_relative_index);
@@ -1406,18 +1410,17 @@ void Parser::Synchronize()
 
 	while (!IsAtEnd())
 	{
-		if (Previous().m_token_name == Token::Name::SINGLE_SEMICOLON)
+		if (IsAtGlobalScope())
 		{
-			return;
-		}
-		switch (Peek(0).m_token_name)
-		{
-		case Token::Name::VAR:
-		case Token::Name::FIXED:
-		case Token::Name::STRUCT:
-			return;
-		default:
-			break;
+			switch (Peek(0).m_token_name)
+			{
+			case Token::Name::VAR:
+			case Token::Name::FIXED:
+			case Token::Name::STRUCT:
+				return;
+			default:
+				break;
+			}
 		}
 
 		Advance();
