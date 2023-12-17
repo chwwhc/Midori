@@ -1,6 +1,6 @@
 #pragma once
 
-#include <vector>
+#include <deque>
 #include <string>
 
 struct Token
@@ -81,6 +81,9 @@ struct Token
 		OP_UNIT,
 		ARRAY,
 
+		// directive
+		DIRECTIVE,
+
 		END_OF_FILE,
 	};
 
@@ -94,11 +97,11 @@ class TokenStream
 public:
 
 private:
-	std::vector<Token> m_tokens;
+	std::deque<Token> m_tokens;
 
 public:
-	using iterator = std::vector<Token>::iterator;
-	using const_iterator = std::vector<Token>::const_iterator;
+	using iterator = std::deque<Token>::iterator;
+	using const_iterator = std::deque<Token>::const_iterator;
 
 	iterator begin();
 
@@ -113,4 +116,8 @@ public:
 	Token& operator[](int index) const;
 
 	int Size() const;
+
+	void Insert(iterator iter, TokenStream&& tokens);
+
+	void Erase(iterator iter);
 };

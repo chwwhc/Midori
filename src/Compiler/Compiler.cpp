@@ -12,22 +12,22 @@
 
 namespace Compiler
 {
-	MidoriResult::CompilerResult Compile(std::string&& script)
+	MidoriResult::CompilerResult Compile(std::string&& script, std::string&& file_name)
 	{
 		Lexer lexer(std::move(script));
 		MidoriResult::LexerResult lexer_result = lexer.Lex();
 		if (!lexer_result.has_value())
 		{
-			return std::unexpected<std::vector<std::string>>(std::move(lexer_result.error()));
+			return std::unexpected<std::string>(std::move(lexer_result.error()));
 		}
 		else
 		{
 			TokenStream tokens = std::move(lexer_result.value());
-			Parser parser(std::move(tokens));
+			Parser parser(std::move(tokens), file_name);
 			MidoriResult::ParserResult parser_result = parser.Parse();
 			if (!parser_result.has_value())
 			{
-				return std::unexpected<std::vector<std::string>>(std::move(parser_result.error()));
+				return std::unexpected<std::string>(std::move(parser_result.error()));
 			}
 			else
 			{
@@ -36,7 +36,7 @@ namespace Compiler
 				MidoriResult::TypeCheckerResult type_checker_result = type_checker.TypeCheck(program);
 				if (type_checker_result.has_value())
 				{
-					return std::unexpected<std::vector<std::string>>(std::move(type_checker_result.value()));
+					return std::unexpected<std::string>(std::move(type_checker_result.value()));
 				}
 #ifdef DEBUG
 				PrintAbstractSyntaxTree ast_printer;
@@ -49,7 +49,7 @@ namespace Compiler
 				MidoriResult::CodeGeneratorResult compilation_result = code_generator.GenerateCode(std::move(program));
 				if (!compilation_result.has_value())
 				{
-					return std::unexpected<std::vector<std::string>>(std::move(compilation_result.error()));
+					return std::unexpected<std::string>(std::move(compilation_result.error()));
 				}
 				else
 				{
@@ -57,7 +57,6 @@ namespace Compiler
 					const MidoriExecutable& executable = compilation_result.value();
 					for (size_t i = 0u; i < executable.m_procedure_names.size(); i += 1u)
 					{
-						const BytecodeStream& bytecode = executable.GetBytecodeStream(static_cast<int>(i));
 						std::string variable_name = executable.m_procedure_names[i];
 						Disassembler::DisassembleBytecodeStream(executable, static_cast<int>(i), variable_name);
 					}

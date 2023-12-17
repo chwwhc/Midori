@@ -1,14 +1,7 @@
-foreign Print : (Text) -> Unit;
+#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
 
-foreign GetTime : () -> Fraction;
-
-fixed main = closure() : Unit
+fixed TestFib = closure() : Unit
 {
-	fixed PrintLine = closure(fixed text : Text) : Unit
-	{
-		Print(text);
-		return Print("\n");
-	};
 
 	fixed fib = closure(fixed n : Integer) : Integer
 	{
@@ -18,7 +11,7 @@ fixed main = closure() : Unit
 
 	fixed start = GetTime();
 
-	fixed fib_35 = fib(10);
+	fixed fib_35 = fib(35);
 
 	fixed end = GetTime();
 

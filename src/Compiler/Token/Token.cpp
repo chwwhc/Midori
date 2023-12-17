@@ -34,3 +34,13 @@ int TokenStream::Size() const
 { 
 	return static_cast<int>(m_tokens.size()); 
 }
+
+void TokenStream::Insert(TokenStream::iterator iter, TokenStream&& tokens)
+{
+	m_tokens.insert(iter, tokens.begin(), tokens.end());
+}
+
+void TokenStream::Erase(TokenStream::iterator iter)
+{
+	m_tokens.erase(m_tokens.begin(), iter);
+}

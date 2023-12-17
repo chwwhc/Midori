@@ -24,16 +24,16 @@ std::optional<std::string> ReadFile(const char* filename)
 int main()
 {
 	std::cout << "\033[0m"; // Reset color
-	const char* filename = "C:\\Users\\JK\\Documents\\GitHub\\Midori\\test\\test.mdr";
+	const char* file_name = "E:\\Projects\\Midori\\test\\test.mdr";
 
-	std::optional<std::string> script = ReadFile(filename);
+	std::optional<std::string> script = ReadFile(file_name);
 	if (!script.has_value())
 	{
 		std::cerr << "Script is empty or could not be read." << std::endl;
 		std::exit(60);
 	}
 
-	MidoriResult::CompilerResult compilation_result = Compiler::Compile(std::move(script.value()));
+	MidoriResult::CompilerResult compilation_result = Compiler::Compile(std::move(script.value()), std::string(file_name));
 	if (compilation_result.has_value())
 	{
 		MidoriExecutable& compilation_result_value = compilation_result.value();
@@ -42,7 +42,8 @@ int main()
 	}
 	else
 	{
-		std::for_each(compilation_result.error().cbegin(), compilation_result.error().cend(), [](const std::string& error) { std::cerr << error << std::endl; });
+		std::cerr << "Compilation failed :( \n" << std::endl;
+		std::cerr << compilation_result.error() << std::endl;
 	}
 
 	return 0;

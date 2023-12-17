@@ -5,6 +5,12 @@
 #include <iterator>
 #include <format>
 
+void TypeChecker::AddError(std::string&& error)
+{
+	m_errors.append(std::move(error));
+	m_errors.push_back('\n');
+}
+
 void TypeChecker::BeginScope()
 { 
 	m_name_type_table.emplace_back(); 
@@ -50,7 +56,7 @@ void TypeChecker::operator()(Simple& simple)
 
 	if (!result.has_value())
 	{
-		m_errors.emplace_back(result.error());
+		AddError(std::move(result.error()));
 	}
 }
 
@@ -74,7 +80,7 @@ void TypeChecker::operator()(Define& def)
 			if (annotated_type != actual_type)
 			{
 				std::vector<const MidoriType*> expected_types = { &annotated_type };
-				m_errors.emplace_back(MidoriError::GenerateTypeCheckerError("Define statement type error", def.m_name, expected_types, actual_type));
+				AddError(MidoriError::GenerateTypeCheckerError("Define statement type error", def.m_name, expected_types, actual_type));
 				return;
 			}
 		}
@@ -82,7 +88,7 @@ void TypeChecker::operator()(Define& def)
 		MidoriResult::TypeResult closure_type_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *def.m_value);
 		if (!closure_type_result.has_value())
 		{
-			m_errors.emplace_back(closure_type_result.error());
+			AddError(std::move(closure_type_result.error()));
 			return;
 		}
 
@@ -101,7 +107,7 @@ void TypeChecker::operator()(Define& def)
 			if (annotated_type != actual_type)
 			{
 				std::vector<const MidoriType*> expected_types = { &annotated_type };
-				m_errors.emplace_back(MidoriError::GenerateTypeCheckerError("Define statement type error", def.m_name, expected_types, actual_type));
+				AddError(MidoriError::GenerateTypeCheckerError("Define statement type error", def.m_name, expected_types, actual_type));
 				return;
 			}
 		}
@@ -109,7 +115,7 @@ void TypeChecker::operator()(Define& def)
 		MidoriResult::TypeResult construct_type_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *def.m_value);
 		if (!construct_type_result.has_value())
 		{
-			m_errors.emplace_back(construct_type_result.error());
+			AddError(std::move(construct_type_result.error()));
 			return;
 		}
 
@@ -124,7 +130,7 @@ void TypeChecker::operator()(Define& def)
 			{
 				// TODO: improve error message
 				MidoriType unit_type = UnitType{};
-				m_errors.emplace_back(MidoriError::GenerateTypeCheckerError("Must provide type annotation for empty array", def.m_name, {}, unit_type));
+				AddError(MidoriError::GenerateTypeCheckerError("Must provide type annotation for empty array", def.m_name, {}, unit_type));
 				return;
 			}
 
@@ -135,7 +141,7 @@ void TypeChecker::operator()(Define& def)
 			MidoriResult::TypeResult init_expr_type = std::visit([this](auto&& arg) { return (*this)(arg); }, *def.m_value);
 			if (!init_expr_type.has_value())
 			{
-				m_errors.emplace_back(init_expr_type.error());
+				AddError(std::move(init_expr_type.error()));
 				return;
 			}
 
@@ -147,7 +153,7 @@ void TypeChecker::operator()(Define& def)
 				if (annotated_type != actual_type)
 				{
 					std::vector<const MidoriType*> expected_types = { &annotated_type };
-					m_errors.emplace_back(MidoriError::GenerateTypeCheckerError("Define statement type error", def.m_name, expected_types, actual_type));
+					AddError(MidoriError::GenerateTypeCheckerError("Define statement type error", def.m_name, expected_types, actual_type));
 					return;
 				}
 			}
@@ -160,7 +166,7 @@ void TypeChecker::operator()(Define& def)
 		MidoriResult::TypeResult init_expr_type = std::visit([this](auto&& arg) { return (*this)(arg); }, *def.m_value);
 		if (!init_expr_type.has_value())
 		{
-			m_errors.emplace_back(init_expr_type.error());
+			AddError(std::move(init_expr_type.error()));
 			return;
 		}
 
@@ -174,7 +180,7 @@ void TypeChecker::operator()(Define& def)
 			if (*def.m_annotated_type.value() != *init_expr_type.value())
 			{
 				std::vector<const MidoriType*> expected_types = { &annotated_type };
-				m_errors.emplace_back(MidoriError::GenerateTypeCheckerError("Define statement type error", def.m_name, expected_types, actual_type));
+				AddError(MidoriError::GenerateTypeCheckerError("Define statement type error", def.m_name, expected_types, actual_type));
 				return;
 			}
 		}
@@ -190,12 +196,12 @@ void TypeChecker::operator()(If& if_stmt)
 		{
 			const MidoriType& actual_type = *condition_type.value();
 			std::vector<const MidoriType*> expected_types = { &m_atomic_types[3] };
-			m_errors.emplace_back(MidoriError::GenerateTypeCheckerError("If statement condition must be of type bool.", if_stmt.m_if_keyword, expected_types, actual_type));
+			AddError(MidoriError::GenerateTypeCheckerError("If statement condition must be of type bool.", if_stmt.m_if_keyword, expected_types, actual_type));
 		}
 	}
 	else
 	{
-		m_errors.emplace_back(condition_type.error());
+		AddError(std::move(condition_type.error()));
 	}
 
 	std::visit([this](auto&& arg) { (*this)(arg); }, *if_stmt.m_true_branch);
@@ -214,13 +220,13 @@ void TypeChecker::operator()(While& while_stmt)
 		const MidoriType& actual_type = *condition_type.value();
 		if (!MidoriTypeUtil::IsBoolType(actual_type))
 		{
-			m_errors.emplace_back(MidoriError::GenerateTypeCheckerError("While statement condition must be of type bool.", while_stmt.m_while_keyword, { &m_atomic_types[3] }, actual_type));
+			AddError(MidoriError::GenerateTypeCheckerError("While statement condition must be of type bool.", while_stmt.m_while_keyword, { &m_atomic_types[3] }, actual_type));
 			return;
 		}
 	}
 	else
 	{
-		m_errors.emplace_back(condition_type.error());
+		AddError(std::move(condition_type.error()));
 		return;
 	}
 
@@ -242,13 +248,13 @@ void TypeChecker::operator()(For& for_stmt)
 			const MidoriType& actual_type = *condition_type.value();
 			if (!MidoriTypeUtil::IsBoolType(actual_type))
 			{
-				m_errors.emplace_back(MidoriError::GenerateTypeCheckerError("For statement condition must be of type bool.", for_stmt.m_for_keyword, { &m_atomic_types[3] }, actual_type));
+				AddError(MidoriError::GenerateTypeCheckerError("For statement condition must be of type bool.", for_stmt.m_for_keyword, { &m_atomic_types[3] }, actual_type));
 				return;
 			}
 		}
 		else
 		{
-			m_errors.emplace_back(condition_type.error());
+			AddError(std::move(condition_type.error()));
 			return;
 		}
 	}
@@ -277,7 +283,7 @@ void TypeChecker::operator()(Return& return_stmt)
 
 	if (!return_type.has_value())
 	{
-		m_errors.emplace_back(return_type.error());
+		AddError(std::move(return_type.error()));
 		return;
 	}
 
@@ -285,7 +291,7 @@ void TypeChecker::operator()(Return& return_stmt)
 	const MidoriType& expected_type = *m_curr_closure_return_type;
 	if (actual_type != expected_type)
 	{
-		m_errors.emplace_back(MidoriError::GenerateTypeCheckerError("Return statement expression type error.", return_stmt.m_keyword, { &expected_type }, actual_type));
+		AddError(MidoriError::GenerateTypeCheckerError("Return statement expression type error.", return_stmt.m_keyword, { &expected_type }, actual_type));
 		return;
 	}
 }

@@ -1,6 +1,20 @@
 #include "Parser.h"
+#include "Compiler/Lexer/Lexer.h"
 
 #include <algorithm>
+#include <sstream>
+#include <fstream>
+#include <filesystem>
+#include <queue>
+
+Parser::DependencyGraph Parser::s_dependency_graph = {};
+
+Parser::Parser(TokenStream&& tokens, const std::string& file_name) : m_tokens(std::move(tokens))
+{
+	std::string absolute_file_path = std::filesystem::absolute(file_name).string();
+	s_dependency_graph[absolute_file_path] = {};
+	m_file_name = std::move(absolute_file_path);
+}
 
 bool Parser::IsAtGlobalScope() const
 {
@@ -13,33 +27,33 @@ std::string Parser::GenerateParserError(std::string&& message, const Token& toke
 	return MidoriError::GenerateParserError(std::move(message), token);
 }
 
-bool Parser::IsAtEnd() 
+bool Parser::IsAtEnd()
 {
-	return Peek(0).m_token_name == Token::Name::END_OF_FILE; 
+	return Peek(0).m_token_name == Token::Name::END_OF_FILE;
 }
 
-bool Parser::Check(Token::Name type, int offset) 
+bool Parser::Check(Token::Name type, int offset)
 {
-	return !IsAtEnd() && Peek(offset).m_token_name == type; 
+	return !IsAtEnd() && Peek(offset).m_token_name == type;
 }
 
-Token& Parser::Peek(int offset) 
+Token& Parser::Peek(int offset)
 {
-	return m_current_token_index + offset < m_tokens.Size() ? m_tokens[m_current_token_index + offset] : m_tokens[m_tokens.Size() - 1]; 
+	return m_current_token_index + offset < m_tokens.Size() ? m_tokens[m_current_token_index + offset] : m_tokens[m_tokens.Size() - 1];
 }
 
-Token& Parser::Previous() 
-{ 
-	return m_tokens[m_current_token_index - 1]; 
+Token& Parser::Previous()
+{
+	return m_tokens[m_current_token_index - 1];
 }
 
-Token& Parser::Advance() 
-{ 
-	if (!IsAtEnd()) 
-	{ 
-		m_current_token_index += 1; 
+Token& Parser::Advance()
+{
+	if (!IsAtEnd())
+	{
+		m_current_token_index += 1;
 	}
-	return Previous(); 
+	return Previous();
 }
 
 MidoriResult::TokenResult Parser::Consume(Token::Name type, std::string_view message)
@@ -372,7 +386,7 @@ MidoriResult::ExpressionResult Parser::ParseConstruct()
 		{
 			return std::unexpected<std::string>(std::move(type_token.error()));
 		}
-		
+
 		Token& type_token_value = type_token.value();
 		std::vector<Scope>::const_reverse_iterator found_scope_it = std::find_if(m_scopes.crbegin(), m_scopes.crend(), [&type_token_value](const Scope& scope)
 			{
@@ -1301,6 +1315,90 @@ MidoriResult::TypeResult Parser::ParseType()
 	}
 }
 
+bool Parser::HasCircularDependency() const 
+{
+	std::unordered_set<std::string> visited;
+	std::unordered_set<std::string> in_progress;
+	std::queue<std::string> queue;
+
+	queue.emplace(m_file_name);
+	in_progress.emplace(m_file_name);
+
+	while (!queue.empty()) 
+	{
+		std::string current = queue.front();
+		queue.pop();
+		in_progress.erase(current);
+		visited.emplace(current);
+
+		for (const std::string& dependency : s_dependency_graph[current]) 
+		{
+			if (visited.find(dependency) != visited.cend()) 
+			{
+				continue; // Already visited, skip
+			}
+			if (in_progress.find(dependency) != in_progress.cend()) 
+			{
+				return true; // Cycle detected
+			}
+			queue.emplace(dependency);
+			in_progress.insert(dependency);
+		}
+	}
+
+	return false; 
+}
+
+MidoriResult::TokenResult Parser::HandleDirective()
+{
+	Token& directive = Previous();
+	if (directive.m_lexeme == "include")
+	{
+		Consume(Token::Name::TEXT_LITERAL, "Expected text literal after include directive.");
+		Token& include_path = Previous();
+		std::string include_absolute_path_str = std::filesystem::absolute(include_path.m_lexeme).string();
+		
+		if (s_dependency_graph.find(include_absolute_path_str) != s_dependency_graph.cend())
+		{
+			return directive;
+		}
+		
+		s_dependency_graph[m_file_name].emplace_back(include_absolute_path_str);
+
+		std::ifstream include_file(include_absolute_path_str);
+		if (!include_file.is_open())
+		{
+			return std::unexpected<std::string>(GenerateParserError("Could not open include file.", include_path));
+		}
+
+		if (HasCircularDependency())
+		{
+			return std::unexpected<std::string>(GenerateParserError("Circular dependency detected.", include_path));
+		}
+
+		std::ostringstream include_file_stream;
+		include_file_stream << include_file.rdbuf();
+
+		constexpr bool is_main_program = false;
+		Lexer include_lexer(include_file_stream.str(), is_main_program);
+		MidoriResult::LexerResult include_lexer_result = include_lexer.Lex();
+
+		if (!include_lexer_result.has_value())
+		{
+			return std::unexpected<std::string>(include_lexer_result.error());
+		}
+
+		m_tokens.Erase(m_tokens.begin() + m_current_token_index);
+		m_tokens.Insert(m_tokens.begin(), std::move(include_lexer_result.value()));
+		m_current_token_index = 0;
+		return directive;
+	}
+	else
+	{
+		return std::unexpected<std::string>(GenerateParserError("Unknown directive '" + directive.m_lexeme + "'.", directive));
+	}
+}
+
 bool Parser::HasReturnStatement(const MidoriStatement& stmt)
 {
 	return std::visit([this](auto&& arg) -> bool
@@ -1377,11 +1475,20 @@ MidoriResult::StatementResult Parser::ParseDeclarationCommon(bool may_throw_erro
 MidoriResult::ParserResult Parser::Parse()
 {
 	MidoriProgramTree programTree;
-	std::vector<std::string> errors;
+	std::string errors;
 
 	BeginScope();
 	while (!IsAtEnd())
 	{
+		while (Match(Token::Name::DIRECTIVE))
+		{
+			MidoriResult::TokenResult directive_result = HandleDirective();
+			if (!directive_result.has_value())
+			{
+				return std::unexpected<std::string>(std::move(directive_result.error()));
+			}
+		}
+
 		MidoriResult::StatementResult result = ParseGlobalDeclaration();
 		if (result.has_value())
 		{
@@ -1389,7 +1496,8 @@ MidoriResult::ParserResult Parser::Parse()
 		}
 		else
 		{
-			errors.emplace_back(result.error());
+			errors.append(result.error());
+			errors.push_back('\n');
 		}
 	}
 	EndScope();
@@ -1400,7 +1508,7 @@ MidoriResult::ParserResult Parser::Parse()
 	}
 	else
 	{
-		return std::unexpected<std::vector<std::string>>(std::move(errors));
+		return std::unexpected<std::string>(std::move(errors));
 	}
 }
 

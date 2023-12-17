@@ -5,6 +5,12 @@ void CodeGenerator::EmitByte(OpCode byte, int line)
 	m_procedures[m_current_procedure_index].AddByteCode(byte, line); 
 }
 
+void CodeGenerator::AddError(std::string&& error)
+{
+	m_errors.append(error);
+	m_errors.push_back('\n');
+}
+
 void CodeGenerator::EmitTwoBytes(int byte1, int byte2, int line)
 {
 	EmitByte(static_cast<OpCode>(byte1), line);
@@ -49,19 +55,20 @@ void CodeGenerator::EmitConstant(MidoriValue&& value, int line)
 	}
 	else
 	{
-		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too many constants (max 16777215).", line));
+		AddError(MidoriError::GenerateCodeGeneratorError("Too many constants (max 16777215).", line));
 	}
 }
 
 void CodeGenerator::EmitVariable(int variable_index, OpCode op, int line)
 {
-	if (variable_index > UINT8_MAX)
+	if (variable_index <= UINT8_MAX)
 	{
-		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too many variables (max 255).", line));
+		EmitByte(op, line);
+		EmitByte(static_cast<OpCode>(variable_index), line);
+		return;
 	}
 
-	EmitByte(op, line);
-	EmitByte(static_cast<OpCode>(variable_index), line);
+	AddError(MidoriError::GenerateCodeGeneratorError("Too many variables (max 255).", line));
 }
 
 int CodeGenerator::EmitJump(OpCode op, int line)
@@ -77,7 +84,8 @@ void CodeGenerator::PatchJump(int offset, int line)
 	int jump = m_procedures[m_current_procedure_index].GetByteCodeSize() - offset - 2;
 	if (jump > UINT16_MAX)
 	{
-		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too much code to jump over (max 65535).", line));
+		AddError(MidoriError::GenerateCodeGeneratorError("Too much code to jump over (max 65535).", line));
+		return;
 	}
 
 	m_procedures[m_current_procedure_index].SetByteCode(offset, static_cast<OpCode>(jump & 0xff));
@@ -91,7 +99,8 @@ void CodeGenerator::EmitLoop(int loop_start, int line)
 	int offset = m_procedures[m_current_procedure_index].GetByteCodeSize() - loop_start + 2;
 	if (offset > UINT16_MAX)
 	{
-		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Loop body too large (max 65535).", line));
+		AddError(MidoriError::GenerateCodeGeneratorError("Loop body too large (max 65535).", line));
+		return;
 	}
 
 	EmitByte(static_cast<OpCode>(offset & 0xff), line);
@@ -119,12 +128,12 @@ MidoriResult::CodeGeneratorResult CodeGenerator::GenerateCode(MidoriProgramTree&
 
 	if (!m_main_module_ctx.has_value())
 	{
-		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Program entry (\"main\") not found.", 0));
+		AddError(MidoriError::GenerateCodeGeneratorError("Program entry (\"main\") not found.", 0));
 	}
 
 	if (!m_errors.empty())
 	{
-		return std::unexpected<std::vector<std::string>>(std::move(m_errors));
+		return std::unexpected<std::string>(std::move(m_errors));
 	}
 
 	// invoke the program entry (main)
@@ -189,7 +198,8 @@ void CodeGenerator::operator()(Define& def)
 		{
 			if (m_main_module_ctx.has_value())
 			{
-				m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Cannot re-define program entry (\"main\").", line));
+				AddError(MidoriError::GenerateCodeGeneratorError("Cannot re-define program entry (\"main\").", line));
+				return;
 			}
 			else
 			{
@@ -382,7 +392,7 @@ void CodeGenerator::operator()(As& as)
 	}
 	else
 	{
-		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Unsupported type casting instruction.", line));
+		AddError(MidoriError::GenerateCodeGeneratorError("Unsupported type casting instruction.", line));
 	}
 }
 
@@ -465,7 +475,7 @@ void CodeGenerator::operator()(Binary& binary)
 		break;
 	}
 	default:
-		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Unrecognized binary operator.", line));
+		AddError(MidoriError::GenerateCodeGeneratorError("Unrecognized binary operator.", line));
 		break; // Unreachable
 	}
 	return;
@@ -504,7 +514,7 @@ void CodeGenerator::operator()(Call& call)
 	int arity = static_cast<int>(call.m_arguments.size());
 	if (arity > UINT8_MAX)
 	{
-		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too many arguments (max 255).", call.m_paren.m_line));
+		AddError(MidoriError::GenerateCodeGeneratorError("Too many arguments (max 255).", call.m_paren.m_line));
 		return;
 	}
 
@@ -562,7 +572,7 @@ void CodeGenerator::operator()(Variable& variable)
 			}
 			else
 			{
-				m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Bad Variable MidoriExpression.", variable.m_name.m_line));
+				AddError(MidoriError::GenerateCodeGeneratorError("Bad Variable MidoriExpression.", variable.m_name.m_line));
 				return;
 			}
 		}, variable.m_semantic);
@@ -590,7 +600,7 @@ void CodeGenerator::operator()(Bind& bind)
 			}
 			else
 			{
-				m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Bad Bind MidoriExpression.", bind.m_name.m_line));
+				AddError(MidoriError::GenerateCodeGeneratorError("Bad Bind MidoriExpression.", bind.m_name.m_line));
 				return;
 			}
 		}, bind.m_semantic);
@@ -628,12 +638,12 @@ void CodeGenerator::operator()(Closure& closure)
 	int captured_count = static_cast<int>(closure.m_captured_count);
 	if (arity > UINT8_MAX)
 	{
-		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too many arguments (max 255).", line));
+		AddError(MidoriError::GenerateCodeGeneratorError("Too many arguments (max 255).", line));
 		return;
 	}
 	if (captured_count > UINT8_MAX)
 	{
-		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too many captured variables (max 255).", line));
+		AddError(MidoriError::GenerateCodeGeneratorError("Too many captured variables (max 255).", line));
 		return;
 	}
 
@@ -679,7 +689,7 @@ void CodeGenerator::operator()(Array& array)
 
 	if (length > three_byte_max)
 	{
-		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too many array elements (max 16777215).", line));
+		AddError(MidoriError::GenerateCodeGeneratorError("Too many array elements (max 16777215).", line));
 		return;
 	}
 
@@ -697,7 +707,7 @@ void CodeGenerator::operator()(ArrayGet& array_get)
 
 	if (array_get.m_indices.size() > UINT8_MAX)
 	{
-		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too many array indices (max 255).", line));
+		AddError(MidoriError::GenerateCodeGeneratorError("Too many array indices (max 255).", line));
 		return;
 	}
 
@@ -718,7 +728,7 @@ void CodeGenerator::operator()(ArraySet& array_set)
 
 	if (array_set.m_indices.size() > UINT8_MAX)
 	{
-		m_errors.emplace_back(MidoriError::GenerateCodeGeneratorError("Too many array indices (max 255).", line));
+		AddError(MidoriError::GenerateCodeGeneratorError("Too many array indices (max 255).", line));
 		return;
 	}
 

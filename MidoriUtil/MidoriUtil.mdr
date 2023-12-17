@@ -1,0 +1,10 @@
+foreign Print : (Text) -> Unit;
+
+foreign GetTime : () -> Fraction;
+
+fixed PrintLine = closure(fixed text : Text) : Unit
+{
+	Print(text);
+	Print("\n");
+	return ();
+};

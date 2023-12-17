@@ -1,3 +1,7 @@
+#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+#include "E:\Projects\Midori\\test\\test2.mdr"
+#include "E:\Projects\Midori\\test\struct\\nested_struct.mdr"
+
 struct Complex
 {
 	real : Fraction;
@@ -11,18 +15,8 @@ struct Vec3
 	z : Fraction;
 };
 
-foreign Print : (Text) -> Unit;
-
 fixed main = closure() : Unit
 {
-
-	fixed PrintLine = closure(fixed val : Text) : Unit
-	{
-		Print(val);
-		Print("\n");
-		return ();
-	};
-
 	struct NestedStruct
 	{
 		x : Integer;
@@ -82,5 +76,8 @@ fixed main = closure() : Unit
 	Print("Calculate cross product: ");
 	PrintLine(cross_product(new Vec3(1.3123, 22.312, -323.023), new Vec3(123.0, 222.1203, -93.02)) as Text);
 
+
+	TestNestedStruct();
+	TestFib();
 	return ();
 };

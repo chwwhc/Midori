@@ -33,17 +33,20 @@ private:
 		StructTable m_structs;
 	};
 
+	using DependencyGraph = std::unordered_map<std::string, std::vector<std::string>>;
+	
+	static DependencyGraph s_dependency_graph;
 	TokenStream m_tokens;
+	std::string m_file_name;
 	std::vector<Scope> m_scopes;
 	std::stack<int> m_local_count_before_loop;
 	int m_closure_depth = 0;
 	int m_current_token_index = 0;
 	int m_total_locals_in_curr_scope = 0;
 	int m_total_variables = 0;
-	bool m_error = false;
 
 public:
-	explicit Parser(TokenStream&& tokens) : m_tokens(std::move(tokens)) {}
+	Parser(TokenStream&& tokens, const std::string& file_name);
 
 	MidoriResult::ParserResult Parse();
 
@@ -187,4 +190,8 @@ private:
 	MidoriResult::StatementResult ParseForeignStatement();
 
 	MidoriResult::StatementResult ParseStatement();
+
+	MidoriResult::TokenResult HandleDirective();
+
+	bool HasCircularDependency() const; // topological sort
 };

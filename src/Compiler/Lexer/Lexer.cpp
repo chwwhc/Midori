@@ -32,6 +32,11 @@ const std::unordered_map<std::string, Token::Name> Lexer::s_keywords =
 	{"foreign", Token::Name::FOREIGN },
 };
 
+const std::unordered_set<std::string> Lexer::s_directives =
+{
+	"include",
+};
+
 bool Lexer::IsAtEnd(int offset) const 
 { 
 	return m_current + offset >= static_cast<int>(m_source_code.size()); 
@@ -143,42 +148,46 @@ MidoriResult::TokenResult Lexer::MatchString()
 {
 	std::string result;
 
-	while (LookAhead(0) != '"' && !IsAtEnd(0))
+	while (!IsAtEnd(0) && LookAhead(0) != '"')
 	{
 		if (LookAhead(0) == '\n')
 		{
 			m_line += 1;
 		}
 
-		if (LookAhead(0) == '\\' && !IsAtEnd(1))
+		if (LookAhead(0) == '\\')
 		{
-			switch (LookAhead(1))
+			if (!IsAtEnd(1))
 			{
-			case 't':
-				result += '\t';
-				break;
-			case 'n':
-				result += '\n';
-				break;
-			case 'b':
-				result += '\b';
-				break;
-			case 'f':
-				result += '\f';
-				break;
-			case '"':
-				result += '"';
-				break;
-			case '\\':
-				result += '\\';
-				break;
-			default:
-				break;
-			}
+				switch (LookAhead(1))
+				{
+				case 't':
+					result += '\t';
+					break;
+				case 'n':
+					result += '\n';
+					break;
+				case 'b':
+					result += '\b';
+					break;
+				case 'f':
+					result += '\f';
+					break;
+				case '"':
+					result += '"';
+					break;
+				case '\\':
+					result += '\\';
+					break;
+				default:
+					result += Advance();
+					continue;
+				}
 
-			Advance();
-			Advance();
-			continue;
+				Advance();
+				Advance();
+				continue;
+			}
 		}
 
 		result += Advance();
@@ -242,7 +251,7 @@ Token Lexer::MatchIdentifierOrReserved()
 	}
 }
 
-MidoriResult::TokenResult Lexer::LexOneToken()
+MidoriResult::TokenResult Lexer::MatchDirective()
 {
 	std::optional<std::string> error = SkipWhitespaceAndComments();
 	if (error.has_value())
@@ -250,9 +259,29 @@ MidoriResult::TokenResult Lexer::LexOneToken()
 		return std::unexpected<std::string>(std::move(error.value()));
 	}
 
-	if (IsAtEnd(0))
+	std::string result;
+	while (IsAlpha(LookAhead(0)))
 	{
-		return MakeToken(Token::Name::END_OF_FILE);
+		result.push_back(Advance());
+	}
+
+	std::unordered_set<std::string>::const_iterator it = s_directives.find(result);
+	if (it != s_directives.cend())
+	{
+		return MakeToken(Token::Name::DIRECTIVE, std::move(result));
+	}
+	else
+	{
+		return std::unexpected<std::string>(MidoriError::GenerateLexerError("Unknown directive.", m_line));
+	}
+}
+
+MidoriResult::TokenResult Lexer::LexOneToken()
+{
+	std::optional<std::string> error = SkipWhitespaceAndComments();
+	if (error.has_value())
+	{
+		return std::unexpected<std::string>(std::move(error.value()));
 	}
 
 	m_begin = m_current;
@@ -272,8 +301,6 @@ MidoriResult::TokenResult Lexer::LexOneToken()
 		return MakeToken(Token::Name::LEFT_BRACKET);
 	case '@':
 		return MakeToken(Token::Name::AT);
-	case '#':
-		return MakeToken(Token::Name::HASH);
 	case ']':
 		return MakeToken(Token::Name::RIGHT_BRACKET);
 	case ',':
@@ -393,6 +420,8 @@ MidoriResult::TokenResult Lexer::LexOneToken()
 		}
 	case '~':
 		return MakeToken(Token::Name::TILDE);
+	case '#':
+		return MatchDirective();
 	case ' ':
 	case '\r':
 	case '\t':
@@ -422,7 +451,7 @@ MidoriResult::TokenResult Lexer::LexOneToken()
 MidoriResult::LexerResult Lexer::Lex()
 {
 	TokenStream token_stream;
-	std::vector<std::string> errors;
+	std::string errors;
 
 	while (!IsAtEnd(0))
 	{
@@ -433,16 +462,17 @@ MidoriResult::LexerResult Lexer::Lex()
 		}
 		else
 		{
-			errors.emplace_back(result.error());
+			errors.append(result.error());
+			errors.push_back('\n');
 		}
 	}
 
 	if (!errors.empty())
 	{
-		return std::unexpected<std::vector<std::string>>(errors);
+		return std::unexpected<std::string>(errors);
 	}
 
-	if (std::prev(token_stream.cend())->m_token_name != Token::Name::END_OF_FILE)
+	if ((std::prev(token_stream.cend())->m_token_name != Token::Name::END_OF_FILE) && m_is_main_program)
 	{
 		token_stream.AddToken(MakeToken(Token::Name::END_OF_FILE));
 	}

@@ -5,5 +5,5 @@
 
 namespace Compiler
 {
-	MidoriResult::CompilerResult Compile(std::string&& script);
+	MidoriResult::CompilerResult Compile(std::string&& script, std::string&& file_name);
 };

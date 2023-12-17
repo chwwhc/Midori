@@ -16,11 +16,13 @@ private:
 	int m_line = 1;
 	int m_begin = 0;
 	int m_current = 0;
+	bool m_is_main_program = true;
 	static const std::unordered_map<std::string, Token::Name> s_keywords;
+	static const std::unordered_set<std::string> s_directives;
 
 public:
 
-	explicit Lexer(std::string&& source_code) noexcept : m_source_code(std::move(source_code)) {}
+	Lexer(std::string&& source_code, bool is_main_program = true) noexcept : m_source_code(std::move(source_code)), m_is_main_program(is_main_program) {}
 
 	MidoriResult::LexerResult Lex();
 
@@ -53,4 +55,6 @@ private:
 	Token MatchNumber();
 
 	Token MatchIdentifierOrReserved();
+
+	MidoriResult::TokenResult MatchDirective();
 };

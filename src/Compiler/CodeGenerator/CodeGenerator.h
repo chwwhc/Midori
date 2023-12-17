@@ -29,7 +29,7 @@ private:
 #ifdef DEBUG
 	std::vector<std::string> m_procedure_names = { "runtime startup" };
 #endif
-	std::vector<std::string> m_errors;
+	std::string m_errors;
 	std::stack<LoopContext> m_loop_contexts;
 	std::unordered_map<std::string, int> m_global_variables;
 
@@ -42,6 +42,8 @@ public:
 	MidoriResult::CodeGeneratorResult GenerateCode(MidoriProgramTree&& program_tree);
 
 private:
+
+	void AddError(std::string&& error);
 
 	void EmitByte(OpCode byte, int line);
 
