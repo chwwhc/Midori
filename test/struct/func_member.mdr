@@ -1,13 +1,13 @@
 struct Fib
 {
-	N : Integer;
-	fn : (Integer) -> Integer;
+	N : Int;
+	fn : (Int) -> Int;
 }
 
-fixed main = closure() : Integer
+fixed main = fn() : Int
 {
 
-	fixed fib = new Fib(35, closure(fixed n : Integer) : Integer {
+	fixed fib = new Fib(35, fn(fixed n : Int) : Int {
 		return n < 2 ? n : fib.fn(n - 1) + fib.fn(n - 2);
 	});
 

@@ -1,15 +1,15 @@
-fixed foo = closure() : Integer
+fixed foo = fn() : Int
 {
-	var getFunc : () -> Integer := closure() : Integer { return 1; };
+	var getFunc : () -> Int := fn() : Int { return 1; };
 	if (true)
 	{
-		var y : Integer := 5;
-		getFunc = closure() : Integer { return y; };
+		var y : Int := 5;
+		getFunc = fn() : Int { return y; };
 	}
 	return getFunc();
 };
 
-fixed main = closure() : Unit
+fixed main = fn() : Unit
 {
 	PrintLine(foo());  // Should print 5
 

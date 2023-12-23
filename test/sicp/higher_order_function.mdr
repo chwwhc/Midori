@@ -1,0 +1,69 @@
+#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+
+fixed cube = fn(fixed x : Frac) : Frac
+{
+    return x * x * x;
+};
+
+fixed accumulate = fn(fixed combiner : (Frac, Frac) -> Frac, fixed null_value : Frac, fixed term : (Frac) -> Frac, fixed a : Frac, 
+    fixed next : (Frac) -> Frac, fixed b : Frac) : Frac
+{
+    return a > b
+        ? null_value
+        : combiner(term(a), accumulate(combiner, null_value, term, next(a), next, b));
+};
+
+fixed sum = fn(fixed term : (Frac) -> Frac, fixed a : Frac, 
+    fixed next : (Frac) -> Frac, fixed b : Frac) : Frac
+{
+    return accumulate(fn(fixed a : Frac, fixed b : Frac) : Frac 
+    {
+        return a + b;
+    },
+    0.0, term, a, next, b);
+};
+
+fixed integral = fn(fixed f : (Frac) -> Frac, fixed a : Frac, 
+    fixed b : Frac, fixed dx : Frac) : Frac
+{
+    fixed add_dx = fn(fixed x : Frac) : Frac
+    {
+        return x + dx;
+    };
+
+    return sum(f, a + dx / 2.0, add_dx, b) * dx;
+};
+
+fixed simpson = fn(fixed f : (Frac) -> Frac, fixed a : Frac, 
+    fixed b : Frac, fixed n : Int) : Frac
+{
+    fixed inc = fn(fixed k : Frac) : Frac
+    {
+        return k + 1.0;
+    }; 
+    fixed aux_fun = fn(fixed h : Frac) : Frac
+    {
+        fixed y = fn(fixed k : Frac) : Frac
+        {
+            return k == 0.0 || k == (n as Frac)
+                ? f(a + k * h)
+                : k % 2.0 == 0.0 
+                ? 2.0 * f(a + k * h)
+                : 4.0 * f(a + k * h);
+        };
+
+        return (h / 3.0) * sum(y, 0.0, inc, n as Frac);
+    };
+
+    return aux_fun((b - a) / (n as Frac));
+};
+
+fixed main = fn() : Unit
+{
+    PrintLine("integral(cube, 0.0, 1.0, 0.001): " ++ (integral(cube, 0.0, 1.0, 0.002) as Text));
+
+    PrintLine("simpson(cube, 0.0, 1.0, 1000): " ++ (simpson(cube, 0.0, 1.0, 100) as Text));
+
+    return ();
+};
+

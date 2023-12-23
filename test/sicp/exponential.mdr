@@ -1,0 +1,27 @@
+#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+
+fixed fast_expt = fn(fixed x : Int, fixed n : Int) : Int
+{
+	fixed is_even = fn(fixed x : Int) : Bool
+	{
+		return x % 2 == 0;
+	};
+
+	fixed fast_expt_iter = fn(fixed acc_odd : Int, fixed acc_even : Int, fixed count : Int) : Int
+	{
+		return count == 0 
+			? acc_odd
+			: is_even(count)
+			? fast_expt_iter(acc_odd, acc_even * acc_even, count / 2)
+			: fast_expt_iter(acc_odd * acc_even, acc_even, count - 1);
+	};
+
+	return fast_expt_iter(1, x, n);
+};
+
+fixed main = fn() : Unit
+{
+	PrintLine("2^10 using fast exponentiation " ++ (fast_expt(2, 10) as Text));
+
+	return ();
+};

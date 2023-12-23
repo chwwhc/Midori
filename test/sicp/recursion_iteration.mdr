@@ -1,0 +1,77 @@
+#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+
+// factorial linear recursion
+fixed factorial_linear_recursion = fn(fixed n : Int) : Int
+{
+	return n == 1 ? 1 : n * factorial_linear_recursion(n - 1);
+};
+
+// factorial iteration
+fixed factorial_iteration = fn(fixed n : Int) : Int
+{
+	fixed fact_iter = fn(fixed product : Int, fixed counter : Int) : Int
+	{
+		return counter > n ? product : fact_iter(product * counter, counter + 1);
+	};
+
+	return fact_iter(1, 1);
+};
+
+// fibonacci number tree recursion
+fixed fib_tree_recursion = fn(fixed n : Int) : Int
+{
+	return n < 2 ? n : fib_tree_recursion(n - 1) + fib_tree_recursion(n - 2);
+};
+
+// fibonacci iteration
+fixed fib_iteration = fn(fixed n : Int) : Int
+{
+	fixed fib_iter = fn(fixed a : Int, fixed b : Int, fixed count : Int) : Int
+	{
+		return count == 0 ? b : fib_iter(a + b, a, count - 1);
+	};
+
+	return fib_iter(1, 0, n);
+};
+
+// exercise 1.11 tree recursion
+fixed exercise_111_tree_recursion = fn(fixed n : Int) : Int
+{
+	return n < 3 ? n : exercise_111_tree_recursion(n - 1) + 2 * exercise_111_tree_recursion(n - 2) + 3 * exercise_111_tree_recursion(n - 3);
+};
+
+// exercise 1.11 iteration
+fixed exercise_111_iteration = fn(fixed n : Int) : Int
+{
+	fixed exercise_111_iter = fn(fixed a : Int, fixed b : Int, fixed c : Int, fixed count : Int) : Int
+	{
+		return count == 0 ? a : exercise_111_iter(a + 2 * b + 3 * c, a, b, count - 1);
+	};
+
+	return n < 3 ? n : exercise_111_iter(2, 1, 0, n - 2);
+};
+
+// exercise 1.12
+fixed pascal_triangle_elem = fn(fixed row : Int, fixed col : Int) : Int
+{
+	return (col == 1 || row == col) ? 1 : pascal_triangle_elem(row - 1, col) + pascal_triangle_elem(row - 1, col - 1);
+};
+
+fixed main = fn() : Unit
+{
+	PrintLine("fact(6) using linear recursion: " ++ (factorial_linear_recursion(6) as Text));
+
+	PrintLine("fact(6) using iteration: " ++ (factorial_iteration(6) as Text));
+
+	PrintLine("fib(10) using tree recursion: " ++ (fib_tree_recursion(10) as Text));
+
+	PrintLine("fib(10) using iteration: " ++ (fib_iteration(10) as Text));
+
+	PrintLine("exercise_111_tree_recursion(10) using tree recursion: " ++ (exercise_111_tree_recursion(10) as Text));
+
+	PrintLine("exercise_111_iteration(10) using iteration: " ++ (exercise_111_iteration(10) as Text));
+
+	PrintLine("exercise_112_pascal_triangle_4_3: " ++ (pascal_triangle_elem(4, 3) as Text));
+
+	return ();
+};

@@ -1,9 +1,9 @@
 #include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
 
-fixed TestFib = closure() : Unit
+fixed TestFib = fn() : Unit
 {
 
-	fixed fib = closure(fixed n : Integer) : Integer
+	fixed fib = fn(fixed n : Int) : Int
 	{
 		if (n <= 1) return n;
 		return fib(n - 1) + fib(n - 2);

@@ -1,9 +1,9 @@
-fixed main = closure() : Integer
+fixed main = fn() : Int
 {
-	var counter = (closure() : () -> Integer
+	var counter = (fn() : () -> Int
 	{
 		var privateCounter := 0;
-		return closure() : Integer { privateCounter = privateCounter + 1; return privateCounter; };
+		return fn() : Int { privateCounter = privateCounter + 1; return privateCounter; };
 	})();
 
 	PrintLine(counter());  // Should print 1

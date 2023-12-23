@@ -14,8 +14,8 @@ public:
 private:
 	std::string m_source_code;
 	int m_line = 1;
-	int m_begin = 0;
-	int m_current = 0;
+	size_t m_begin = 0u;
+	size_t m_current = 0u;
 	bool m_is_main_program = true;
 	static const std::unordered_map<std::string, Token::Name> s_keywords;
 	static const std::unordered_set<std::string> s_directives;

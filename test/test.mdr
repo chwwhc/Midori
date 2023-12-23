@@ -4,37 +4,37 @@
 
 struct Complex
 {
-	real : Fraction;
-	img : Fraction;
+	real : Frac;
+	img : Frac;
 };
 
 struct Vec3
 {
-	x : Fraction;
-	y : Fraction;
-	z : Fraction;
+	x : Frac;
+	y : Frac;
+	z : Frac;
 };
 
-fixed main = closure() : Unit
+fixed main = fn() : Unit
 {
 	struct NestedStruct
 	{
-		x : Integer;
+		x : Int;
 	};
 
 	var ns = new NestedStruct(1);
 
-	fixed fib = closure(fixed x : Integer) : Integer
+	fixed fib = fn(fixed x : Int) : Int
 	{
 		return x < 2 ? x : fib(x - 1) + fib(x - 2);
 	};
 
-	fixed factorial = closure(fixed x : Fraction) : Fraction
+	fixed factorial = fn(fixed x : Frac) : Frac
 	{
 		return x <= 1.0 ? 1.0 : factorial(x - 1.0) * x;
 	};
 
-	fixed dot_product = closure(fixed n : Integer, fixed a : Array<Fraction>, fixed b : Array<Fraction>) : Fraction
+	fixed dot_product = fn(fixed n : Int, fixed a : Array<Frac>, fixed b : Array<Frac>) : Frac
 	{
 		var output = 0.0;
 
@@ -46,20 +46,20 @@ fixed main = closure() : Unit
 		return output;
 	};
 
-	fixed cross_product = closure(fixed a : Vec3, fixed b : Vec3) : Vec3
+	fixed cross_product = fn(fixed a : Vec3, fixed b : Vec3) : Vec3
 	{
 		return new Vec3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
 	};
 
 	for (var i = 0; i < 10; i = i + 1)
 	{
-		closure() : Unit
+		fn() : Unit
 		{
 			return Print("Hello, world!\n");
 		}();
 	}
 
-	var arr : Array<Array<Fraction>> = [];
+	var arr : Array<Array<Frac>> = [];
 	arr = arr ++ [[9.0]] ++ [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 	PrintLine(arr as Text);
 

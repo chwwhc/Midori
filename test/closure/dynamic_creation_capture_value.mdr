@@ -1,11 +1,11 @@
-fixed foo = closure() : Unit
+fixed foo = fn() : Unit
 {
-	var arr : Array<() -> Integer> = [closure() : Integer { return 1; }, closure() : Integer { return 1; }, closure() : Integer { return 1; }];
-	for (var i : Integer := 0; i < 3; i = i + 1)
+	var arr : Array<() -> Int> = [fn() : Int { return 1; }, fn() : Int { return 1; }, fn() : Int { return 1; }];
+	for (var i : Int := 0; i < 3; i = i + 1)
 	{
-		(closure(fixed i : Integer) : Unit
+		(fn(fixed i : Int) : Unit
 		{
-			arr[i] = closure() : Integer
+			arr[i] = fn() : Int
 			{
 				return i;
 			};
@@ -20,7 +20,7 @@ fixed foo = closure() : Unit
 	return #;
 };
 
-fixed main = closure() : Unit
+fixed main = fn() : Unit
 {
 	foo();
 

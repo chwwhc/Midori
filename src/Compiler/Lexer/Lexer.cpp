@@ -3,23 +3,23 @@
 const std::unordered_map<std::string, Token::Name> Lexer::s_keywords =
 {
 	// types
-	{"Fraction", Token::Name::FRACTION},
-	{"Integer", Token::Name::INTEGER},
+	{"Frac", Token::Name::FRACTION},
+	{"Int", Token::Name::INTEGER},
 	{"Text", Token::Name::TEXT},
 	{"Bool", Token::Name::BOOL},
-	{"Unit", Token::Name::OP_UNIT},
+	{"Unit", Token::Name::UNIT},
 	{"Array", Token::Name::ARRAY},
 
 	// reserved keywords
 	{"else", Token::Name::ELSE},
-	{"false", Token::Name::OP_FALSE},
+	{"false", Token::Name::FALSE},
 	{"for", Token::Name::FOR},
 	{"if", Token::Name::IF},
 	{"return", Token::Name::RETURN},
-	{"true", Token::Name::OP_TRUE},
+	{"true", Token::Name::TRUE},
 	{"var", Token::Name::VAR},
 	{"fixed", Token::Name::FIXED},
-	{"closure", Token::Name::CLOSURE},
+	{"fn", Token::Name::CLOSURE},
 	{"while", Token::Name::WHILE},
 	{"do", Token::Name::DO},
 	{"as", Token::Name::AS},
@@ -39,7 +39,7 @@ const std::unordered_set<std::string> Lexer::s_directives =
 
 bool Lexer::IsAtEnd(int offset) const 
 { 
-	return m_current + offset >= static_cast<int>(m_source_code.size()); 
+	return m_current + offset >= m_source_code.size(); 
 }
 
 bool Lexer::IsDigit(char c) const
@@ -237,7 +237,7 @@ Token Lexer::MatchIdentifierOrReserved()
 		Advance();
 	}
 
-	std::string identifier = m_source_code.substr(m_begin, static_cast<size_t>(m_current - m_begin));
+	std::string identifier = m_source_code.substr(m_begin, m_current - m_begin);
 
 	std::unordered_map<std::string, Token::Name>::const_iterator it = s_keywords.find(identifier);
 

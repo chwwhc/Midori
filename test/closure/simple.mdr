@@ -1,8 +1,8 @@
-fixed main = closure() : Integer
+fixed main = fn() : Int
 {
-	var x = closure(var y : Integer) : () -> Integer 
+	var x = fn(var y : Int) : () -> Int 
 	{
-		return closure() : Integer { return y; };
+		return fn() : Int { return y; };
 	};
 	var f = x(5);
 	PrintLine(f()); // Should print 5

@@ -1,12 +1,14 @@
-fixed x = closure(fixed x : Integer) : () -> Integer
+#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+
+fixed x = fn(fixed x : Int) : () -> Int
 {
-    return closure() : Integer { return x; };
+    return fn() : Int { return x; };
 };
 
-fixed A = closure(var k : Integer, fixed x1 : () -> Integer, fixed x2 : () -> Integer, 
-        fixed x3 : () -> Integer, fixed x4 : () -> Integer, fixed x5 : () -> Integer) : Integer
+fixed A = fn(var k : Int, fixed x1 : () -> Int, fixed x2 : () -> Int, 
+        fixed x3 : () -> Int, fixed x4 : () -> Int, fixed x5 : () -> Int) : Int
 {
-    fixed B = closure() : Integer
+    fixed B = fn() : Int
     {
         k = k - 1;
         return A(k, B, x1, x2, x3, x4); 
@@ -14,7 +16,7 @@ fixed A = closure(var k : Integer, fixed x1 : () -> Integer, fixed x2 : () -> In
     return k > 0 ? B() : x4() + x5();
 };
 
-fixed main = closure() : Integer
+fixed main = fn() : Int
 {
     PrintLine(A(10, x(1), x(-1), x(-1), x(1), x(0)));   
 

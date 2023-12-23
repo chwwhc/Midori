@@ -823,13 +823,13 @@ void VirtualMachine::Execute()
 				int arity = static_cast<int>(ReadByte());
 				int proc_index = static_cast<int>(ReadByte());
 
-				Push(AllocateObject(MidoriTraceable::Closure(std::vector<MidoriTraceable*>(), proc_index, arity)));
+				Push(AllocateObject(MidoriTraceable::Closure(MidoriTraceable::Closure::Environment(), proc_index, arity)));
 				if (captured_count == 0)
 				{
 					break;
 				}
 
-				std::vector<MidoriTraceable*>& captured_variables = std::prev(m_value_stack_pointer)->GetObjectPointer()->GetClosure().m_cell_values;
+				MidoriTraceable::Closure::Environment& captured_variables = std::prev(m_value_stack_pointer)->GetObjectPointer()->GetClosure().m_cell_values;
 
 				if (!m_closure_stack.empty())
 				{
@@ -840,8 +840,7 @@ void VirtualMachine::Execute()
 
 				for (StackPointer<MidoriValue, s_value_stack_max> it = m_base_pointer; it < m_base_pointer + captured_count; ++it)
 				{
-					MidoriTraceable* cell_value = AllocateObject(MidoriTraceable::CellValue(*it));
-					captured_variables.emplace_back(cell_value);
+					captured_variables.emplace_back(*it);
 				}
 				break;
 			}
@@ -884,13 +883,13 @@ void VirtualMachine::Execute()
 			case OpCode::GET_CELL:
 			{
 				int offset = static_cast<int>(ReadByte());
-				Push((*m_closure_stack.back())[offset]->GetCellValue());
+				Push((*m_closure_stack.back())[offset]);
 				break;
 			}
 			case OpCode::SET_CELL:
 			{
 				int offset = static_cast<int>(ReadByte());
-				MidoriValue& var = (*m_closure_stack.back())[offset]->GetCellValue();
+				MidoriValue& var = (*m_closure_stack.back())[offset];
 				var = Peek();
 				break;
 			}

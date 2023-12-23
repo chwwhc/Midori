@@ -1,11 +1,11 @@
-var x = closure(var y : Integer) : (Integer) -> () -> Integer 
+var x = fn(var y : Int) : (Int) -> () -> Int 
 {
-  return closure(var z : Integer) : () -> Integer { return closure() : Integer { return y + z; }; };
+  return fn(var z : Int) : () -> Int { return fn() : Int { return y + z; }; };
 };
 
 var f = x(5)(3);
 
-fixed main = closure() : Integer
+fixed main = fn() : Int
 {
 	PrintLine(f()); // Should print 8
 

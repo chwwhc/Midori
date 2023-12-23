@@ -84,7 +84,7 @@ public:
 
 	struct Closure
 	{
-		using Environment = std::vector<MidoriTraceable*>;
+		using Environment = std::vector<MidoriValue>;
 
 		Environment m_cell_values;
 		int m_proc_index;
@@ -134,7 +134,7 @@ public:
 
 	inline bool Marked() const { return m_is_marked; }
 
-	static inline void* operator new(size_t size)
+	static inline void* operator new(size_t size) noexcept
 	{
 		void* object = ::operator new(size);
 		MidoriTraceable* traceable = static_cast<MidoriTraceable*>(object);

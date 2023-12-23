@@ -187,6 +187,7 @@ void MidoriTraceable::Trace()
 	{
 		MidoriTraceable::Closure& closure = GetClosure();
 
+		/*
 		std::for_each(closure.m_cell_values.begin(), closure.m_cell_values.end(), [](MidoriTraceable* captured) -> void
 			{
 				if (captured != nullptr)
@@ -194,6 +195,7 @@ void MidoriTraceable::Trace()
 					captured->Trace();
 				}
 			});
+		*/
 	}
 	else if (IsCellValue())
 	{

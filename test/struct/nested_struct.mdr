@@ -2,34 +2,34 @@
 
 struct Vec3
 {
-	x : Fraction;
-	y : Fraction;
-	z : Fraction;
+	x : Frac;
+	y : Frac;
+	z : Frac;
 };
 
 struct Complex
 {
-	real : Fraction;
-	img : Fraction;
+	real : Frac;
+	img : Frac;
 };
 
-fixed TestNestedStruct = closure() : Unit
+fixed TestNestedStruct = fn() : Unit
 {
 	struct Test
 	{
-		x : Integer;
+		x : Int;
 	};
 
 	var test = new Test(1);
 
-	fixed struct_in_closure = closure() : Unit
+	fixed struct_in_closure = fn() : Unit
 	{
 		struct Test2
 		{
-			x : Integer;
+			x : Int;
 		};
 
-		closure() : Unit
+		fn() : Unit
 		{
 			struct Test3
 			{

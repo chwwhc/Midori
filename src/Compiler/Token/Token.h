@@ -54,12 +54,12 @@ struct Token
 
 		// reserved
 		ELSE,
-		OP_FALSE,
+		FALSE,
 		CLOSURE,
 		FOR,
 		IF,
 		RETURN,
-		OP_TRUE,
+		TRUE,
 		VAR,
 		FIXED,
 		WHILE,
@@ -78,7 +78,7 @@ struct Token
 		INTEGER,
 		TEXT,
 		BOOL,
-		OP_UNIT,
+		UNIT,
 		ARRAY,
 
 		// directive

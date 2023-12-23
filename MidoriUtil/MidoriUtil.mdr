@@ -1,8 +1,8 @@
 foreign Print : (Text) -> Unit;
 
-foreign GetTime : () -> Fraction;
+foreign GetTime : () -> Frac;
 
-fixed PrintLine = closure(fixed text : Text) : Unit
+fixed PrintLine = fn(fixed text : Text) : Unit
 {
 	Print(text);
 	Print("\n");
