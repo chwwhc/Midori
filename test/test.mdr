@@ -1,83 +1,24 @@
 #include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
-#include "E:\Projects\Midori\\test\\test2.mdr"
-#include "E:\Projects\Midori\\test\struct\\nested_struct.mdr"
 
-struct Complex
+fixed x = fn(fixed x : Int) : () -> Int
 {
-	real : Frac;
-	img : Frac;
+    return fn() : Int { return x; };
 };
 
-struct Vec3
+fixed A = fn(var k : Int, fixed x1 : () -> Int, fixed x2 : () -> Int, 
+        fixed x3 : () -> Int, fixed x4 : () -> Int, fixed x5 : () -> Int) : Int
 {
-	x : Frac;
-	y : Frac;
-	z : Frac;
+    fixed B = fn() : Int
+    {
+        k = k - 1;
+        return A(k, B, x1, x2, x3, x4); 
+    };
+    return k > 0 ? B() : x4() + x5();
 };
 
-fixed main = fn() : Unit
+fixed main = fn() : Int
 {
-	struct NestedStruct
-	{
-		x : Int;
-	};
+    PrintLine(A(10, x(1), x(-1), x(-1), x(1), x(0)) as Text);   
 
-	var ns = new NestedStruct(1);
-
-	fixed fib = fn(fixed x : Int) : Int
-	{
-		return x < 2 ? x : fib(x - 1) + fib(x - 2);
-	};
-
-	fixed factorial = fn(fixed x : Frac) : Frac
-	{
-		return x <= 1.0 ? 1.0 : factorial(x - 1.0) * x;
-	};
-
-	fixed dot_product = fn(fixed n : Int, fixed a : Array<Frac>, fixed b : Array<Frac>) : Frac
-	{
-		var output = 0.0;
-
-		for (var i = 0; i < n; i = i + 1)
-		{
-			output = output + a[i] * b[i];
-		}
-
-		return output;
-	};
-
-	fixed cross_product = fn(fixed a : Vec3, fixed b : Vec3) : Vec3
-	{
-		return new Vec3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
-	};
-
-	for (var i = 0; i < 10; i = i + 1)
-	{
-		fn() : Unit
-		{
-			return Print("Hello, world!\n");
-		}();
-	}
-
-	var arr : Array<Array<Frac>> = [];
-	arr = arr ++ [[9.0]] ++ [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
-	PrintLine(arr as Text);
-
-	Print("Calculate the 35th Fibonacci number: ");
-	PrintLine(fib(35) as Text);
-
-	fixed complex = new Complex(1.1, 2.2);
-	Print("I just created a complex number: ");
-	PrintLine(complex as Text);
-
-	Print("Calculate dot product: ");
-	PrintLine(dot_product(3, [1.0, 2.0, 3.0], [1.0, 2.0, 3.0]) as Text);
-
-	Print("Calculate cross product: ");
-	PrintLine(cross_product(new Vec3(1.3123, 22.312, -323.023), new Vec3(123.0, 222.1203, -93.02)) as Text);
-
-
-	TestNestedStruct();
-	TestFib();
-	return ();
+    return 0;
 };

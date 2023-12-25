@@ -13,7 +13,7 @@ extern "C"
 {
 	MIDORI_API void Print(const std::vector<MidoriValue*>& args, MidoriValue* ret)
 	{
-		std::printf("%s", args[0]->GetObjectPointer()->GetText().c_str());
+		std::printf("%s", args[0]->GetPointer()->GetText().c_str());
 		new (ret) MidoriValue();
 	}
 

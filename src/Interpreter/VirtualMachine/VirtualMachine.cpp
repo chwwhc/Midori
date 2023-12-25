@@ -91,7 +91,7 @@ std::string VirtualMachine::GenerateRuntimeError(std::string_view message, int l
 	return MidoriError::GenerateRuntimeError(message, line);
 }
 
-void VirtualMachine::PushCallFrame(StackPointer<MidoriValue, s_value_stack_max> m_return_bp, StackPointer<MidoriValue, s_value_stack_max> m_return_sp, InstructionPointer m_return_ip)
+void VirtualMachine::PushCallFrame(ValueStackPointer m_return_bp, ValueStackPointer m_return_sp, InstructionPointer m_return_ip)
 {
 	if (m_call_stack_pointer != m_call_stack_end)
 	{
@@ -130,9 +130,9 @@ MidoriTraceable::GarbageCollectionRoots VirtualMachine::GetGlobalTableGarbageCol
 
 	std::for_each(m_global_vars.cbegin(), m_global_vars.cend(), [&roots](const GlobalVariables::value_type& pair) -> void
 		{
-			if (pair.second.IsObjectPointer())
+			if (pair.second.IsPointer())
 			{
-				roots.emplace(static_cast<MidoriTraceable*>(pair.second.GetObjectPointer()));
+				roots.emplace(static_cast<MidoriTraceable*>(pair.second.GetPointer()));
 			}
 		});
 
@@ -145,9 +145,9 @@ MidoriTraceable::GarbageCollectionRoots VirtualMachine::GetValueStackGarbageColl
 
 	std::for_each_n(m_value_stack->begin(), m_value_stack_pointer - m_value_stack->begin(), [&roots](MidoriValue& value) -> void
 		{
-			if (value.IsObjectPointer())
+			if (value.IsPointer())
 			{
-				roots.emplace(static_cast<MidoriTraceable*>(value.GetObjectPointer()));
+				roots.emplace(static_cast<MidoriTraceable*>(value.GetPointer()));
 			}
 		});
 
@@ -278,7 +278,7 @@ void VirtualMachine::Execute()
 					});
 
 				MidoriValue& arr = Pop();
-				std::vector<MidoriValue>& arr_ref = arr.GetObjectPointer()->GetArray();
+				std::vector<MidoriValue>& arr_ref = arr.GetPointer()->GetArray();
 				MidoriValue::MidoriInteger arr_size = static_cast<MidoriValue::MidoriInteger>(arr_ref.size());
 
 				for (MidoriValue& index : indices)
@@ -289,7 +289,7 @@ void VirtualMachine::Execute()
 
 					if (&index != &indices.back())
 					{
-						arr_ref = next_val.GetObjectPointer()->GetArray();
+						arr_ref = next_val.GetPointer()->GetArray();
 					}
 					else
 					{
@@ -310,7 +310,7 @@ void VirtualMachine::Execute()
 					});
 
 				MidoriValue& arr = Pop();
-				std::vector<MidoriValue>& arr_ref = arr.GetObjectPointer()->GetArray();
+				std::vector<MidoriValue>& arr_ref = arr.GetPointer()->GetArray();
 				MidoriValue::MidoriInteger arr_size = static_cast<MidoriValue::MidoriInteger>(arr_ref.size());
 
 				for (MidoriValue& index : indices)
@@ -321,7 +321,7 @@ void VirtualMachine::Execute()
 
 					if (&index != &indices.back())
 					{
-						arr_ref = arr_ref[i].GetObjectPointer()->GetArray();
+						arr_ref = arr_ref[i].GetPointer()->GetArray();
 					}
 					else
 					{
@@ -344,9 +344,9 @@ void VirtualMachine::Execute()
 				{
 					Push(value);
 				}
-				else if (value.IsObjectPointer() && value.GetObjectPointer()->IsText())
+				else if (value.IsPointer() && value.GetPointer()->IsText())
 				{
-					MidoriValue::MidoriFraction fraction = std::stod(value.GetObjectPointer()->GetText());
+					MidoriValue::MidoriFraction fraction = std::stod(value.GetPointer()->GetText());
 					Push(fraction);
 				}
 				else
@@ -368,9 +368,9 @@ void VirtualMachine::Execute()
 				{
 					Push(static_cast<MidoriValue::MidoriInteger>(value.GetFraction()));
 				}
-				else if (value.IsObjectPointer() && value.GetObjectPointer()->IsText())
+				else if (value.IsPointer() && value.GetPointer()->IsText())
 				{
-					MidoriValue::MidoriInteger integer = std::stoll(value.GetObjectPointer()->GetText());
+					MidoriValue::MidoriInteger integer = std::stoll(value.GetPointer()->GetText());
 					Push(integer);
 				}
 				else
@@ -396,9 +396,9 @@ void VirtualMachine::Execute()
 				{
 					Push(CollectGarbageThenAllocateObject(std::to_string(value.GetFraction())));
 				}
-				else if (value.IsObjectPointer())
+				else if (value.IsPointer())
 				{
-					const MidoriTraceable& ptr = *value.GetObjectPointer();
+					const MidoriTraceable& ptr = *value.GetPointer();
 					if (ptr.IsText())
 					{
 						Push(value);
@@ -588,8 +588,8 @@ void VirtualMachine::Execute()
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
 
-				const MidoriTraceable::MidoriArray& left_value_vector_ref = left.GetObjectPointer()->GetArray();
-				const MidoriTraceable::MidoriArray& right_value_vector_ref = right.GetObjectPointer()->GetArray();
+				const MidoriTraceable::MidoriArray& left_value_vector_ref = left.GetPointer()->GetArray();
+				const MidoriTraceable::MidoriArray& right_value_vector_ref = right.GetPointer()->GetArray();
 
 				MidoriTraceable::MidoriArray new_value_vector(left_value_vector_ref);
 				new_value_vector.insert(new_value_vector.end(),
@@ -604,8 +604,8 @@ void VirtualMachine::Execute()
 				const MidoriValue& right = Pop();
 				const MidoriValue& left = Pop();
 
-				const MidoriTraceable::MidoriText& left_value_string_ref = left.GetObjectPointer()->GetText();
-				const MidoriTraceable::MidoriText& right_value_string_ref = right.GetObjectPointer()->GetText();
+				const MidoriTraceable::MidoriText& left_value_string_ref = left.GetPointer()->GetText();
+				const MidoriTraceable::MidoriText& right_value_string_ref = right.GetPointer()->GetText();
 
 				MidoriTraceable::MidoriText new_value_string = left_value_string_ref + right_value_string_ref;
 
@@ -752,7 +752,7 @@ void VirtualMachine::Execute()
 			{
 				const MidoriValue& foreign_function_name = Pop();
 				int arity = static_cast<int>(ReadByte());
-				MidoriTraceable::MidoriText& foreign_function_name_ref = foreign_function_name.GetObjectPointer()->GetText();
+				MidoriTraceable::MidoriText& foreign_function_name_ref = foreign_function_name.GetPointer()->GetText();
 
 				// Platform-specific function loading
 #if defined(_WIN32) || defined(_WIN64)
@@ -785,7 +785,7 @@ void VirtualMachine::Execute()
 				const MidoriValue& callable = Pop();
 				int arity = static_cast<int>(ReadByte());
 
-				MidoriTraceable::Closure& closure = callable.GetObjectPointer()->GetClosure();
+				MidoriTraceable::Closure& closure = callable.GetPointer()->GetClosure();
 
 				m_closure_stack.emplace_back(std::addressof(closure.m_cell_values));
 
@@ -807,7 +807,7 @@ void VirtualMachine::Execute()
 					args[i] = Pop();
 				}
 
-				std::vector<MidoriValue>& members = Peek().GetObjectPointer()->GetStruct().m_values;
+				std::vector<MidoriValue>& members = Peek().GetPointer()->GetStruct().m_values;
 				members = std::move(args);
 
 				break;
@@ -829,7 +829,7 @@ void VirtualMachine::Execute()
 					break;
 				}
 
-				MidoriTraceable::Closure::Environment& captured_variables = std::prev(m_value_stack_pointer)->GetObjectPointer()->GetClosure().m_cell_values;
+				MidoriTraceable::Closure::Environment& captured_variables = std::prev(m_value_stack_pointer)->GetPointer()->GetClosure().m_cell_values;
 
 				if (!m_closure_stack.empty())
 				{
@@ -838,7 +838,7 @@ void VirtualMachine::Execute()
 					captured_count -= static_cast<int>(parent_closure.size());
 				}
 
-				for (StackPointer<MidoriValue, s_value_stack_max> it = m_base_pointer; it < m_base_pointer + captured_count; ++it)
+				for (ValueStackPointer it = m_base_pointer; it < m_base_pointer + captured_count; ++it)
 				{
 					captured_variables.emplace_back(*it);
 				}
@@ -897,7 +897,7 @@ void VirtualMachine::Execute()
 			{
 				int index = static_cast<int>(ReadByte());
 				const MidoriValue& value = Pop();
-				Push(value.GetObjectPointer()->GetStruct().m_values[index]);
+				Push(value.GetPointer()->GetStruct().m_values[index]);
 				break;
 			}
 			case OpCode::SET_MEMBER:
@@ -905,7 +905,7 @@ void VirtualMachine::Execute()
 				int index = static_cast<int>(ReadByte());
 				const MidoriValue& value = Pop();
 				const MidoriValue& var = Peek();
-				var.GetObjectPointer()->GetStruct().m_values[index] = value;
+				var.GetPointer()->GetStruct().m_values[index] = value;
 				break;
 			}
 			case OpCode::POP:

@@ -1,0 +1,127 @@
+#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+
+struct Point
+{
+	x : Frac,
+	y : Frac,
+};
+
+struct LineSegment
+{
+	start : Point,
+	end : Point,
+};
+
+struct Rectangle
+{
+	width : LineSegment,
+	height : LineSegment,
+};
+
+fixed abs = fn(fixed x : Frac) : Frac
+{
+	return x < 0.0 ? -x : x;
+};
+
+fixed make_point = fn(fixed x : Frac, fixed y : Frac) : Point
+{
+	return new Point(x, y);
+};
+
+fixed x_point = fn(fixed pt : Point) : Frac
+{
+	return pt.x;
+};
+
+fixed y_point = fn(fixed pt : Point) : Frac
+{
+	return pt.y;
+};
+
+fixed print_point = fn(fixed pt : Point) : Unit
+{
+	return PrintLine("(" ++ (x_point(pt) as Text) ++ ", " ++ (y_point(pt) as Text) ++ ")");
+};
+
+fixed make_segment = fn(fixed start : Point, fixed end : Point) : LineSegment
+{
+	return new LineSegment(start, end);
+};
+
+fixed start_segment = fn(fixed seg : LineSegment) : Point
+{
+	return seg.start;
+};
+
+fixed end_segment = fn(fixed seg : LineSegment) : Point
+{
+	return seg.end;
+};
+
+fixed midpoint_segment = fn(fixed seg : LineSegment) : Point
+{
+	fixed start_pt = start_segment(seg);
+	fixed end_pt = end_segment(seg);
+	fixed x_diff = x_point(end_pt) - x_point(start_pt);
+	fixed y_diff = y_point(end_pt) - y_point(start_pt);
+	return make_point(x_point(start_pt) + x_diff / 2.0, y_point(start_pt) + y_diff / 2.0);
+};
+
+fixed make_rect = fn(fixed top_left : Point, fixed bottom_right : Point) : Rectangle
+{
+	fixed bottom_left = make_point(x_point(top_left), y_point(bottom_right));
+	fixed top_right = make_point(-x_point(bottom_right), y_point(top_left));
+	return new Rectangle(make_segment(top_left, top_right), make_segment(top_left, bottom_left));
+};
+
+fixed width_rect = fn(fixed rect : Rectangle) : Frac
+{
+	return abs(x_point(end_segment(rect.width)) - x_point(start_segment(rect.width)));
+};
+
+fixed height_rect = fn(fixed rect : Rectangle) : Frac
+{
+	return abs(y_point(end_segment(rect.height)) - y_point(start_segment(rect.width)));
+};
+
+fixed perimeter_rect = fn(fixed rect : Rectangle) : Frac
+{
+	return abs(2.0 * width_rect(rect) + 2.0 * height_rect(rect));
+};
+
+fixed pair = fn(fixed x : Int, fixed y : Int) : ((Int, Int) -> Int) -> Int
+{
+	return fn(fixed f : (Int, Int) -> Int) : Int { return f(x, y); };
+};
+
+fixed head = fn(fixed z : ((Int, Int) -> Int) -> Int) : Int
+{
+    return z(fn(fixed x : Int, fixed y : Int) : Int { return x; });
+};
+
+fixed tail = fn(fixed z : ((Int, Int) -> Int) -> Int) : Int
+{
+    return z(fn(fixed x : Int, fixed y : Int) : Int { return y; });
+};
+
+fixed main = fn() : Unit
+{
+	fixed start_pt = make_point(0.0, 0.0);
+	fixed end_pt = make_point(2.12312, 4.312312);
+	fixed line_segment = make_segment(start_pt, end_pt);
+	fixed midpoint = midpoint_segment(line_segment);
+
+	PrintLine("Finding midpoint");
+	print_point(midpoint);
+
+	fixed rect = make_rect(make_point(0.0, 0.0), make_point(2.0, -1.0));
+	PrintLine("Finding perimeter");
+	PrintLine(perimeter_rect(rect) as Text);
+
+	PrintLine("Constructing church-encoding pair (1, 2)");
+	fixed church_encoding_pair = pair(1, 2);
+	PrintLine("Accessing head: " ++ (head(church_encoding_pair) as Text));
+	PrintLine("Accessing tail: " ++ (tail(church_encoding_pair) as Text));
+
+	return ();
+};

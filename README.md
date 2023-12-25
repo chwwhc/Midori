@@ -7,104 +7,72 @@ The MVM is written in C++ and is responsible for executing the bytecode. The MVM
 <br><br>
 This project is still in early development. The language is not yet *that* usable.
 
-## Example programs
-### A bit of everything
+## Examples
+### Product Type
 ```
-#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
-#include "E:\Projects\Midori\\test\\test2.mdr"
-#include "E:\Projects\Midori\\test\struct\\nested_struct.mdr"
+struct Vec3
+{
+	x : Frac,
+	y : Frac,
+	z : Frac
+};
 
 struct Complex
 {
-	real : Fraction;
-	img : Fraction;
+	real : Frac,
+	img : Frac,
+};
+```
+### Church Numeral
+```
+fixed zero = fn(fixed f : (Int, Int) -> Int, fixed x : Int) : Int
+{
+    return x;
 };
 
-struct Vec3
+fixed one = fn(fixed f : (Int, Int) -> Int, fixed x : Int) : Int
 {
-	x : Fraction;
-	y : Fraction;
-	z : Fraction;
+    return f(x, 1); 
 };
 
-fixed main = closure() : Unit
+fixed two = fn(fixed f : (Int, Int) -> Int, fixed x : Int) : Int
 {
-	struct NestedStruct
-	{
-		x : Integer;
-	};
+    return f(f(x, 1), 1); 
+};
 
-	var ns = new NestedStruct(1);
+fixed add = fn(fixed n : ((Int, Int) -> Int, Int) -> Int, 
+                fixed m : ((Int, Int) -> Int, Int) -> Int) 
+              : ((Int, Int) -> Int, Int) -> Int
+{
+    return fn(fixed f : (Int, Int) -> Int, fixed x : Int) : Int
+    {
+        return n(f, m(f, x));
+    };
+};
 
-	fixed fib = closure(fixed x : Integer) : Integer
-	{
-		return x < 2 ? x : fib(x - 1) + fib(x - 2);
-	};
-
-	fixed factorial = closure(fixed x : Fraction) : Fraction
-	{
-		return x <= 1.0 ? 1.0 : factorial(x - 1.0) * x;
-	};
-
-	fixed dot_product = closure(fixed n : Integer, fixed a : Array<Fraction>, fixed b : Array<Fraction>) : Fraction
-	{
-		var output = 0.0;
-
-		for (var i = 0; i < n; i = i + 1)
-		{
-			output = output + a[i] * b[i];
-		}
-
-		return output;
-	};
-
-	fixed cross_product = closure(fixed a : Vec3, fixed b : Vec3) : Vec3
-	{
-		return new Vec3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
-	};
-
-	for (var i = 0; i < 10; i = i + 1)
-	{
-		closure() : Unit
-		{
-			return Print("Hello, world!\n");
-		}();
-	}
-
-	var arr : Array<Array<Fraction>> = [];
-	arr = arr ++ [[9.0]] ++ [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
-	PrintLine(arr as Text);
-
-	Print("Calculate the 35th Fibonacci number: ");
-	PrintLine(fib(35) as Text);
-
-	fixed complex = new Complex(1.1, 2.2);
-	Print("I just created a complex number: ");
-	PrintLine(complex as Text);
-
-	Print("Calculate dot product: ");
-	PrintLine(dot_product(3, [1.0, 2.0, 3.0], [1.0, 2.0, 3.0]) as Text);
-
-	Print("Calculate cross product: ");
-	PrintLine(cross_product(new Vec3(1.3123, 22.312, -323.023), new Vec3(123.0, 222.1203, -93.02)) as Text);
+fixed church_to_number = fn(fixed c : ((Int, Int) -> Int, Int) -> Int) : Int
+{
+    return c(fn(fixed x : Int, fixed y : Int) : Int { return x + y; }, 0);
+};
 
 
-	TestNestedStruct();
-	TestFib();
+fixed main = fn() : Unit
+{
+	PrintLine(church_to_number(add(one, two)) as Text); // prints out "3"
 	return ();
 };
 ```
 ### Man or boy test
 ```
-fixed x := closure(fixed x : Integer) : () -> Integer
+fixed x = fn(fixed x : Int) : () -> Int
 {
-    return closure() : Integer { return x; };
+    return fn() : Int { return x; };
 };
 
-fixed A := closure(var k : Integer, fixed x1 : () -> Integer, fixed x2 : () -> Integer, 
-        fixed x3 : () -> Integer, fixed x4 : () -> Integer, fixed x5 : () -> Integer) : Integer
+fixed A = fn(var k : Int, fixed x1 : () -> Int, fixed x2 : () -> Int, 
+        fixed x3 : () -> Int, fixed x4 : () -> Int, fixed x5 : () -> Int) : Int
 {
-    fixed B := closure() : Integer
+    fixed B = fn() : Int
     {
         k = k - 1;
         return A(k, B, x1, x2, x3, x4); 
@@ -112,9 +80,9 @@ fixed A := closure(var k : Integer, fixed x1 : () -> Integer, fixed x2 : () -> I
     return k > 0 ? B() : x4() + x5();
 };
 
-fixed main := closure() : Integer
+fixed main = fn() : Int
 {
-    PrintLine(A(10, x(1), x(-1), x(-1), x(1), x(0)));   
+    PrintLine(A(10, x(1), x(-1), x(-1), x(1), x(0)) as Text);   
 
     return 0;
 };

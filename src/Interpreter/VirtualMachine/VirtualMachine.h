@@ -53,17 +53,18 @@ private:
 	static constexpr int s_frame_stack_max = 8000;
 	static constexpr int s_garbage_collection_threshold = 1024;
 
-	template <typename T, size_t N>
-	using StackPointer = std::array<T, N>::iterator;
+	using ValueStackPointer = std::array<MidoriValue, s_value_stack_max>::iterator;
 	using InstructionPointer = const OpCode*;
 	using GlobalVariables = std::unordered_map<std::string, MidoriValue>;
 
 	struct CallFrame
 	{
-		StackPointer<MidoriValue, s_value_stack_max>  m_return_bp;
-		StackPointer<MidoriValue, s_value_stack_max>  m_return_sp;
+		ValueStackPointer  m_return_bp;
+		ValueStackPointer  m_return_sp;
 		InstructionPointer m_return_ip = nullptr;
 	};
+
+	using CallStackPointer = std::array<CallFrame, s_frame_stack_max>::iterator;
 
 	MidoriExecutable m_executable;
 	GlobalVariables m_global_vars;
@@ -71,12 +72,12 @@ private:
 	std::vector<MidoriTraceable::Closure::Environment*> m_closure_stack;
 	std::unique_ptr<std::array<MidoriValue, s_value_stack_max>> m_value_stack = std::make_unique<std::array<MidoriValue, s_value_stack_max>>();
 	std::unique_ptr<std::array<CallFrame, s_frame_stack_max>> m_call_stack = std::make_unique<std::array<CallFrame, s_frame_stack_max>>();
-	StackPointer<MidoriValue, s_value_stack_max> m_base_pointer = m_value_stack->begin();
-	StackPointer<MidoriValue, s_value_stack_max> m_value_stack_pointer = m_value_stack->begin();
-	StackPointer<MidoriValue, s_value_stack_max> m_value_stack_end = m_value_stack->end();
-	StackPointer<CallFrame, s_frame_stack_max> m_call_stack_pointer = m_call_stack->begin();
-	StackPointer<CallFrame, s_frame_stack_max> m_call_stack_begin = m_call_stack->begin();
-	StackPointer<CallFrame, s_frame_stack_max> m_call_stack_end = m_call_stack->end();
+	ValueStackPointer m_base_pointer = m_value_stack->begin();
+	ValueStackPointer m_value_stack_pointer = m_value_stack->begin();
+	ValueStackPointer m_value_stack_end = m_value_stack->end();
+	CallStackPointer m_call_stack_pointer = m_call_stack->begin();
+	CallStackPointer m_call_stack_begin = m_call_stack->begin();
+	CallStackPointer m_call_stack_end = m_call_stack->end();
 	InstructionPointer m_instruction_pointer;
 
 #ifdef _WIN32
@@ -108,7 +109,7 @@ private:
 
 	std::string GenerateRuntimeError(std::string_view message, int line) noexcept;
 
-	void PushCallFrame(StackPointer<MidoriValue, s_value_stack_max> m_return_bp, StackPointer<MidoriValue, s_value_stack_max> m_return_sp, InstructionPointer m_return_ip);
+	void PushCallFrame(ValueStackPointer m_return_bp, ValueStackPointer m_return_sp, InstructionPointer m_return_ip);
 
 	const MidoriValue& Peek() const noexcept;
 

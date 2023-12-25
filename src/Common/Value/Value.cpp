@@ -177,32 +177,18 @@ void MidoriTraceable::Trace()
 		MidoriArray& array = GetArray();
 		std::for_each(array.begin(), array.end(), [](MidoriValue& value) -> void
 			{
-				if (value.IsObjectPointer())
+				if (value.IsPointer())
 				{
-					value.GetObjectPointer()->Trace();
+					value.GetPointer()->Trace();
 				}
 			});
-	}
-	else if (IsClosure())
-	{
-		MidoriTraceable::Closure& closure = GetClosure();
-
-		/*
-		std::for_each(closure.m_cell_values.begin(), closure.m_cell_values.end(), [](MidoriTraceable* captured) -> void
-			{
-				if (captured != nullptr)
-				{
-					captured->Trace();
-				}
-			});
-		*/
 	}
 	else if (IsCellValue())
 	{
 		MidoriValue& cell_value = GetCellValue();
-		if (cell_value.IsObjectPointer())
+		if (cell_value.IsPointer())
 		{
-			cell_value.GetObjectPointer()->Trace();
+			cell_value.GetPointer()->Trace();
 		}
 	}
 	else if (IsStruct())
@@ -210,9 +196,9 @@ void MidoriTraceable::Trace()
 		MidoriStruct& midori_struct = GetStruct();
 		std::for_each(midori_struct.m_values.begin(), midori_struct.m_values.end(), [](MidoriValue& value) -> void
 			{
-				if (value.IsObjectPointer())
+				if (value.IsPointer())
 				{
-					value.GetObjectPointer()->Trace();
+					value.GetPointer()->Trace();
 				}
 			});
 	}

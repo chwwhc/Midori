@@ -26,9 +26,9 @@ void CodeGenerator::EmitThreeBytes(int byte1, int byte2, int byte3, int line)
 
 void CodeGenerator::EmitConstant(MidoriValue&& value, int line)
 {
-	if (value.IsObjectPointer())
+	if (value.IsPointer())
 	{
-		MidoriTraceable* traceable = static_cast<MidoriTraceable*>(value.GetObjectPointer());
+		MidoriTraceable* traceable = static_cast<MidoriTraceable*>(value.GetPointer());
 		m_executable.AddConstantRoot(traceable);
 		MidoriTraceable::s_static_bytes_allocated += traceable->GetSize();
 	}

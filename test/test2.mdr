@@ -15,6 +15,7 @@ fixed TestFib = fn() : Unit
 
 	fixed end = GetTime();
 
+	PrintLine("fib(35) = " ++ (fib_35 as Text));
 	PrintLine("Benchmark took " ++ ((end - start) as Text) ++ " milliseconds");
 
 	return ();

@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <iterator>
 #include <format>
+#include <cassert>
 
 void TypeChecker::AddError(std::string&& error)
 {
@@ -666,6 +667,8 @@ MidoriResult::TypeResult TypeChecker::operator()(Construct& construct)
 			break;
 		}
 	}
+
+	assert(constructor_type != nullptr);
 
 	if (constructor_type->m_param_types.size() != construct.m_params.size())
 	{

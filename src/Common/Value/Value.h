@@ -58,9 +58,9 @@ public:
 
 	inline bool IsBool() const { return std::holds_alternative<MidoriBool>(m_value); }
 
-	inline MidoriTraceable* GetObjectPointer() const { return std::get<MidoriTraceable*>(m_value); }
+	inline MidoriTraceable* GetPointer() const { return std::get<MidoriTraceable*>(m_value); }
 
-	inline bool IsObjectPointer() const { return std::holds_alternative<MidoriTraceable*>(m_value); }
+	inline bool IsPointer() const { return std::holds_alternative<MidoriTraceable*>(m_value); }
 
 	inline friend bool operator==(const MidoriValue& lhs, const MidoriValue& rhs) { return lhs.m_value == rhs.m_value; }
 

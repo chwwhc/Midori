@@ -1,17 +1,27 @@
-struct Fib
+#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+
+struct FunStruct
 {
-	N : Int;
-	fn : (Int) -> Int;
-}
+	num : Int,
+	no_op : (Int) -> Int,
+	inc : () -> Unit,
+	plus : (Int) -> Int,
+};
 
 fixed main = fn() : Int
 {
 
-	fixed fib = new Fib(35, fn(fixed n : Int) : Int {
-		return n < 2 ? n : fib.fn(n - 1) + fib.fn(n - 2);
-	});
+	struct Fib
+	{
+		n : Int,
+		calc : (Int) -> Int
+	};
 
-	PrintLine(fib.fn(fib.N));
+	fixed s = new FunStruct(0, fn(fixed x : Int) : Int { return x; }, 
+		fn() : Unit { s.num = s.num + 1; return (); }, fn(fixed x : Int) : Int { return s.num + x; });
+
+	fixed fib_35 = new Fib(35, fn(fixed x : Int) : Int { return fib_35.n < 2 ? fib_35.n : fib_35.calc(fib_35.n - 1) + fib_35.calc(fib_35.n - 2); });
+	fib_35.calc(fib_35.n);
 
     return 0;
 };

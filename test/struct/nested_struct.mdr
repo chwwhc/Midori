@@ -2,22 +2,22 @@
 
 struct Vec3
 {
-	x : Frac;
-	y : Frac;
-	z : Frac;
+	x : Frac,
+	y : Frac,
+	z : Frac
 };
 
 struct Complex
 {
-	real : Frac;
-	img : Frac;
+	real : Frac,
+	img : Frac,
 };
 
 fixed TestNestedStruct = fn() : Unit
 {
 	struct Test
 	{
-		x : Int;
+		x : Int
 	};
 
 	var test = new Test(1);
@@ -26,15 +26,15 @@ fixed TestNestedStruct = fn() : Unit
 	{
 		struct Test2
 		{
-			x : Int;
+			x : Int
 		};
 
 		fn() : Unit
 		{
 			struct Test3
 			{
-				x : Vec3;
-				y : Complex;
+				x : Vec3,
+				y : Complex
 			};
 
 			var test3 = new Test3(new Vec3(1.2, 2.4, 3.2), new Complex(1.12, 2.22));
