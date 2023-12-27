@@ -2,9 +2,10 @@
 
 #include <variant>
 #include <vector>
-#include <memory>
 #include <string>
 #include <unordered_map>
+
+using namespace std::string_literals;
 
 struct FractionType {};
 struct IntegerType {};
@@ -19,19 +20,19 @@ using MidoriType = std::variant<FractionType, TextType, BoolType, UnitType, Arra
 
 struct ArrayType
 {
-	std::shared_ptr<MidoriType> m_element_type;
+	const MidoriType* m_element_type;
 };
 
 struct FunctionType
 {
-	std::vector<std::shared_ptr<MidoriType>> m_param_types;
-	std::shared_ptr<MidoriType> m_return_type;
+	std::vector<const MidoriType*> m_param_types;
+	const MidoriType* m_return_type;
 	bool m_is_foreign = false;
 };
 
 struct StructType
 {
-	using MemberTypeInfo = std::pair<int, std::shared_ptr<MidoriType>>;
+	using MemberTypeInfo = std::pair<int, const MidoriType*>;
 	using MemberTypeTable = std::unordered_map<std::string, MemberTypeInfo>;
 
 	std::string m_name;
@@ -102,93 +103,61 @@ inline bool operator==(const MidoriType& lhs, const MidoriType& rhs)
 
 inline bool operator!=(const MidoriType& lhs, const MidoriType& rhs) { return !(lhs == rhs); }
 
-namespace MidoriTypeUtil
+class MidoriTypeUtil
 {
-	inline bool IsFractionType(const MidoriType& type) { return std::holds_alternative<FractionType>(type); }
+private:
 
-	inline const FractionType& GetFractionType(const MidoriType& type) { return std::get<FractionType>(type); }
+	static std::unordered_map<std::string, const MidoriType*> s_types_by_name;
 
-	inline bool IsIntegerType(const MidoriType& type) { return std::holds_alternative<IntegerType>(type); }
+	static std::unordered_map<const MidoriType*, std::string> s_names_by_type;
 
-	inline const IntegerType& GetIntegerType(const MidoriType& type) { return std::get<IntegerType>(type); }
+	static const MidoriType* InsertType(const std::string& name, const MidoriType* type);
 
-	inline bool IsTextType(const MidoriType& type) { return std::holds_alternative<TextType>(type); }
+public:
 
-	inline const TextType& GetTextType(const MidoriType& type) { return std::get<TextType>(type); }
+	static void MidoriTypeUtilCleanUp();
 
-	inline bool IsBoolType(const MidoriType& type) { return std::holds_alternative<BoolType>(type); }
+	static const MidoriType* InsertStructType(const std::string& name, StructType::MemberTypeTable&& member_table);
 
-	inline const BoolType& GetBoolType(const MidoriType& type) { return std::get<BoolType>(type); }
+	static const MidoriType* InsertArrayType(const MidoriType* element_type);
 
-	inline bool IsUnitType(const MidoriType& type) { return std::holds_alternative<UnitType>(type); }
+	static const MidoriType* InsertFunctionType(const std::vector<const MidoriType*>& param_types, const MidoriType* return_type, bool is_foreign = false);
 
-	inline const UnitType& GetUnitType(const MidoriType& type) { return std::get<UnitType>(type); }
+	static const MidoriType* GetType(const std::string& name);
 
-	inline bool IsArrayType(const MidoriType& type) { return std::holds_alternative<ArrayType>(type); }
+	static const std::string& GetTypeName(const MidoriType* type);
 
-	inline const ArrayType& GetArrayType(const MidoriType& type) { return std::get<ArrayType>(type); }
+	static bool IsFractionType(const MidoriType* type);
 
-	inline bool IsFunctionType(const MidoriType& type) { return std::holds_alternative<FunctionType>(type); }
+	static const FractionType& GetFractionType(const MidoriType* type);
 
-	inline const FunctionType& GetFunctionType(const MidoriType& type) { return std::get<FunctionType>(type); }
+	static bool IsIntegerType(const MidoriType* type);
 
-	inline bool IsStructType(const MidoriType& type) { return std::holds_alternative<StructType>(type); }
+	static const IntegerType& GetIntegerType(const MidoriType* type);
 
-	inline const StructType& GetStructType(const MidoriType& type) { return std::get<StructType>(type); }
+	static bool IsTextType(const MidoriType* type);
 
-	inline bool IsNumericType(const MidoriType& type) { return IsFractionType(type) || IsIntegerType(type); }
+	static const TextType& GetTextType(const MidoriType* type);
 
-	inline std::string ToString(const MidoriType& type)
-	{
-		return std::visit([](const auto& arg) -> std::string
-			{
-				using T = std::decay_t<decltype(arg)>;
-				if constexpr (std::is_same_v<T, FractionType>)
-				{
-					return "Fraction";
-				}
-				else if constexpr (std::is_same_v<T, IntegerType>)
-				{
-					return "Integer";
-				}
-				else if constexpr (std::is_same_v<T, TextType>)
-				{
-					return "Text";
-				}
-				else if constexpr (std::is_same_v<T, BoolType>)
-				{
-					return "Bool";
-				}
-				else if constexpr (std::is_same_v<T, UnitType>)
-				{
-					return "Unit";
-				}
-				else if constexpr (std::is_same_v<T, ArrayType>)
-				{
-					return "Array<" + ToString(*arg.m_element_type) + ">";
-				}
-				else if constexpr (std::is_same_v<T, FunctionType>)
-				{
-					std::string result = "(";
-					for (size_t i = 0u; i < arg.m_param_types.size(); i += 1u)
-					{
-						result += ToString(*arg.m_param_types[i]);
-						if (i != arg.m_param_types.size() - 1u)
-						{
-							result.append(", ");
-						}
-					}
-					result += ") -> " + ToString(*arg.m_return_type);
-					return result;
-				}
-				else if constexpr (std::is_same_v<T, StructType>)
-				{
-					return std::string(arg.m_name);
-				}
-				else
-				{
-					return "unknown";
-				}
-			}, type);
-	}
-}
+	static bool IsBoolType(const MidoriType* type);
+
+	static const BoolType& GetBoolType(const MidoriType* type);
+
+	static bool IsUnitType(const MidoriType* type);
+
+	static const UnitType& GetUnitType(const MidoriType* type);
+
+	static bool IsArrayType(const MidoriType* type);
+
+	static const ArrayType& GetArrayType(const MidoriType* type);
+
+	static bool IsFunctionType(const MidoriType* type);
+
+	static const FunctionType& GetFunctionType(const MidoriType* type);
+
+	static bool IsStructType(const MidoriType* type);
+
+	static const StructType& GetStructType(const MidoriType* type);
+
+	static bool IsNumericType(const MidoriType* type);
+};

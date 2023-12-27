@@ -104,7 +104,7 @@ private:
 public:
 
 	template<typename T>
-	static MidoriTraceable* AllocateObject(T&& value) { return new MidoriTraceable(std::forward<T>(value)); }
+	static MidoriTraceable* AllocateTraceable(T&& value) { return new MidoriTraceable(std::forward<T>(value)); }
 
 	inline MidoriText& GetText() const { return const_cast<MidoriText&>(std::get<MidoriText>(m_value)); }
 

@@ -1,3 +1,4 @@
+#ifdef DEBUG
 #pragma once
 
 #include <string_view>
@@ -11,3 +12,4 @@ namespace Disassembler
     void DisassembleInstruction(const MidoriExecutable& executable, int proc_index, int& offset);
   
 };
+#endif

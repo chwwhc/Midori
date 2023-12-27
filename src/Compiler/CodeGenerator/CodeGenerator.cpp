@@ -148,6 +148,7 @@ MidoriResult::CodeGeneratorResult CodeGenerator::GenerateCode(MidoriProgramTree&
 #endif
 	m_executable.AttachProcedures(std::move(m_procedures));
 
+	MidoriTypeUtil::MidoriTypeUtilCleanUp();
 	return m_executable;
 }
 
@@ -349,7 +350,7 @@ void CodeGenerator::operator()(Foreign& foreign)
 		m_global_variables[foreign.m_function_name.m_lexeme] = index.value();
 	}
 
-	EmitConstant(MidoriTraceable::AllocateObject(std::move(foreign.m_function_name.m_lexeme)), line);
+	EmitConstant(MidoriTraceable::AllocateTraceable(std::move(foreign.m_function_name.m_lexeme)), line);
 
 	if (is_global)
 	{
@@ -368,7 +369,7 @@ void CodeGenerator::operator()(As& as)
 
 	std::visit([this](auto&& arg) {(*this)(arg); }, *as.m_expr);
 
-	const MidoriType& target_type = *as.m_target_type;
+	const MidoriType* target_type = as.m_target_type;
 
 	if (MidoriTypeUtil::IsBoolType(target_type))
 	{
@@ -399,7 +400,7 @@ void CodeGenerator::operator()(As& as)
 void CodeGenerator::operator()(Binary& binary)
 {
 	int line = binary.m_op.m_line;
-	MidoriType& expr_type = *binary.m_type;
+	const MidoriType* expr_type = binary.m_type;
 	std::visit([this](auto&& arg) { (*this)(arg); }, *binary.m_left);
 	std::visit([this](auto&& arg) { (*this)(arg); }, *binary.m_right);
 
@@ -493,7 +494,7 @@ void CodeGenerator::operator()(Unary& unary)
 	switch (unary.m_op.m_token_name)
 	{
 	case Token::Name::MINUS:
-		MidoriTypeUtil::IsFractionType(*unary.m_type) ? EmitByte(OpCode::NEGATE_FRACTION, unary.m_op.m_line) : EmitByte(OpCode::NEGATE_INTEGER, unary.m_op.m_line);
+		MidoriTypeUtil::IsFractionType(unary.m_type) ? EmitByte(OpCode::NEGATE_FRACTION, unary.m_op.m_line) : EmitByte(OpCode::NEGATE_INTEGER, unary.m_op.m_line);
 		break;
 	case Token::Name::BANG:
 		EmitByte(OpCode::NOT, unary.m_op.m_line);
@@ -608,7 +609,7 @@ void CodeGenerator::operator()(Bind& bind)
 
 void CodeGenerator::operator()(TextLiteral& text)
 {
-	EmitConstant(MidoriTraceable::AllocateObject(std::move(text.m_token.m_lexeme)), text.m_token.m_line);
+	EmitConstant(MidoriTraceable::AllocateTraceable(std::move(text.m_token.m_lexeme)), text.m_token.m_line);
 }
 
 void CodeGenerator::operator()(BoolLiteral& bool_expr)

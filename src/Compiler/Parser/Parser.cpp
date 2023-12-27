@@ -397,7 +397,7 @@ MidoriResult::ExpressionResult Parser::ParseConstruct()
 		{
 			return std::unexpected<std::string>(GenerateParserError("Undefined struct.", type_token.value()));
 		}
-		std::shared_ptr<MidoriType> struct_type = found_scope_it->m_structs.at(type_token_value.m_lexeme);
+		const MidoriType* struct_type = found_scope_it->m_structs.at(type_token_value.m_lexeme);
 
 		MidoriResult::TokenResult paren = Consume(Token::Name::LEFT_PAREN, "Expected '(' after type.");
 		if (!paren.has_value())
@@ -514,9 +514,9 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 	{
 		Token& keyword = Previous();
 
-		Consume(Token::Name::LEFT_PAREN, "Expected '(' before closure parameters.");
+		Consume(Token::Name::LEFT_PAREN, "Expected '(' before function parameters.");
 		std::vector<Token> params;
-		std::vector<std::shared_ptr<MidoriType>> param_types;
+		std::vector<const MidoriType*> param_types;
 
 		int prev_total_locals = m_total_locals_in_curr_scope;
 		m_total_locals_in_curr_scope = 0;
@@ -574,14 +574,14 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 				}
 			} while (Match(Token::Name::COMMA));
 
-			MidoriResult::TokenResult paren = Consume(Token::Name::RIGHT_PAREN, "Expected ')' before closure parameters.");
+			MidoriResult::TokenResult paren = Consume(Token::Name::RIGHT_PAREN, "Expected ')' before function parameters.");
 			if (!paren.has_value())
 			{
 				return std::unexpected<std::string>(std::move(paren.error()));
 			}
 		}
 
-		MidoriResult::TokenResult arrow = Consume(Token::Name::SINGLE_COLON, "Expected ':' before closure range type token.");
+		MidoriResult::TokenResult arrow = Consume(Token::Name::SINGLE_COLON, "Expected ':' before function range type token.");
 		if (!arrow.has_value())
 		{
 			return std::unexpected<std::string>(std::move(arrow.error()));
@@ -593,7 +593,7 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 			return std::unexpected<std::string>(std::move(return_type.error()));
 		}
 
-		MidoriResult::TokenResult brace = Consume(Token::Name::LEFT_BRACE, "Expected '{' before closure expression body.");
+		MidoriResult::TokenResult brace = Consume(Token::Name::LEFT_BRACE, "Expected '{' before function expression body.");
 		if (!brace.has_value())
 		{
 			return std::unexpected<std::string>(std::move(brace.error()));
@@ -610,7 +610,7 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 			statements.emplace_back(std::move(decl.value()));
 		}
 
-		brace = Consume(Token::Name::RIGHT_BRACE, "Expected '}' closure expression body.");
+		brace = Consume(Token::Name::RIGHT_BRACE, "Expected '}' function expression body.");
 		if (!brace.has_value())
 		{
 			return std::unexpected<std::string>(std::move(brace.error()));
@@ -622,7 +622,7 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 		std::unique_ptr<MidoriStatement> closure_body = std::make_unique<MidoriStatement>(Block{ std::move(right_brace), std::move(statements), block_local_count });
 		if (!HasReturnStatement(*closure_body))
 		{
-			return std::unexpected<std::string>(GenerateParserError("Closure does not return in all paths.", keyword));
+			return std::unexpected<std::string>(GenerateParserError("function does not return in all paths.", keyword));
 		}
 
 		m_closure_depth -= 1;
@@ -784,7 +784,7 @@ MidoriResult::StatementResult Parser::ParseDefineStatement()
 		return std::unexpected<std::string>(std::move(define_name_result.error()));
 	}
 
-	std::optional<std::shared_ptr<MidoriType>> type_annotation = std::nullopt;
+	std::optional<const MidoriType*> type_annotation = std::nullopt;
 	if (Match(Token::Name::SINGLE_COLON))
 	{
 		MidoriResult::TypeResult type_result = ParseType();
@@ -873,7 +873,7 @@ MidoriResult::StatementResult Parser::ParseStructDeclaration()
 		{
 			return std::unexpected<std::string>(std::move(type.error()));
 		}
-		else if (MidoriTypeUtil::IsStructType(*type.value()) && (MidoriTypeUtil::GetStructType(*type.value()).m_name == name.value().m_lexeme))
+		else if (MidoriTypeUtil::IsStructType(type.value()) && (MidoriTypeUtil::GetStructType(type.value()).m_name == name.value().m_lexeme))
 		{
 			return std::unexpected<std::string>(GenerateParserError("Recursive struct is not allowed.", identifier.value()));
 		}
@@ -895,7 +895,8 @@ MidoriResult::StatementResult Parser::ParseStructDeclaration()
 		}
 	}
 
-	std::shared_ptr<MidoriType> struct_type = std::make_shared<MidoriType>(StructType{ name.value().m_lexeme, std::move(member_types) });
+	
+	const MidoriType* struct_type = MidoriTypeUtil::InsertStructType(name.value().m_lexeme, std::move(member_types));
 	m_scopes.back().m_structs[name.value().m_lexeme] = struct_type;
 
 	MidoriResult::TokenResult semi_colon = Consume(Token::Name::SINGLE_SEMICOLON, "Expected ';' after struct body.");
@@ -1172,17 +1173,16 @@ MidoriResult::StatementResult Parser::ParseForeignStatement()
 	}
 	std::optional<int> local_index = GetLocalVariableIndex(name.value().m_lexeme, is_fixed);
 
-	MidoriResult::TypeResult type = ParseType();
+	constexpr bool is_foreign = true;
+	MidoriResult::TypeResult type = ParseType(is_foreign);
 	if (!type.has_value())
 	{
 		return std::unexpected<std::string>(std::move(type.error()));
 	}
-	else if (!MidoriTypeUtil::IsFunctionType(*type.value()))
+	else if (!MidoriTypeUtil::IsFunctionType(type.value()))
 	{
 		return std::unexpected<std::string>(GenerateParserError("'foreign' only applies to function types.", name.value()));
 	}
-	FunctionType& function_type = const_cast<FunctionType&>(MidoriTypeUtil::GetFunctionType(*type.value()));
-	function_type.m_is_foreign = true;
 
 	MidoriResult::TokenResult semi_colon = Consume(Token::Name::SINGLE_SEMICOLON, "Expected ';' after foreign function type.");
 	if (!semi_colon.has_value())
@@ -1230,27 +1230,27 @@ MidoriResult::StatementResult Parser::ParseStatement()
 	}
 }
 
-MidoriResult::TypeResult Parser::ParseType()
+MidoriResult::TypeResult Parser::ParseType(bool is_foreign)
 {
 	if (Match(Token::Name::TEXT))
 	{
-		return std::make_shared<MidoriType>(TextType{});
+		return MidoriTypeUtil::GetType("Text"s);
 	}
 	else if (Match(Token::Name::FRACTION))
 	{
-		return std::make_shared<MidoriType>(FractionType{});
+		return MidoriTypeUtil::GetType("Frac"s);
 	}
 	else if (Match(Token::Name::INTEGER))
 	{
-		return std::make_shared<MidoriType>(IntegerType{});
+		return MidoriTypeUtil::GetType("Int"s);
 	}
 	else if (Match(Token::Name::BOOL))
 	{
-		return std::make_shared<MidoriType>(BoolType{});
+		return MidoriTypeUtil::GetType("Bool"s);
 	}
 	else if (Match(Token::Name::UNIT))
 	{
-		return std::make_shared<MidoriType>(UnitType{});
+		return MidoriTypeUtil::GetType("Unit"s);
 	}
 	else if (Match(Token::Name::ARRAY))
 	{
@@ -1263,12 +1263,12 @@ MidoriResult::TypeResult Parser::ParseType()
 		else
 		{
 			Consume(Token::Name::RIGHT_ANGLE, "Expected '>' after array type token.");
-			return std::make_shared<MidoriType>(ArrayType{ std::move(type.value()) });
+			return MidoriTypeUtil::InsertArrayType(type.value());
 		}
 	}
 	else if (Match(Token::Name::LEFT_PAREN))
 	{
-		std::vector<std::shared_ptr<MidoriType>> types;
+		std::vector<const MidoriType*> types;
 		if (!Match(Token::Name::RIGHT_PAREN))
 		{
 			do
@@ -1296,7 +1296,7 @@ MidoriResult::TypeResult Parser::ParseType()
 		}
 		else
 		{
-			return std::make_shared<MidoriType>(FunctionType{ std::move(types), std::move(return_type.value()) });
+			return MidoriTypeUtil::InsertFunctionType(std::move(types), return_type.value(), is_foreign);
 		}
 	}
 	else if (Match(Token::Name::IDENTIFIER_LITERAL))

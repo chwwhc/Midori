@@ -27,7 +27,7 @@ private:
 	struct Scope
 	{
 		using VariableTable = std::unordered_map<std::string, VariableContext>;
-		using StructTable = std::unordered_map<std::string, std::shared_ptr<MidoriType>>;
+		using StructTable = std::unordered_map<std::string, const MidoriType*>;
 
 		VariableTable m_variables;
 		StructTable m_structs;
@@ -117,7 +117,7 @@ private:
 
 	bool HasReturnStatement(const MidoriStatement& stmt);
 
-	MidoriResult::TypeResult ParseType();
+	MidoriResult::TypeResult ParseType(bool is_foreign = false);
 
 	MidoriResult::ExpressionResult ParseExpression();
 

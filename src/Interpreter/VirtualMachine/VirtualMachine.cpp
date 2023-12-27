@@ -264,7 +264,7 @@ void VirtualMachine::Execute()
 					{
 						value = Pop();
 					});
-				Push(AllocateObject(std::move(arr)));
+				Push(MidoriTraceable::AllocateTraceable(std::move(arr)));
 				break;
 			}
 			case OpCode::GET_ARRAY:
@@ -386,15 +386,15 @@ void VirtualMachine::Execute()
 
 				if (value.IsBool())
 				{
-					Push(CollectGarbageThenAllocateObject(value.GetBool() ? MidoriTraceable::MidoriText("true") : MidoriTraceable::MidoriText("false")));
+					Push(CollectGarbageThenAllocateTraceable(value.GetBool() ? MidoriTraceable::MidoriText("true") : MidoriTraceable::MidoriText("false")));
 				}
 				else if (value.IsInteger())
 				{
-					Push(CollectGarbageThenAllocateObject(std::to_string(value.GetInteger())));
+					Push(CollectGarbageThenAllocateTraceable(std::to_string(value.GetInteger())));
 				}
 				else if (value.IsFraction())
 				{
-					Push(CollectGarbageThenAllocateObject(std::to_string(value.GetFraction())));
+					Push(CollectGarbageThenAllocateTraceable(std::to_string(value.GetFraction())));
 				}
 				else if (value.IsPointer())
 				{
@@ -405,12 +405,12 @@ void VirtualMachine::Execute()
 					}
 					else
 					{
-						Push(CollectGarbageThenAllocateObject(ptr.ToString()));
+						Push(CollectGarbageThenAllocateTraceable(ptr.ToString()));
 					}
 				}
 				else if (value.IsUnit())
 				{
-					Push(CollectGarbageThenAllocateObject(MidoriTraceable::MidoriText("#")));
+					Push(CollectGarbageThenAllocateTraceable(MidoriTraceable::MidoriText("#")));
 				}
 				else
 				{
@@ -596,7 +596,7 @@ void VirtualMachine::Execute()
 					right_value_vector_ref.begin(),
 					right_value_vector_ref.end());
 
-				Push(AllocateObject(std::move(new_value_vector)));
+				Push(MidoriTraceable::AllocateTraceable(std::move(new_value_vector)));
 				break;
 			}
 			case OpCode::CONCAT_TEXT:
@@ -609,7 +609,7 @@ void VirtualMachine::Execute()
 
 				MidoriTraceable::MidoriText new_value_string = left_value_string_ref + right_value_string_ref;
 
-				Push(CollectGarbageThenAllocateObject(std::move(new_value_string)));
+				Push(CollectGarbageThenAllocateTraceable(std::move(new_value_string)));
 				break;
 			}
 			case OpCode::EQUAL_FRACTION:
@@ -755,7 +755,7 @@ void VirtualMachine::Execute()
 				MidoriTraceable::MidoriText& foreign_function_name_ref = foreign_function_name.GetPointer()->GetText();
 
 				// Platform-specific function loading
-#if defined(_WIN32) || defined(_WIN64)
+#ifdef _WIN32
 				FARPROC proc = GetProcAddress(m_library_handle, foreign_function_name_ref.c_str());
 #else
 				void* proc = dlsym(m_library_handle, foreign_function_name_ref.c_str());
@@ -814,7 +814,7 @@ void VirtualMachine::Execute()
 			}
 			case OpCode::ALLOCATE_STRUCT:
 			{
-				Push(AllocateObject(MidoriTraceable::MidoriStruct()));
+				Push(MidoriTraceable::AllocateTraceable(MidoriTraceable::MidoriStruct()));
 				break;
 			}
 			case OpCode::CREATE_CLOSURE:
@@ -823,7 +823,7 @@ void VirtualMachine::Execute()
 				int arity = static_cast<int>(ReadByte());
 				int proc_index = static_cast<int>(ReadByte());
 
-				Push(AllocateObject(MidoriTraceable::Closure(MidoriTraceable::Closure::Environment(), proc_index, arity)));
+				Push(MidoriTraceable::AllocateTraceable(MidoriTraceable::Closure(MidoriTraceable::Closure::Environment(), proc_index, arity)));
 				if (captured_count == 0)
 				{
 					break;

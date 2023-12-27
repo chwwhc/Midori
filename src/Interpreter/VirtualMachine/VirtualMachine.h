@@ -126,16 +126,10 @@ private:
 	void CollectGarbage();
 
 	template<typename T>
-	MidoriTraceable* CollectGarbageThenAllocateObject(T&& value)
+	MidoriTraceable* CollectGarbageThenAllocateTraceable(T&& value)
 	{
 		CollectGarbage();
-		return MidoriTraceable::AllocateObject(std::forward<T>(value));
-	}
-
-	template<typename T>
-	MidoriTraceable* AllocateObject(T&& value)
-	{
-		return MidoriTraceable::AllocateObject(std::forward<T>(value));
+		return MidoriTraceable::AllocateTraceable(std::forward<T>(value));
 	}
 
 	template<typename... Args>

@@ -1,3 +1,4 @@
+#ifdef DEBUG
 #pragma once
 
 #include "Compiler/AbstractSyntaxTree/AbstractSyntaxTree.h"
@@ -68,3 +69,4 @@ struct PrintAbstractSyntaxTree
 
 	void operator()(const Ternary& ternary, int depth = 0) const;
 };
+#endif

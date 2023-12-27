@@ -68,7 +68,7 @@ struct As
 {
 	Token m_as_keyword;
 	std::unique_ptr<MidoriExpression> m_expr;
-	std::shared_ptr<MidoriType> m_target_type;
+	const MidoriType* m_target_type;
 };
 
 struct Binary
@@ -76,7 +76,7 @@ struct Binary
 	Token m_op;
 	std::unique_ptr<MidoriExpression> m_left;
 	std::unique_ptr<MidoriExpression> m_right;
-	std::shared_ptr<MidoriType> m_type;
+	const MidoriType* m_type;
 };
 
 struct Group
@@ -113,7 +113,7 @@ struct Unary
 {
 	Token m_op;
 	std::unique_ptr<MidoriExpression> m_right;
-	std::shared_ptr<MidoriType> m_type;
+	const MidoriType* m_type;
 };
 
 struct Bind
@@ -141,9 +141,9 @@ struct Closure
 {
 	Token m_closure_keyword;
 	std::vector<Token> m_params;
-	std::vector<std::shared_ptr<MidoriType>> m_param_types;
+	std::vector<const MidoriType*> m_param_types;
 	std::unique_ptr<MidoriStatement> m_body;
-	std::shared_ptr<MidoriType> m_return_type;
+	const MidoriType* m_return_type;
 	int m_captured_count = 0;
 };
 
@@ -151,7 +151,7 @@ struct Construct
 {
 	Token m_type_name;
 	std::vector<std::unique_ptr<MidoriExpression>> m_params;
-	std::shared_ptr<MidoriType> m_return_type;
+	const MidoriType* m_return_type;
 };
 
 struct Ternary
@@ -219,7 +219,7 @@ struct Define
 {
 	Token m_name;
 	std::unique_ptr<MidoriExpression> m_value;
-	std::optional<std::shared_ptr<MidoriType>> m_annotated_type;
+	std::optional<const MidoriType*> m_annotated_type;
 	std::optional<int> m_local_index;
 };
 
@@ -270,12 +270,12 @@ struct Return
 struct Foreign
 {
 	Token m_function_name;
-	std::shared_ptr<MidoriType> m_type;
+	const MidoriType* m_type;
 	std::optional<int> m_local_index;
 };
 
 struct Struct
 {
 	Token m_name;
-	std::shared_ptr<MidoriType> m_self_type;
+	const MidoriType* m_self_type;
 };

@@ -41,7 +41,7 @@ public:
 		return GenerateBaseError(std::format("Parser Error\n{}", message), token.m_line, &token);
 	}
 
-	static  std::string GenerateTypeCheckerError(std::string_view message, const Token& token, const std::vector<const MidoriType*>& expected, const MidoriType& actual)
+	static  std::string GenerateTypeCheckerError(std::string_view message, const Token& token, const std::vector<const MidoriType*>& expected, const MidoriType* actual)
 	{
 		if (expected.empty())
 		{
@@ -53,7 +53,7 @@ public:
 		{
 			for (size_t i = 0u; i < expected.size(); i += 1u)
 			{
-				expected_types.append(MidoriTypeUtil::ToString(*expected[i]));
+				expected_types.append(MidoriTypeUtil::GetTypeName(expected[i]));
 				if (i != expected.size() - 1)
 				{
 					expected_types.append(" or ");
@@ -62,10 +62,10 @@ public:
 		}
 		else
 		{
-			expected_types = MidoriTypeUtil::ToString(*expected[0]);
+			expected_types = MidoriTypeUtil::GetTypeName(expected[0]);
 		}
 
-		return GenerateBaseError(std::format("Type Checker Error\n{}\nExpected {}, but got {}", message, expected_types, MidoriTypeUtil::ToString(actual)), token.m_line, &token);
+		return GenerateBaseError(std::format("Type Checker Error\n{}\nExpected {}, but got {}", message, expected_types, MidoriTypeUtil::GetTypeName(actual)), token.m_line, &token);
 	}
 
 	static  std::string GenerateRuntimeError(std::string_view message, int line)

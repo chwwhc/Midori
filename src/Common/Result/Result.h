@@ -17,7 +17,7 @@ namespace MidoriResult
 	using ExpressionResult = std::expected<std::unique_ptr<MidoriExpression>, std::string>;
 	using StatementResult = std::expected<std::unique_ptr<MidoriStatement>, std::string>;
 	using ParserResult = std::expected<MidoriProgramTree, std::string>;
-	using TypeResult = std::expected<std::shared_ptr<MidoriType>, std::string>;
+	using TypeResult = std::expected<const MidoriType*, std::string>;
 	using TypeCheckerResult = std::optional<std::string>;
 	using CodeGeneratorResult = std::expected<MidoriExecutable, std::string>;
 	using CompilerResult = std::expected<MidoriExecutable, std::string>;

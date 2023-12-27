@@ -8,10 +8,8 @@
 
 class TypeChecker
 {
-public:
-
 private:
-	using TypeEnvironment = std::unordered_map<std::string, std::shared_ptr<MidoriType>>;
+	using TypeEnvironment = std::unordered_map<std::string, const MidoriType*>;
 	using TypeEnvironmentStack = std::vector<TypeEnvironment>;
 
 	std::string m_errors;

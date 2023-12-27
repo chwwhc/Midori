@@ -1,3 +1,4 @@
+#ifdef DEBUG
 #include "AbstractSyntaxTreePrinter.h"
 
 #include <iostream>
@@ -104,8 +105,7 @@ void PrintAbstractSyntaxTree::operator()(const Foreign& foreign, int depth) cons
 {
 	PrintWithIndentation(depth, "ForeignFunctionInterface {");
 	PrintWithIndentation(depth + 1, "Name: " + foreign.m_function_name.m_lexeme);
-	const FunctionType& ffi_type = MidoriTypeUtil::GetFunctionType(*foreign.m_type);
-	PrintWithIndentation(depth + 1, "Type: " + MidoriTypeUtil::ToString(ffi_type));
+	PrintWithIndentation(depth + 1, "Type: " + MidoriTypeUtil::GetTypeName(foreign.m_type));
 	PrintWithIndentation(depth, "}");
 }
 
@@ -113,10 +113,10 @@ void PrintAbstractSyntaxTree::operator()(const Struct& struct_stmt, int depth) c
 {
 	PrintWithIndentation(depth, "Struct {");
 	PrintWithIndentation(depth + 1, "Name: " + struct_stmt.m_name.m_lexeme);
-	const StructType& struct_type = MidoriTypeUtil::GetStructType(*struct_stmt.m_self_type);
+	const StructType& struct_type = MidoriTypeUtil::GetStructType(struct_stmt.m_self_type);
 	std::for_each(struct_type.m_member_types.cbegin(), struct_type.m_member_types.cend(), [depth, this](const std::pair<const std::string, StructType::MemberTypeInfo>& member_type)
 		{
-			PrintWithIndentation(depth + 1, MidoriTypeUtil::ToString(*member_type.second.second));
+			PrintWithIndentation(depth + 1, MidoriTypeUtil::GetTypeName(member_type.second.second));
 		});
 	PrintWithIndentation(depth, "}");
 }
@@ -127,7 +127,7 @@ void PrintAbstractSyntaxTree::operator()(const As& as, int depth) const
 	PrintWithIndentation(depth + 1, "Value: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *as.m_expr);
 	PrintWithIndentation(depth + 1, "Type: ");
-	PrintWithIndentation(depth + 2, MidoriTypeUtil::ToString(*as.m_target_type));
+	PrintWithIndentation(depth + 2, MidoriTypeUtil::GetTypeName(as.m_target_type));
 	PrintWithIndentation(depth, "}");
 }
 
@@ -296,7 +296,7 @@ void PrintAbstractSyntaxTree::operator()(const Closure& closure, int depth) cons
 void PrintAbstractSyntaxTree::operator()(const Construct& construct, int depth) const
 {
 	PrintWithIndentation(depth, "Construct {");
-	PrintWithIndentation(depth + 1, "Type: " + MidoriTypeUtil::ToString(*construct.m_return_type));
+	PrintWithIndentation(depth + 1, "Type: " + MidoriTypeUtil::GetTypeName(construct.m_return_type));
 	PrintWithIndentation(depth + 1, "Params: ");
 	std::for_each(construct.m_params.cbegin(), construct.m_params.cend(), [depth, this](const std::unique_ptr<MidoriExpression>& expr)
 		{
@@ -355,3 +355,4 @@ void PrintAbstractSyntaxTree::PrintAbstractSyntaxTree::operator()(const Ternary&
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *ternary.m_else_branch);
 	PrintWithIndentation(depth, "}");
 }
+#endif

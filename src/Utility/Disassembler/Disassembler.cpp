@@ -1,3 +1,4 @@
+#ifdef DEBUG
 #include "Disassembler.h"
 #include "Common/Executable/Executable.h"
 
@@ -394,3 +395,4 @@ namespace Disassembler
 		}
 	}
 }
+#endif
