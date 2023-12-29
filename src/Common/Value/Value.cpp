@@ -2,17 +2,18 @@
 
 #include <algorithm>
 #include <iostream>
+#include <sstream>
 
 namespace
 {
-	std::string ConvertToQuotedString(std::string_view input) 
+	std::string ConvertToQuotedString(std::string_view input)
 	{
 		std::string result = "\"";
 
-		for (char c : input) 
+		for (char c : input)
 		{
 			switch (c) {
-			case '\n': 
+			case '\n':
 			{
 				result.append("\\n");
 				break;
@@ -27,17 +28,17 @@ namespace
 				result.append("\\r");
 				break;
 			}
-			case '\\': 
+			case '\\':
 			{
 				result.append("\\\\");
 				break;
 			}
-			case '\"': 
+			case '\"':
 			{
 				result.append("\\\"");
 				break;
 			}
-			default: 
+			default:
 			{
 				result.push_back(c);
 			}
@@ -49,6 +50,56 @@ namespace
 		return result;
 	}
 }
+
+MidoriValue::MidoriFraction MidoriValue::GetFraction() const 
+{ 
+	return std::get<MidoriFraction>(m_value); 
+}
+
+ bool MidoriValue::IsFraction() const 
+ { 
+	 return std::holds_alternative<MidoriFraction>(m_value); 
+ }
+
+ MidoriValue::MidoriInteger MidoriValue::GetInteger() const 
+ { 
+	 return std::get<MidoriInteger>(m_value); 
+ }
+
+ bool MidoriValue::IsInteger() const 
+ { 
+	 return std::holds_alternative<MidoriInteger>(m_value); 
+ }
+
+ MidoriValue::MidoriUnit MidoriValue::GetUnit() const
+ { 
+	 return std::get<MidoriUnit>(m_value);
+ }
+
+ bool MidoriValue::IsUnit() const 
+ {
+	 return std::holds_alternative<MidoriUnit>(m_value);
+ }
+
+ MidoriValue::MidoriBool MidoriValue::GetBool() const 
+ { 
+	 return std::get<MidoriBool>(m_value); 
+ }
+
+ bool MidoriValue::IsBool() const 
+ { 
+	 return std::holds_alternative<MidoriBool>(m_value); 
+ }
+
+MidoriTraceable* MidoriValue::GetPointer() const 
+ { 
+	 return std::get<MidoriTraceable*>(m_value);
+ }
+
+ bool MidoriValue::IsPointer() const 
+ { 
+	 return std::holds_alternative<MidoriTraceable*>(m_value); 
+ }
 
 std::string MidoriValue::ToString() const
 {
@@ -66,7 +117,7 @@ std::string MidoriValue::ToString() const
 			}
 			else if constexpr (std::is_same_v<T, MidoriUnit>)
 			{
-				return "#";
+				return "()";
 			}
 			else if constexpr (std::is_same_v<T, MidoriBool>)
 			{
@@ -111,11 +162,20 @@ std::string MidoriTraceable::ToString() const
 			}
 			else if constexpr (std::is_same_v<T, CellValue>)
 			{
-				return "Cell(" + arg.ToString() + ")";
+				if (arg.m_is_on_heap)
+				{
+					return "Cell(" + arg.m_heap_value.ToString() + ")";
+				}
+				else
+				{
+					return "Cell(" + arg.m_stack_value_ref->ToString() + ")";
+				}
 			}
 			else if constexpr (std::is_same_v<T, Closure>)
 			{
-				return "<closure at: " + std::to_string(reinterpret_cast<uintptr_t>(&arg)) + ">";
+				std::ostringstream oss;
+				oss << "<closure at: " << &arg << ">";
+				return oss.str();
 			}
 			else if constexpr (std::is_same_v<T, MidoriStruct>)
 			{
@@ -143,18 +203,113 @@ std::string MidoriTraceable::ToString() const
 		}, m_value);
 }
 
+MidoriValue& MidoriTraceable::CellValue::GetValue()
+{
+	return m_is_on_heap ? m_heap_value : *m_stack_value_ref;
+}
+
+MidoriTraceable::MidoriText& MidoriTraceable::GetText() const
+{
+	return const_cast<MidoriText&>(std::get<MidoriText>(m_value));
+}
+
+bool MidoriTraceable::IsText() const
+{
+	return std::holds_alternative<MidoriText>(m_value);
+}
+
+MidoriTraceable::MidoriArray& MidoriTraceable::GetArray() const
+{
+	return const_cast<MidoriArray&>(std::get<MidoriArray>(m_value));
+}
+
+bool MidoriTraceable::IsArray() const
+{
+	return std::holds_alternative<MidoriArray>(m_value);
+}
+
+bool MidoriTraceable::IsCellValue() const
+{
+	return std::holds_alternative<CellValue>(m_value);
+}
+
+MidoriTraceable::CellValue& MidoriTraceable::GetCellValue() const
+{
+	return const_cast<CellValue&>(std::get<CellValue>(m_value));
+}
+
+bool MidoriTraceable::IsClosure() const
+{
+	return std::holds_alternative<Closure>(m_value);
+}
+
+MidoriTraceable::Closure& MidoriTraceable::GetClosure() const
+{
+	return const_cast<Closure&>(std::get<Closure>(m_value));
+}
+
+bool MidoriTraceable::IsStruct() const
+{
+	return std::holds_alternative<MidoriStruct>(m_value);
+}
+
+MidoriTraceable::MidoriStruct& MidoriTraceable::GetStruct() const
+{
+	return const_cast<MidoriStruct&>(std::get<MidoriStruct>(m_value));
+}
+
+size_t MidoriTraceable::GetSize() const
+{
+	return m_size;
+}
+
+void MidoriTraceable::Mark()
+{
+	m_is_marked = true;
+}
+
+void MidoriTraceable::Unmark()
+{
+	m_is_marked = false;
+}
+
+bool MidoriTraceable::Marked() const
+{
+	return m_is_marked;
+}
+
+void* MidoriTraceable::operator new(size_t size) noexcept
+{
+	void* object = ::operator new(size);
+	MidoriTraceable* traceable = static_cast<MidoriTraceable*>(object);
+
+	traceable->m_size = size;
+	s_total_bytes_allocated += size;
+	s_traceables.emplace_back(traceable);
+
+	return static_cast<void*>(traceable);
+}
+
+void MidoriTraceable::operator delete(void* object, size_t size) noexcept
+{
+	MidoriTraceable* traceable = static_cast<MidoriTraceable*>(object);
+	s_total_bytes_allocated -= traceable->m_size;
+
+	::operator delete(object, size);
+}
+
 void MidoriTraceable::CleanUp()
 {
 	s_static_bytes_allocated = 0u;
-	std::for_each(s_objects.begin(), s_objects.end(), [](MidoriTraceable* object) { delete object; });
-	s_objects.clear();
+	std::for_each(s_traceables.begin(), s_traceables.end(), [](MidoriTraceable* object) { delete object; });
+	s_traceables.clear();
 }
 
 void MidoriTraceable::PrintMemoryTelemetry()
 {
 	std::cout << "\n\t------------------------------\n";
 	std::cout << "\tMemory telemetry:\n";
-	std::cout << "\tHeap objects allocated: " << std::dec << s_objects.size() << '\n';
+	std::cout << "\tHeap objects allocated: " << std::dec << s_traceables.size() << '\n';
 	std::cout << "\tTotal Bytes allocated: " << std::dec << s_total_bytes_allocated << '\n';
 	std::cout << "\tStatic Bytes allocated: " << std::dec << s_static_bytes_allocated << '\n';
 	std::cout << "\tDynamic Bytes allocated: " << std::dec << s_total_bytes_allocated - s_static_bytes_allocated;
@@ -168,7 +323,7 @@ void MidoriTraceable::Trace()
 		return;
 	}
 #ifdef DEBUG
-	std::cout << "Marking object: " << ToString() << '\n';
+	std::cout << "Marking traceable pointer: " << this << ", value: " << ToString() << std::endl;
 #endif
 	Mark();
 
@@ -183,9 +338,20 @@ void MidoriTraceable::Trace()
 				}
 			});
 	}
+	else if (IsClosure())
+	{
+		Closure& closure = GetClosure();
+		std::for_each(closure.m_cell_values.begin(), closure.m_cell_values.end(), [](MidoriValue& cell_value) -> void
+			{
+				if (cell_value.IsPointer())
+				{
+					cell_value.GetPointer()->Trace();
+				}
+			});
+	}
 	else if (IsCellValue())
 	{
-		MidoriValue& cell_value = GetCellValue();
+		MidoriValue& cell_value = GetCellValue().GetValue();
 		if (cell_value.IsPointer())
 		{
 			cell_value.GetPointer()->Trace();

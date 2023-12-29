@@ -1,3 +1,5 @@
+#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+
 var createCounter = fn(var initial : Int) : (Int) -> () -> Int
 {
   var counter = fn(var value : Int) : () -> Int 
@@ -13,7 +15,7 @@ var next = counter(3);
 
 fixed main = fn() : Int
 {
-    PrintLine(next());  // Should print 8
+    PrintLine(next() as Text);  // Should print 8
 
     return 0;
 };

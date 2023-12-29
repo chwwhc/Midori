@@ -1,3 +1,5 @@
+#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+
 var makeAdder = fn(var a : Int) : (Int) -> (Int) -> Int 
 {
   return fn(var b : Int) : (Int) -> Int
@@ -13,7 +15,7 @@ var adder : (Int) -> Int = makeAdder(3)(4);
 
 fixed main = fn() : Unit
 {
-    PrintLine(adder(5));  // Should print 12
+    PrintLine(adder(5) as Text);  // Should print 12
 
-    return #;
+    return ();
 };

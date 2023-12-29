@@ -1,3 +1,5 @@
+#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+
 var makeRecursive = fn(var n : Int) : (Int) -> Int 
 {
   if (n == 0) return fn(var x : Int) : Int { return 1; };
@@ -9,7 +11,7 @@ var factorial = makeRecursive(5);
 fixed main = fn() : Int
 {
 	factorial = makeRecursive(5);
-	PrintLine(factorial(5));  // Should print 120
+	PrintLine(factorial(5) as Text);  // Should print 120
 
 	return 0;
 };

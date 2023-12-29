@@ -36,8 +36,9 @@ add_executable(Midori ${SRC_FILES})
 
 # Source files for the standard library DLL
 file(GLOB_RECURSE STD_LIB_SRC_FILES
-    "src/Library/*.h"
-    "src/Library/*.cpp"
+    "src/Common/Value/Value.h"
+    "src/Common/Value/Value.cpp"
+    "src/Library/MidoriStdLib.cpp"
 )
 
 # Add standard library as a dynamically linked library

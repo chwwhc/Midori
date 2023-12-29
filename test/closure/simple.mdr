@@ -1,3 +1,5 @@
+#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+
 fixed main = fn() : Int
 {
 	var x = fn(var y : Int) : () -> Int 
@@ -5,7 +7,7 @@ fixed main = fn() : Int
 		return fn() : Int { return y; };
 	};
 	var f = x(5);
-	PrintLine(f()); // Should print 5
+	PrintLine(f() as Text); // Should print 5
 
 	return 0;
 };

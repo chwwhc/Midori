@@ -1,13 +1,15 @@
+#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+
 fixed main = fn() : Int
 {
 	var counter = (fn() : () -> Int
 	{
-		var privateCounter := 0;
+		var privateCounter = 0;
 		return fn() : Int { privateCounter = privateCounter + 1; return privateCounter; };
 	})();
 
-	PrintLine(counter());  // Should print 1
-	PrintLine(counter());  // Should print 2
+	PrintLine(counter() as Text);  // Should print 1
+	PrintLine(counter() as Text);  // Should print 2
 
 	return 0;
 };

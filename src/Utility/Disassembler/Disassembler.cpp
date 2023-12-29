@@ -381,8 +381,8 @@ namespace Disassembler
 		case OpCode::POP:
 			SimpleInstruction("POP", offset);
 			break;
-		case OpCode::POP_MULTIPLE:
-			PopMultipleInstruction("POP_MULTIPLE", executable, proc_index, offset);
+		case OpCode::POP_SCOPE:
+			PopMultipleInstruction("POP_SCOPE", executable, proc_index, offset);
 			break;
 		case OpCode::RETURN:
 			SimpleInstruction("RETURN", offset);

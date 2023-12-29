@@ -1,9 +1,11 @@
+#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+
 fixed foo = fn() : Int
 {
-	var getFunc : () -> Int := fn() : Int { return 1; };
+	var getFunc : () -> Int = fn() : Int { return 1; };
 	if (true)
 	{
-		var y : Int := 5;
+		var y : Int = 5;
 		getFunc = fn() : Int { return y; };
 	}
 	return getFunc();
@@ -11,7 +13,7 @@ fixed foo = fn() : Int
 
 fixed main = fn() : Unit
 {
-	PrintLine(foo());  // Should print 5
+	PrintLine(foo() as Text);  // Should print 5
 
-	return #;
+	return ();
 };

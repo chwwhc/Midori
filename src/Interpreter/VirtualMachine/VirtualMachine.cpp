@@ -4,6 +4,7 @@
 #include <cmath>
 #include <algorithm>
 #include <numeric>
+#include <execution>
 
 #ifdef DEBUG
 #include <iostream>
@@ -36,7 +37,7 @@ OpCode VirtualMachine::ReadByte() noexcept
 
 int VirtualMachine::ReadShort() noexcept
 {
-	return static_cast<int>(ReadByte()) | (static_cast<int>(ReadByte()) << 8); 
+	return static_cast<int>(ReadByte()) | (static_cast<int>(ReadByte()) << 8);
 }
 
 int VirtualMachine::ReadThreeBytes() noexcept
@@ -115,6 +116,22 @@ MidoriValue& VirtualMachine::Pop() noexcept
 	return value;
 }
 
+void VirtualMachine::PromoteCells() noexcept
+{
+	std::for_each
+	(
+		std::execution::par,  
+		m_cells_to_promote.begin(),
+		m_cells_to_promote.end(),
+		[](MidoriTraceable::CellValue* cell) -> void 
+		{
+			cell->m_heap_value = *cell->m_stack_value_ref;
+			cell->m_is_on_heap = true;
+		}
+	);
+	m_cells_to_promote.clear();
+}
+
 void VirtualMachine::CheckIndexBounds(const MidoriValue& index, MidoriValue::MidoriInteger size)
 {
 	MidoriValue::MidoriInteger val = index.GetInteger();
@@ -128,13 +145,19 @@ MidoriTraceable::GarbageCollectionRoots VirtualMachine::GetGlobalTableGarbageCol
 {
 	MidoriTraceable::GarbageCollectionRoots roots;
 
-	std::for_each(m_global_vars.cbegin(), m_global_vars.cend(), [&roots](const GlobalVariables::value_type& pair) -> void
+	std::for_each
+	(
+		std::execution::seq,
+		m_global_vars.cbegin(), 
+		m_global_vars.cend(), 
+		[&roots](const GlobalVariables::value_type& pair) -> void
 		{
 			if (pair.second.IsPointer())
 			{
 				roots.emplace(static_cast<MidoriTraceable*>(pair.second.GetPointer()));
 			}
-		});
+		}
+	);
 
 	return roots;
 }
@@ -143,13 +166,19 @@ MidoriTraceable::GarbageCollectionRoots VirtualMachine::GetValueStackGarbageColl
 {
 	MidoriTraceable::GarbageCollectionRoots roots;
 
-	std::for_each_n(m_value_stack->begin(), m_value_stack_pointer - m_value_stack->begin(), [&roots](MidoriValue& value) -> void
+	std::for_each_n
+	(
+		std::execution::seq,
+		m_value_stack->begin(), 
+		m_value_stack_pointer - m_value_stack->begin(), 
+		[&roots](MidoriValue& value) -> void
 		{
 			if (value.IsPointer())
 			{
 				roots.emplace(static_cast<MidoriTraceable*>(value.GetPointer()));
 			}
-		});
+		}
+	);
 
 	return roots;
 }
@@ -212,10 +241,16 @@ void VirtualMachine::Execute()
 		{
 #ifdef DEBUG
 			std::cout << "          ";
-			std::for_each(m_base_pointer, m_value_stack_pointer, [](MidoriValue& value) -> void
+			std::for_each
+			(
+				std::execution::seq,
+				m_base_pointer, 
+				m_value_stack_pointer, 
+				[](MidoriValue& value) -> void
 				{
 					std::cout << "[ " << value.ToString() << " ]";
-				});
+				}
+			);
 			std::cout << std::endl;
 			int dbg_instruction_pointer = -1;
 			int dbg_proc_index = -1;
@@ -260,10 +295,16 @@ void VirtualMachine::Execute()
 				int count = ReadThreeBytes();
 				std::vector<MidoriValue> arr(count);
 
-				std::for_each(arr.rbegin(), arr.rend(), [this](MidoriValue& value) -> void
+				std::for_each
+				(
+					std::execution::seq,
+					arr.rbegin(),
+					arr.rend(), 
+					[this](MidoriValue& value) -> void
 					{
 						value = Pop();
-					});
+					}
+				);
 				Push(MidoriTraceable::AllocateTraceable(std::move(arr)));
 				break;
 			}
@@ -272,10 +313,16 @@ void VirtualMachine::Execute()
 				int num_indices = static_cast<int>(ReadByte());
 				std::vector<MidoriValue> indices(num_indices);
 
-				std::for_each(indices.rbegin(), indices.rend(), [this](MidoriValue& value) -> void
+				std::for_each
+				(
+					std::execution::seq,
+					indices.rbegin(), 
+					indices.rend(), 
+					[this](MidoriValue& value) -> void
 					{
 						value = Pop();
-					});
+					}
+				);
 
 				MidoriValue& arr = Pop();
 				std::vector<MidoriValue>& arr_ref = arr.GetPointer()->GetArray();
@@ -304,10 +351,16 @@ void VirtualMachine::Execute()
 				const MidoriValue& value_to_set = Pop();
 				std::vector<MidoriValue> indices(num_indices);
 
-				std::for_each(indices.rbegin(), indices.rend(), [this](MidoriValue& value) -> void
+				std::for_each
+				(
+					std::execution::seq,
+					indices.rbegin(), 
+					indices.rend(), 
+					[this](MidoriValue& value) -> void
 					{
 						value = Pop();
-					});
+					}
+				);
 
 				MidoriValue& arr = Pop();
 				std::vector<MidoriValue>& arr_ref = arr.GetPointer()->GetArray();
@@ -766,10 +819,16 @@ void VirtualMachine::Execute()
 				}
 
 				std::vector<MidoriValue*> args(arity);
-				std::for_each(args.rbegin(), args.rend(), [this](MidoriValue*& value) -> void
+				std::for_each
+				(
+					std::execution::seq,
+					args.rbegin(), 
+					args.rend(),
+					[this](MidoriValue*& value) -> void
 					{
 						value = std::addressof(Pop());
-					});
+					}
+				);
 				MidoriValue return_val;
 
 
@@ -840,7 +899,10 @@ void VirtualMachine::Execute()
 
 				for (ValueStackPointer it = m_base_pointer; it < m_base_pointer + captured_count; ++it)
 				{
-					captured_variables.emplace_back(*it);
+					MidoriValue* stack_value_ref = &*it;
+					MidoriValue cell_value = CollectGarbageThenAllocateTraceable(stack_value_ref);
+					captured_variables.emplace_back(cell_value);
+					m_cells_to_promote.emplace_back(std::addressof(cell_value.GetPointer()->GetCellValue()));
 				}
 				break;
 			}
@@ -883,14 +945,15 @@ void VirtualMachine::Execute()
 			case OpCode::GET_CELL:
 			{
 				int offset = static_cast<int>(ReadByte());
-				Push((*m_closure_stack.back())[offset]);
+				const MidoriValue& cell_value = (*m_closure_stack.back())[offset].GetPointer()->GetCellValue().GetValue();
+				Push(cell_value);
 				break;
 			}
 			case OpCode::SET_CELL:
 			{
 				int offset = static_cast<int>(ReadByte());
-				MidoriValue& var = (*m_closure_stack.back())[offset];
-				var = Peek();
+				MidoriValue& cell_value = (*m_closure_stack.back())[offset].GetPointer()->GetCellValue().GetValue();
+				cell_value = Peek();
 				break;
 			}
 			case OpCode::GET_MEMBER:
@@ -913,13 +976,19 @@ void VirtualMachine::Execute()
 				--m_value_stack_pointer;
 				break;
 			}
-			case OpCode::POP_MULTIPLE:
+			case OpCode::POP_SCOPE:
 			{
+				// on scope exit, promote all cells to heap
+				PromoteCells();
+
 				m_value_stack_pointer -= static_cast<int>(ReadByte());
 				break;
 			}
 			case OpCode::RETURN:
 			{
+				// on return, promote all cells to heap
+				PromoteCells();
+
 				const MidoriValue& value = Pop();
 				m_call_stack_pointer = std::prev(m_call_stack_pointer);
 
@@ -932,17 +1001,11 @@ void VirtualMachine::Execute()
 
 				Push(value);
 
-				if (m_call_stack_pointer != m_call_stack_begin)
-				{
-					break;
-				}
-
-				return;
+				break;
 			}
 			case OpCode::HALT:
 			{
-				DisplayRuntimeError(GenerateRuntimeError("Program halted.", GetLine()));
-				break;
+				return;
 			}
 			default:
 			{

@@ -99,7 +99,7 @@ enum class OpCode : uint8_t
 
 	// Stack Operations
 	POP,
-	POP_MULTIPLE,
+	POP_SCOPE,
 
 	// Return
 	RETURN,

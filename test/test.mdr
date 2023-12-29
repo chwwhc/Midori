@@ -1,24 +1,36 @@
 #include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
 
-fixed x = fn(fixed x : Int) : () -> Int
+fixed main = fn() : Unit
 {
-    return fn() : Int { return x; };
-};
+	fixed abs = fn(fixed x : Frac) : Frac
+	{
+		return x < 0.0 ? -x : x;
+	};
 
-fixed A = fn(var k : Int, fixed x1 : () -> Int, fixed x2 : () -> Int, 
-        fixed x3 : () -> Int, fixed x4 : () -> Int, fixed x5 : () -> Int) : Int
-{
-    fixed B = fn() : Int
-    {
-        k = k - 1;
-        return A(k, B, x1, x2, x3, x4); 
-    };
-    return k > 0 ? B() : x4() + x5();
-};
+	fixed square = fn(fixed x : Frac) : Frac
+	{
+		return x * x;
+	};
 
-fixed main = fn() : Int
-{
-    PrintLine(A(10, x(1), x(-1), x(-1), x(1), x(0)) as Text);   
+	fixed sqrt = fn(fixed x : Frac) : Frac
+	{
+		fixed is_good_enough = fn(fixed guess : Frac) : Bool
+		{
+			return abs(square(guess) - x) < 0.001;
+		};
 
-    return 0;
+		fixed improve = fn(fixed guess : Frac) : Frac
+		{
+			return (guess + x / guess) / 2.0;
+		};
+
+		fixed sqrt_iter = fn(fixed guess : Frac) : Frac
+		{
+			return is_good_enough(guess) ? guess : sqrt_iter(improve(guess));
+		};
+
+		return sqrt_iter(1.0);
+	};
+
+	return PrintLine(sqrt(2.0) as Text);
 };

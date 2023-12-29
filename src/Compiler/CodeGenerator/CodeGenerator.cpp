@@ -142,6 +142,7 @@ MidoriResult::CodeGeneratorResult CodeGenerator::GenerateCode(MidoriProgramTree&
 	EmitVariable(main_module_ctx.m_main_procedure_global_table_index, OpCode::GET_GLOBAL, main_module_ctx.m_main_procedure_line);
 	EmitByte(OpCode::CALL_DEFINED, main_module_ctx.m_main_procedure_line);
 	EmitByte(static_cast<OpCode>(0), main_module_ctx.m_main_procedure_line);
+	EmitByte(OpCode::HALT, main_module_ctx.m_main_procedure_line);
 
 #ifdef DEBUG
 	m_executable.AttachProcedureNames(std::move(m_procedure_names));
@@ -166,7 +167,7 @@ void CodeGenerator::operator()(Block& block)
 	while (block.m_local_count > 0)
 	{
 		int count_to_pop = std::min(block.m_local_count, static_cast<int>(UINT8_MAX));
-		EmitByte(OpCode::POP_MULTIPLE, block.m_right_brace.m_line);
+		EmitByte(OpCode::POP_SCOPE, block.m_right_brace.m_line);
 		EmitByte(static_cast<OpCode>(count_to_pop), block.m_right_brace.m_line);
 		block.m_local_count -= count_to_pop;
 	}
@@ -292,7 +293,7 @@ void CodeGenerator::operator()(For& for_stmt)
 	while (for_stmt.m_control_block_local_count > 0)
 	{
 		int count_to_pop = std::min(for_stmt.m_control_block_local_count, static_cast<int>(UINT8_MAX));
-		EmitByte(OpCode::POP_MULTIPLE, line);
+		EmitByte(OpCode::POP_SCOPE, line);
 		EmitByte(static_cast<OpCode>(count_to_pop), line);
 		for_stmt.m_control_block_local_count -= count_to_pop;
 	}
@@ -306,7 +307,7 @@ void CodeGenerator::operator()(Break& break_stmt)
 	while (break_stmt.m_number_to_pop > 0)
 	{
 		int count_to_pop = std::min(break_stmt.m_number_to_pop, static_cast<int>(UINT8_MAX));
-		EmitByte(OpCode::POP_MULTIPLE, line);
+		EmitByte(OpCode::POP_SCOPE, line);
 		EmitByte(static_cast<OpCode>(count_to_pop), line);
 		break_stmt.m_number_to_pop -= count_to_pop;
 	}
@@ -321,7 +322,7 @@ void CodeGenerator::operator()(Continue& continue_stmt)
 	while (continue_stmt.m_number_to_pop > 0)
 	{
 		int count_to_pop = std::min(continue_stmt.m_number_to_pop, static_cast<int>(UINT8_MAX));
-		EmitByte(OpCode::POP_MULTIPLE, line);
+		EmitByte(OpCode::POP_SCOPE, line);
 		EmitByte(static_cast<OpCode>(count_to_pop), line);
 		continue_stmt.m_number_to_pop -= count_to_pop;
 	}

@@ -42,29 +42,35 @@ public:
 
 	MidoriValue& operator=(MidoriValue&& other) noexcept = default;
 
-	inline MidoriFraction GetFraction() const { return std::get<MidoriFraction>(m_value); }
+	MidoriFraction GetFraction() const;
 
-	inline bool IsFraction() const { return std::holds_alternative<MidoriFraction>(m_value); }
+	bool IsFraction() const;
 
-	inline MidoriInteger GetInteger() const { return std::get<MidoriInteger>(m_value); }
+	MidoriInteger GetInteger() const;
 
-	inline bool IsInteger() const { return std::holds_alternative<MidoriInteger>(m_value); }
+	bool IsInteger() const;
 
-	inline MidoriUnit GetUnit() const { return std::get<MidoriUnit>(m_value); }
+	MidoriUnit GetUnit() const;
 
-	inline bool IsUnit() const { return std::holds_alternative<MidoriUnit>(m_value); }
+	bool IsUnit() const;
 
-	inline MidoriBool GetBool() const { return std::get<MidoriBool>(m_value); }
+	MidoriBool GetBool() const;
 
-	inline bool IsBool() const { return std::holds_alternative<MidoriBool>(m_value); }
+	bool IsBool() const;
 
-	inline MidoriTraceable* GetPointer() const { return std::get<MidoriTraceable*>(m_value); }
+	MidoriTraceable* GetPointer() const;
 
-	inline bool IsPointer() const { return std::holds_alternative<MidoriTraceable*>(m_value); }
+	bool IsPointer() const;
 
-	inline friend bool operator==(const MidoriValue& lhs, const MidoriValue& rhs) { return lhs.m_value == rhs.m_value; }
+	inline friend bool operator==(const MidoriValue& lhs, const MidoriValue& rhs)
+	{
+		return lhs.m_value == rhs.m_value;
+	}
 
-	inline friend bool operator!=(const MidoriValue& lhs, const MidoriValue& rhs) { return !(lhs == rhs); }
+	inline friend bool operator!=(const MidoriValue& lhs, const MidoriValue& rhs)
+	{
+		return !(lhs == rhs);
+	}
 
 	std::string ToString() const;
 };
@@ -73,14 +79,22 @@ class MidoriTraceable
 {
 public:
 	using GarbageCollectionRoots = std::unordered_set<MidoriTraceable*>;
-	using CellValue = MidoriValue;
 
 	static inline size_t s_total_bytes_allocated;
 	static inline size_t s_static_bytes_allocated;
-	static inline std::list<MidoriTraceable*> s_objects;
+	static inline std::list<MidoriTraceable*> s_traceables;
 
 	using MidoriText = std::string;
 	using MidoriArray = std::vector<MidoriValue>;
+
+	struct CellValue
+	{
+		MidoriValue m_heap_value;
+		MidoriValue* m_stack_value_ref;
+		bool m_is_on_heap = false;
+
+		MidoriValue& GetValue();
+	};
 
 	struct Closure
 	{
@@ -99,60 +113,47 @@ public:
 private:
 	std::variant<MidoriText, MidoriArray, MidoriStruct, CellValue, Closure> m_value;
 	size_t m_size;
-	bool m_is_marked;
+	bool m_is_marked = false;
 
 public:
 
 	template<typename T>
-	static MidoriTraceable* AllocateTraceable(T&& value) { return new MidoriTraceable(std::forward<T>(value)); }
-
-	inline MidoriText& GetText() const { return const_cast<MidoriText&>(std::get<MidoriText>(m_value)); }
-
-	inline bool IsText() const { return std::holds_alternative<MidoriText>(m_value); }
-
-	inline MidoriArray& GetArray() const { return const_cast<MidoriArray&>(std::get<MidoriArray>(m_value)); }
-
-	inline bool IsArray() const { return std::holds_alternative<MidoriArray>(m_value); }
-
-	inline bool IsCellValue() const { return std::holds_alternative<CellValue>(m_value); }
-
-	inline CellValue& GetCellValue() const { return const_cast<CellValue&>(std::get<CellValue>(m_value)); }
-
-	inline bool IsClosure() const { return std::holds_alternative<Closure>(m_value); }
-
-	inline Closure& GetClosure() const { return const_cast<Closure&>(std::get<Closure>(m_value)); }
-
-	inline bool IsStruct() const { return std::holds_alternative<MidoriStruct>(m_value); }
-
-	inline MidoriStruct& GetStruct() const { return const_cast<MidoriStruct&>(std::get<MidoriStruct>(m_value)); }
-
-	inline size_t GetSize() const { return m_size; }
-
-	inline void Mark() { m_is_marked = true; }
-
-	inline void Unmark() { m_is_marked = false; }
-
-	inline bool Marked() const { return m_is_marked; }
-
-	static inline void* operator new(size_t size) noexcept
+	static MidoriTraceable* AllocateTraceable(T&& value)
 	{
-		void* object = ::operator new(size);
-		MidoriTraceable* traceable = static_cast<MidoriTraceable*>(object);
-
-		traceable->m_size = size;
-		s_total_bytes_allocated += size;
-		s_objects.emplace_back(traceable);
-
-		return static_cast<void*>(traceable);
+		return new MidoriTraceable(std::forward<T>(value));
 	}
 
-	static inline void operator delete(void* object, size_t size) noexcept
-	{
-		MidoriTraceable* traceable = static_cast<MidoriTraceable*>(object);
-		s_total_bytes_allocated -= traceable->m_size;
+	MidoriText& GetText() const;
 
-		::operator delete(object, size);
-	}
+	bool IsText() const;
+
+	MidoriArray& GetArray() const;
+
+	bool IsArray() const;
+
+	inline bool IsCellValue() const;
+
+	CellValue& GetCellValue() const;
+
+	bool IsClosure() const;
+
+	Closure& GetClosure() const;
+
+	bool IsStruct() const;
+
+	MidoriStruct& GetStruct() const;
+
+	size_t GetSize() const;
+
+	void Mark();
+
+	void Unmark();
+
+	bool Marked() const;
+
+	static  void* operator new(size_t size) noexcept;
+
+	static  void operator delete(void* object, size_t size) noexcept;
 
 	std::string ToString() const;
 
@@ -163,17 +164,21 @@ public:
 	static void PrintMemoryTelemetry();
 
 private:
-	MidoriTraceable() = default;
+	MidoriTraceable() = delete;
 
-	MidoriTraceable(const MidoriTraceable& other) = default;
+	MidoriTraceable(const MidoriTraceable& other) = delete;
 
-	MidoriTraceable(MidoriTraceable&& other) noexcept = default;
+	MidoriTraceable(MidoriTraceable&& other) noexcept = delete;
+
+	MidoriTraceable& operator=(const MidoriTraceable& other) = delete;
+
+	MidoriTraceable& operator=(MidoriTraceable&& other) noexcept = delete;
 
 	MidoriTraceable(MidoriText&& str) : m_value(std::move(str)) {}
 
 	MidoriTraceable(MidoriArray&& array) : m_value(std::move(array)) {}
 
-	MidoriTraceable(CellValue&& cell_value) : m_value(std::move(cell_value)) {}
+	MidoriTraceable(MidoriValue* stack_value_ref) : m_value(CellValue{ MidoriValue(), stack_value_ref, false }) {}
 
 	MidoriTraceable(Closure&& closure) : m_value(std::move(closure)) {}
 

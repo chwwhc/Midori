@@ -1,7 +1,9 @@
+#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+
 fixed foo = fn() : Unit
 {
 	var arr : Array<() -> Int> = [fn() : Int { return 1; }, fn() : Int { return 1; }, fn() : Int { return 1; }];
-	for (var i : Int := 0; i < 3; i = i + 1)
+	for (var i : Int = 0; i < 3; i = i + 1)
 	{
 		(fn(fixed i : Int) : Unit
 		{
@@ -9,20 +11,20 @@ fixed foo = fn() : Unit
 			{
 				return i;
 			};
-			return #;
+			return ();
 		})(i);
 	}
 
-	PrintLine(arr[0]());  // Should print 0
-	PrintLine(arr[1]());  // Should print 1
-	PrintLine(arr[2]());  // Should print 2
+	PrintLine(arr[0]() as Text);  // Should print 0
+	PrintLine(arr[1]() as Text);  // Should print 1
+	PrintLine(arr[2]() as Text);  // Should print 2
 	
-	return #;
+	return ();
 };
 
 fixed main = fn() : Unit
 {
 	foo();
 
-	return #;
+	return ();
 };

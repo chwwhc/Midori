@@ -1,3 +1,5 @@
+#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+
 var factorial = fn(var n : Int) : Int
 {
   if (n <= 1) return 1;
@@ -6,6 +8,6 @@ var factorial = fn(var n : Int) : Int
 
 fixed main = fn() : Int
 {
-	PrintLine(factorial(5));  // Should print 120
+	PrintLine(factorial(5) as Text);  // Should print 120
 	return 0;
 };
