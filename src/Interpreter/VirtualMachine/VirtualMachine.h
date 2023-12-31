@@ -9,9 +9,7 @@
 #include <array>
 #include <functional>
 #include <unordered_map>
-#include <iostream>
 #include <stdexcept>
-#include <format>
 
 // handle std library
 #if defined(_WIN32) || defined(_WIN64)
@@ -49,8 +47,8 @@ public:
 
 private:
 
-	static constexpr int s_value_stack_max = 20000;
-	static constexpr int s_frame_stack_max = 8000;
+	static constexpr int s_value_stack_max = 30000;
+	static constexpr int s_frame_stack_max = 10000;
 	static constexpr int s_garbage_collection_threshold = 1024;
 
 	using ValueStackPointer = std::array<MidoriValue, s_value_stack_max>::iterator;

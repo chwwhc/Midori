@@ -1,8 +1,9 @@
 #include "Value.h"
+#include "Common/Printer/Printer.h"
 
 #include <algorithm>
-#include <iostream>
-#include <sstream>
+#include <ranges>
+#include <format>
 
 namespace
 {
@@ -51,55 +52,55 @@ namespace
 	}
 }
 
-MidoriValue::MidoriFraction MidoriValue::GetFraction() const 
-{ 
-	return std::get<MidoriFraction>(m_value); 
+MidoriValue::MidoriFraction MidoriValue::GetFraction() const
+{
+	return std::get<MidoriFraction>(m_value);
 }
 
- bool MidoriValue::IsFraction() const 
- { 
-	 return std::holds_alternative<MidoriFraction>(m_value); 
- }
+bool MidoriValue::IsFraction() const
+{
+	return std::holds_alternative<MidoriFraction>(m_value);
+}
 
- MidoriValue::MidoriInteger MidoriValue::GetInteger() const 
- { 
-	 return std::get<MidoriInteger>(m_value); 
- }
+MidoriValue::MidoriInteger MidoriValue::GetInteger() const
+{
+	return std::get<MidoriInteger>(m_value);
+}
 
- bool MidoriValue::IsInteger() const 
- { 
-	 return std::holds_alternative<MidoriInteger>(m_value); 
- }
+bool MidoriValue::IsInteger() const
+{
+	return std::holds_alternative<MidoriInteger>(m_value);
+}
 
- MidoriValue::MidoriUnit MidoriValue::GetUnit() const
- { 
-	 return std::get<MidoriUnit>(m_value);
- }
+MidoriValue::MidoriUnit MidoriValue::GetUnit() const
+{
+	return std::get<MidoriUnit>(m_value);
+}
 
- bool MidoriValue::IsUnit() const 
- {
-	 return std::holds_alternative<MidoriUnit>(m_value);
- }
+bool MidoriValue::IsUnit() const
+{
+	return std::holds_alternative<MidoriUnit>(m_value);
+}
 
- MidoriValue::MidoriBool MidoriValue::GetBool() const 
- { 
-	 return std::get<MidoriBool>(m_value); 
- }
+MidoriValue::MidoriBool MidoriValue::GetBool() const
+{
+	return std::get<MidoriBool>(m_value);
+}
 
- bool MidoriValue::IsBool() const 
- { 
-	 return std::holds_alternative<MidoriBool>(m_value); 
- }
+bool MidoriValue::IsBool() const
+{
+	return std::holds_alternative<MidoriBool>(m_value);
+}
 
-MidoriTraceable* MidoriValue::GetPointer() const 
- { 
-	 return std::get<MidoriTraceable*>(m_value);
- }
+MidoriTraceable* MidoriValue::GetPointer() const
+{
+	return std::get<MidoriTraceable*>(m_value);
+}
 
- bool MidoriValue::IsPointer() const 
- { 
-	 return std::holds_alternative<MidoriTraceable*>(m_value); 
- }
+bool MidoriValue::IsPointer() const
+{
+	return std::holds_alternative<MidoriTraceable*>(m_value);
+}
 
 std::string MidoriValue::ToString() const
 {
@@ -151,7 +152,7 @@ std::string MidoriTraceable::ToString() const
 				}
 
 				std::string result = "[";
-				std::for_each(arg.begin(), arg.end(), [&result](const MidoriValue& value) -> void
+				std::ranges::for_each(arg, [&result](const MidoriValue& value) -> void
 					{
 						result.append(value.ToString());
 						result.append(",");
@@ -173,9 +174,7 @@ std::string MidoriTraceable::ToString() const
 			}
 			else if constexpr (std::is_same_v<T, Closure>)
 			{
-				std::ostringstream oss;
-				oss << "<closure at: " << &arg << ">";
-				return oss.str();
+				return std::format("<closure at: {:p}>", (void*)std::addressof(arg));
 			}
 			else if constexpr (std::is_same_v<T, MidoriStruct>)
 			{
@@ -301,19 +300,29 @@ void MidoriTraceable::operator delete(void* object, size_t size) noexcept
 void MidoriTraceable::CleanUp()
 {
 	s_static_bytes_allocated = 0u;
-	std::for_each(s_traceables.begin(), s_traceables.end(), [](MidoriTraceable* object) { delete object; });
+	std::ranges::for_each(s_traceables, [](MidoriTraceable* object) { delete object; });
 	s_traceables.clear();
 }
 
 void MidoriTraceable::PrintMemoryTelemetry()
 {
-	std::cout << "\n\t------------------------------\n";
-	std::cout << "\tMemory telemetry:\n";
-	std::cout << "\tHeap objects allocated: " << std::dec << s_traceables.size() << '\n';
-	std::cout << "\tTotal Bytes allocated: " << std::dec << s_total_bytes_allocated << '\n';
-	std::cout << "\tStatic Bytes allocated: " << std::dec << s_static_bytes_allocated << '\n';
-	std::cout << "\tDynamic Bytes allocated: " << std::dec << s_total_bytes_allocated - s_static_bytes_allocated;
-	std::cout << "\n\t------------------------------\n\n";
+	Printer::Print<Printer::Color::BLUE>
+		(
+			std::format
+			(
+				"\n\t------------------------------\n"
+				"\tMemory telemetry:\n"
+				"\tHeap objects allocated: {}\n"
+				"\tTotal Bytes allocated: {}\n"
+				"\tStatic Bytes allocated: {}\n"
+				"\tDynamic Bytes allocated: {}\n"
+				"\t------------------------------\n\n",
+				s_traceables.size(),
+				s_total_bytes_allocated,
+				s_static_bytes_allocated,
+				s_total_bytes_allocated - s_static_bytes_allocated
+			)
+		);
 }
 
 void MidoriTraceable::Trace()
@@ -323,14 +332,14 @@ void MidoriTraceable::Trace()
 		return;
 	}
 #ifdef DEBUG
-	std::cout << "Marking traceable pointer: " << this << ", value: " << ToString() << std::endl;
+	Printer::Print<Printer::Color::GREEN>(std::format("Marking traceable pointer: {:p}, value: {}\n", static_cast<void*>(this), ToString()));
 #endif
 	Mark();
 
 	if (IsArray())
 	{
 		MidoriArray& array = GetArray();
-		std::for_each(array.begin(), array.end(), [](MidoriValue& value) -> void
+		std::ranges::for_each(array, [](MidoriValue& value) -> void
 			{
 				if (value.IsPointer())
 				{
@@ -341,7 +350,7 @@ void MidoriTraceable::Trace()
 	else if (IsClosure())
 	{
 		Closure& closure = GetClosure();
-		std::for_each(closure.m_cell_values.begin(), closure.m_cell_values.end(), [](MidoriValue& cell_value) -> void
+		std::ranges::for_each(closure.m_cell_values, [](MidoriValue& cell_value) -> void
 			{
 				if (cell_value.IsPointer())
 				{
@@ -360,7 +369,7 @@ void MidoriTraceable::Trace()
 	else if (IsStruct())
 	{
 		MidoriStruct& midori_struct = GetStruct();
-		std::for_each(midori_struct.m_values.begin(), midori_struct.m_values.end(), [](MidoriValue& value) -> void
+		std::ranges::for_each(midori_struct.m_values, [](MidoriValue& value) -> void
 			{
 				if (value.IsPointer())
 				{

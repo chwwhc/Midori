@@ -32,11 +32,9 @@ struct FunctionType
 
 struct StructType
 {
-	using MemberTypeInfo = std::pair<int, const MidoriType*>;
-	using MemberTypeTable = std::unordered_map<std::string, MemberTypeInfo>;
-
+	std::vector<const MidoriType*> m_member_types;
+	std::vector<std::string> m_member_names;
 	std::string m_name;
-	MemberTypeTable m_member_types;
 };
 
 inline bool operator==(const IntegerType&, const IntegerType&) { return true; }
@@ -117,7 +115,7 @@ public:
 
 	static void MidoriTypeUtilCleanUp();
 
-	static const MidoriType* InsertStructType(const std::string& name, StructType::MemberTypeTable&& member_table);
+	static const MidoriType* InsertStructType(const std::string& name, std::vector<const MidoriType*>&& member_types, std::vector<std::string>&& member_names);
 
 	static const MidoriType* InsertArrayType(const MidoriType* element_type);
 

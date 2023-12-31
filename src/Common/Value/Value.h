@@ -30,7 +30,7 @@ public:
 
 	MidoriValue(MidoriInteger l) noexcept : m_value(l) {}
 
-	MidoriValue(bool b) noexcept : m_value(b) {}
+	MidoriValue(MidoriBool b) noexcept : m_value(b) {}
 
 	MidoriValue(MidoriTraceable* o) noexcept : m_value(o) {}
 

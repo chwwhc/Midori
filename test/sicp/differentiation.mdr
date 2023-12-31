@@ -2,16 +2,15 @@
 
 struct Term
 {
-	variable : Text,
-	num : Int,
+	var : Text,
+	num : Integer,
 	is_var : Bool
 };
 
 
 fixed main = fn() : Unit
 {
-	var num_term = new Term("", 1, false);
-	var var_term = new Term("x", 0, true);
+	var term = new Term();
 
 	return ();
 };

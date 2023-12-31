@@ -38,9 +38,9 @@ const MidoriType* MidoriTypeUtil::InsertType(const std::string& name, const Mido
 	return s_types_by_name[name];
 }
 
-const MidoriType* MidoriTypeUtil::InsertStructType(const std::string& name, StructType::MemberTypeTable&& member_table)
+const MidoriType* MidoriTypeUtil::InsertStructType(const std::string& name, std::vector<const MidoriType*>&& member_types, std::vector<std::string>&& member_names)
 {
-	const MidoriType* type = new MidoriType(StructType{ name, std::move(member_table) });
+	const MidoriType* type = new MidoriType(StructType{ std::move(member_types), std::move(member_names), name });
 	return InsertType(name, type);
 }
 

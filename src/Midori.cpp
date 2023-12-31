@@ -1,10 +1,9 @@
 ﻿#include "Compiler/Compiler.h"
 #include "Interpreter/VirtualMachine/VirtualMachine.h"
+#include "Common/Printer/Printer.h"
 
 #include <fstream>
 #include <sstream>
-#include <iostream>
-#include <iomanip>
 #include <algorithm>
 
 std::optional<std::string> ReadFile(const char* filename)
@@ -12,7 +11,7 @@ std::optional<std::string> ReadFile(const char* filename)
 	std::ifstream file(filename);
 	if (!file.is_open())
 	{
-		std::cerr << "Could not open file: " << filename << std::endl;
+		Printer::Print<Printer::Color::RED>("Could not open file: \n");
 		return std::nullopt;
 	}
 
@@ -23,13 +22,12 @@ std::optional<std::string> ReadFile(const char* filename)
 
 int main()
 {
-	std::cout << "\033[0m"; // Reset color
 	const char* file_name = "E:\\Projects\\Midori\\test\\test.mdr";
 
 	std::optional<std::string> script = ReadFile(file_name);
 	if (!script.has_value())
 	{
-		std::cerr << "Script is empty or could not be read." << std::endl;
+		Printer::Print<Printer::Color::RED>("Could not read file: \n");
 		std::exit(60);
 	}
 
@@ -42,8 +40,8 @@ int main()
 	}
 	else
 	{
-		std::cerr << "Compilation failed :( \n" << std::endl;
-		std::cerr << compilation_result.error() << std::endl;
+		Printer::Print<Printer::Color::RED>("Compilation failed :( \n");
+		Printer::Print<Printer::Color::YELLOW>(compilation_result.error() + '\n');
 	}
 
 	return 0;

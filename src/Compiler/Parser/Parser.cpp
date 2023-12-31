@@ -841,14 +841,14 @@ MidoriResult::StatementResult Parser::ParseStructDeclaration()
 		return std::unexpected<std::string>(std::move(brace.error()));
 	}
 
-	StructType::MemberTypeTable member_types;
+	std::vector<const MidoriType*> member_types;
+	std::vector<std::string> member_names;
 
 	if (Check(Token::Name::RIGHT_BRACE, 0))
 	{
 		return std::unexpected<std::string>(GenerateParserError("Struct must have at least one member.", Peek(0)));
 	}
 
-	int member_index = 0;
 	while (!IsAtEnd())
 	{
 		if (Match(Token::Name::RIGHT_BRACE))
@@ -878,8 +878,8 @@ MidoriResult::StatementResult Parser::ParseStructDeclaration()
 			return std::unexpected<std::string>(GenerateParserError("Recursive struct is not allowed.", identifier.value()));
 		}
 
-		member_types[identifier.value().m_lexeme] = { member_index, type.value() };
-		member_index += 1;
+		member_types.emplace_back(type.value());
+		member_names.emplace_back(identifier.value().m_lexeme);
 
 		if (Match(Token::Name::COMMA))
 		{
@@ -896,7 +896,7 @@ MidoriResult::StatementResult Parser::ParseStructDeclaration()
 	}
 
 	
-	const MidoriType* struct_type = MidoriTypeUtil::InsertStructType(name.value().m_lexeme, std::move(member_types));
+	const MidoriType* struct_type = MidoriTypeUtil::InsertStructType(name.value().m_lexeme, std::move(member_types), std::move(member_names));
 	m_scopes.back().m_structs[name.value().m_lexeme] = struct_type;
 
 	MidoriResult::TokenResult semi_colon = Consume(Token::Name::SINGLE_SEMICOLON, "Expected ';' after struct body.");

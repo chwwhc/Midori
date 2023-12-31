@@ -27,8 +27,15 @@ include_directories(${CMAKE_SOURCE_DIR}/src)
 
 # Source files for the main executable
 file(GLOB_RECURSE SRC_FILES
-    "src/*.h"
-    "src/*.cpp"
+    "src/Common/*.h"
+    "src/Compiler/*.h"
+    "src/Interpreter/*.h"
+    "src/Utility/*.h"
+    "src/Common/*.cpp"
+    "src/Compiler/*.cpp"
+    "src/Interpreter/*.cpp"
+    "src/Utility/*.cpp"
+    "src/Midori.cpp"
 )
 
 # Add source to this project's executable.

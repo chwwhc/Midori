@@ -222,7 +222,8 @@ void TypeChecker::operator()(While& while_stmt)
 		const MidoriType* actual_type = condition_type.value();
 		if (!MidoriTypeUtil::IsBoolType(actual_type))
 		{
-			AddError(MidoriError::GenerateTypeCheckerError("While statement condition must be of type bool.", while_stmt.m_while_keyword, { MidoriTypeUtil::GetType("Bool"s)}, actual_type));
+			std::array<const MidoriType*, 1> expected = { MidoriTypeUtil::GetType("Bool"s) };
+			AddError(MidoriError::GenerateTypeCheckerError("While statement condition must be of type bool.", while_stmt.m_while_keyword, std::span<const MidoriType*>(expected), actual_type));
 			return;
 		}
 	}
@@ -250,7 +251,8 @@ void TypeChecker::operator()(For& for_stmt)
 			const MidoriType* actual_type = condition_type.value();
 			if (!MidoriTypeUtil::IsBoolType(actual_type))
 			{
-				AddError(MidoriError::GenerateTypeCheckerError("For statement condition must be of type bool.", for_stmt.m_for_keyword, { MidoriTypeUtil::GetType("Bool"s) }, actual_type));
+				std::array<const MidoriType*, 1> expected = { MidoriTypeUtil::GetType("Bool"s) };
+				AddError(MidoriError::GenerateTypeCheckerError("For statement condition must be of type bool.", for_stmt.m_for_keyword, std::span<const MidoriType*>(expected), actual_type));
 				return;
 			}
 		}
@@ -293,7 +295,8 @@ void TypeChecker::operator()(Return& return_stmt)
 	const MidoriType* expected_type = m_curr_closure_return_type;
 	if (*actual_type != *expected_type)
 	{
-		AddError(MidoriError::GenerateTypeCheckerError("Return statement expression type error.", return_stmt.m_keyword, { expected_type }, actual_type));
+		std::array<const MidoriType*, 1> expected = { expected_type };
+		AddError(MidoriError::GenerateTypeCheckerError("Return statement expression type error.", return_stmt.m_keyword, std::span<const MidoriType*>(expected), actual_type));
 		return;
 	}
 }
@@ -306,13 +309,7 @@ void TypeChecker::operator()(Foreign& foreign)
 void TypeChecker::operator()(Struct& struct_stmt)
 {
 	const StructType& struct_type = MidoriTypeUtil::GetStructType(struct_stmt.m_self_type);
-	std::vector<const MidoriType*> member_types;
-	member_types.reserve(struct_type.m_member_types.size());
-	std::for_each(struct_type.m_member_types.cbegin(), struct_type.m_member_types.cend(), [&member_types](const std::pair<const std::string, StructType::MemberTypeInfo>& member_type)
-		{
-			member_types.emplace_back(member_type.second.second);
-		});
-	const MidoriType* struct_constructor_type = MidoriTypeUtil::InsertFunctionType(std::move(member_types), struct_stmt.m_self_type);
+	const MidoriType* struct_constructor_type = MidoriTypeUtil::InsertFunctionType(MidoriTypeUtil::GetStructType(struct_stmt.m_self_type).m_member_types, struct_stmt.m_self_type);
 	m_name_type_table.back()[struct_stmt.m_name.m_lexeme] = std::move(struct_constructor_type);
 }
 
@@ -512,16 +509,15 @@ MidoriResult::TypeResult TypeChecker::operator()(Get& get)
 	}
 
 	const StructType& struct_type = MidoriTypeUtil::GetStructType(actual_type);
-	StructType::MemberTypeTable::const_iterator find_result = struct_type.m_member_types.find(get.m_member_name.m_lexeme);
-	if (find_result == struct_type.m_member_types.end())
+	std::vector<std::string>::const_iterator find_result = std::find(struct_type.m_member_names.cbegin(), struct_type.m_member_names.cend(), get.m_member_name.m_lexeme);
+	if (find_result == struct_type.m_member_names.cend())
 	{
 		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Get expression type error: struct does not have member", get.m_member_name, {}, actual_type));
 	}
 
-	const StructType::MemberTypeInfo& info = struct_type.m_member_types.at(get.m_member_name.m_lexeme);
-	get.m_index = info.first;
+	get.m_index = find_result - struct_type.m_member_names.cbegin();
 
-	return info.second;
+	return struct_type.m_member_types[static_cast<size_t>(get.m_index)];
 }
 
 MidoriResult::TypeResult TypeChecker::operator()(Set& set)
@@ -544,20 +540,20 @@ MidoriResult::TypeResult TypeChecker::operator()(Set& set)
 	}
 
 	const StructType& struct_type = MidoriTypeUtil::GetStructType(actual_type);
-	StructType::MemberTypeTable::const_iterator find_result = struct_type.m_member_types.find(set.m_member_name.m_lexeme);
-	if (find_result == struct_type.m_member_types.end())
+	std::vector<std::string>::const_iterator find_result = std::find(struct_type.m_member_names.cbegin(), struct_type.m_member_names.cend(), set.m_member_name.m_lexeme);
+	if (find_result == struct_type.m_member_names.cend())
 	{
 		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Get expression type error: struct does not have member", set.m_member_name, {}, actual_type));
 	}
 
-	const StructType::MemberTypeInfo& info = struct_type.m_member_types.at(set.m_member_name.m_lexeme);
-	set.m_index = info.first;
+	set.m_index = find_result - struct_type.m_member_names.cbegin();
 
-	const MidoriType* member_type = info.second;
+	const MidoriType* member_type = struct_type.m_member_types[static_cast<size_t>(set.m_index)];
 	const MidoriType* value_type = value_result.value();
 	if (*value_type != *member_type)
 	{
-		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Set expression type error", set.m_member_name, { std::addressof(*member_type) }, value_result.value()));
+		std::array<const MidoriType*, 1> expected = { &*member_type };
+		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Set expression type error", set.m_member_name, std::span<const MidoriType*>(expected), value_result.value()));
 	}
 
 	return value_type;

@@ -1,18 +1,16 @@
 #include "VirtualMachine.h"
 #include "Utility/Disassembler/Disassembler.h"
+#include "Common/Printer/Printer.h"
 
 #include <cmath>
 #include <algorithm>
 #include <numeric>
 #include <execution>
-
-#ifdef DEBUG
-#include <iostream>
-#endif
+#include <format>
 
 void VirtualMachine::DisplayRuntimeError(std::string_view message) noexcept
 {
-	std::cerr << "\033[31m" << message << "\033[0m" << std::endl;
+	Printer::Print<Printer::Color::RED>(std::format("\033[31m{}\033[0m\n", message));
 }
 
 int VirtualMachine::GetLine()
@@ -206,14 +204,13 @@ void VirtualMachine::CollectGarbage()
 	}
 
 #ifdef DEBUG
-	std::cout << "\033[34m" << "\nBefore garbage collection:"; // Blue
+	Printer::Print<Printer::Color::BLUE>("\nBefore garbage collection:");
 	MidoriTraceable::PrintMemoryTelemetry();
 #endif
 	m_garbage_collector.ReclaimMemory(std::move(roots));
 #ifdef DEBUG
-	std::cout << "\nAfter garbage collection:";
+	Printer::Print<Printer::Color::BLUE>("\nAfter garbage collection:");
 	MidoriTraceable::PrintMemoryTelemetry();
-	std::cout << "\033[0m"; // Reset color
 #endif
 }
 
@@ -240,7 +237,7 @@ void VirtualMachine::Execute()
 		while (true)
 		{
 #ifdef DEBUG
-			std::cout << "          ";
+			Printer::Print("          ");
 			std::for_each
 			(
 				std::execution::seq,
@@ -248,10 +245,10 @@ void VirtualMachine::Execute()
 				m_value_stack_pointer, 
 				[](MidoriValue& value) -> void
 				{
-					std::cout << "[ " << value.ToString() << " ]";
+					Printer::Print(("[ "s + value.ToString() + " ]"s));
 				}
 			);
-			std::cout << std::endl;
+			Printer::Print("\n");
 			int dbg_instruction_pointer = -1;
 			int dbg_proc_index = -1;
 			for (int i = 0; i < m_executable.GetProcedureCount(); i += 1)
@@ -818,22 +815,21 @@ void VirtualMachine::Execute()
 					throw InterpreterException(GenerateRuntimeError(std::format("Failed to load foreign function '{}'.", foreign_function_name_ref), GetLine()));
 				}
 
-				std::vector<MidoriValue*> args(arity);
+				std::vector<MidoriValue> args(arity);
 				std::for_each
 				(
 					std::execution::seq,
 					args.rbegin(), 
 					args.rend(),
-					[this](MidoriValue*& value) -> void
+					[this](MidoriValue& value) -> void
 					{
-						value = std::addressof(Pop());
+						value = Pop();
 					}
 				);
 				MidoriValue return_val;
 
-
-				void(*ffi)(const std::vector<MidoriValue*>&, MidoriValue*) = reinterpret_cast<void(*)(const std::vector<MidoriValue*>&, MidoriValue*)>(proc);
-				ffi(args, &return_val);
+				void(*ffi)(std::span<MidoriValue>, MidoriValue*) = reinterpret_cast<void(*)(std::span<MidoriValue>, MidoriValue*)>(proc);
+				ffi(std::span<MidoriValue>(args), &return_val);
 
 				Push(return_val);
 
