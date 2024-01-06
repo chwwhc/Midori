@@ -63,6 +63,7 @@ enum class OpCode : uint8_t
 	GREATER_EQUAL_INTEGER,
 	LESS_INTEGER,
 	LESS_EQUAL_INTEGER,
+	EQUAL_TEXT,
 
 	// Logical Operations
 	NOT,

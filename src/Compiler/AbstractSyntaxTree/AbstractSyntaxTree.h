@@ -43,8 +43,9 @@ struct Continue;
 struct Return;
 struct Foreign;
 struct Struct;
+struct Union;
 
-using MidoriStatement = std::variant<Block, Simple, Define, If, While, For, Break, Continue, Return, Foreign, Struct>;
+using MidoriStatement = std::variant<Block, Simple, Define, If, While, For, Break, Continue, Return, Foreign, Struct, Union>;
 using MidoriProgramTree = std::vector<std::unique_ptr<MidoriStatement>>;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -275,6 +276,12 @@ struct Foreign
 };
 
 struct Struct
+{
+	Token m_name;
+	const MidoriType* m_self_type;
+};
+
+struct Union
 {
 	Token m_name;
 	const MidoriType* m_self_type;

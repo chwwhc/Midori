@@ -746,6 +746,13 @@ void VirtualMachine::Execute()
 				Push(left.GetInteger() <= right.GetInteger());
 				break;
 			}
+			case OpCode::EQUAL_TEXT:
+			{
+				const MidoriValue& right = Pop();
+				const MidoriValue& left = Pop();
+				Push(left.GetPointer()->GetText() == right.GetPointer()->GetText());
+				break;
+			}
 			case OpCode::NOT:
 			{
 				const MidoriValue& value = Pop();

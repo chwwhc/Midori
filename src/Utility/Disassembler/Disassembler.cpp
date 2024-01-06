@@ -315,6 +315,9 @@ namespace Disassembler
 		case OpCode::LESS_EQUAL_INTEGER:
 			SimpleInstruction("LESS_EQUAL_INTEGER", offset);
 			break;
+		case OpCode::EQUAL_TEXT:
+			SimpleInstruction("EQUAL_TEXT", offset);
+			break;
 		case OpCode::NOT:
 			SimpleInstruction("NOT", offset);
 			break;

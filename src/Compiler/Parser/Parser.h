@@ -34,11 +34,12 @@ private:
 	};
 
 	using DependencyGraph = std::unordered_map<std::string, std::vector<std::string>>;
+	using Scopes = std::vector<Scope>;
 	
 	static DependencyGraph s_dependency_graph;
 	TokenStream m_tokens;
 	std::string m_file_name;
-	std::vector<Scope> m_scopes;
+	Scopes m_scopes;
 	std::stack<int> m_local_count_before_loop;
 	int m_closure_depth = 0;
 	int m_current_token_index = 0;
@@ -172,6 +173,8 @@ private:
 	MidoriResult::StatementResult ParseDefineStatement();
 
 	MidoriResult::StatementResult ParseStructDeclaration();
+
+	MidoriResult::StatementResult ParseUnionDeclaration();
 
 	MidoriResult::StatementResult ParseIfStatement();
 

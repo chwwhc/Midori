@@ -2,15 +2,127 @@
 
 struct Term
 {
-	var : Text,
-	num : Integer,
+	variable : Text,
+	num : Int,
 	is_var : Bool
 };
 
+struct Sum
+{
+	left : Term,
+	right : Term
+};
+
+struct Product
+{
+	left : Term,
+	right : Term
+};
+
+struct Expr
+{
+	sum_expr : Sum,
+	prod_expr : Product,
+	is_sum : Bool,
+	error : Bool
+};
+
+fixed make_variable = fn(fixed name : Text) : Term
+{
+	return new Term(name, 0, true);
+};
+
+fixed make_number = fn(fixed num : Int) : Term
+{
+	return new Term("", num, false);
+};
+
+fixed is_variable = fn(fixed t : Term) : Bool
+{
+	return t.is_var;
+};
+
+fixed is_number = fn(fixed t : Term) : Bool
+{
+	return !t.is_var;
+};
+
+fixed is_same_variable = fn(fixed v1 : Term, fixed v2 : Term) : Bool
+{
+	return is_variable(v1) && is_variable(v2) && v1.variable == v2.variable;
+};
+
+fixed make_sum = fn(fixed v1 : Term, fixed v2 : Term) : Expr
+{
+	fixed is_sum = true;
+	fixed error = false;
+	return new Expr(new Sum(v1, v2), new Product(v1, v2), is_sum, error);
+};
+
+fixed make_product = fn(fixed v1 : Term, fixed v2 : Term) : Expr
+{
+	fixed is_sum = false;
+	fixed error = false;
+	return new Expr(new Sum(v1, v2), new Product(v1, v2), is_sum, error);
+};
+
+fixed is_sum = fn(fixed exp : Expr) : Bool
+{
+	return exp.is_sum;
+};
+
+fixed is_product = fn(fixed exp : Expr) : Bool
+{
+	return !exp.is_sum;
+};
+
+fixed addend = fn(fixed exp : Expr) : Term
+{
+	return exp.sum_expr.left;
+};
+
+fixed augend = fn(fixed exp : Expr) : Term
+{
+	return exp.sum_expr.right;
+};
+
+fixed multiplier = fn(fixed exp : Expr) : Term
+{
+	return exp.prod_expr.left;
+};
+
+fixed multiplicand = fn(fixed exp : Expr) : Term
+{
+	return exp.prod_expr.right;
+};
+
+fixed deriv = fn(fixed t : Term, fixed var_ : Text) : Term
+{
+    if (is_number(t))
+    {
+        // The derivative of a constant is 0
+        return make_number(0);
+    }
+    else if (is_variable(t))
+    {
+        // The derivative of the variable with respect to itself is 1, else it's 0
+        return t.variable == var_ ? make_number(1) : make_number(0);
+    }
+    else
+    {
+        // Handle more complex cases here (like sum or product)
+        // Currently returning a default value for unsupported types
+        return make_number(0);
+    }
+};
 
 fixed main = fn() : Unit
 {
-	var term = new Term();
+	var var1 = make_variable("x");
+	var var2 = make_number(3);
 
+	var var3 : Expr = make_product(var1, var2);
+
+	PrintLine(deriv(var1, "x").num as Text);
 	return ();
 };

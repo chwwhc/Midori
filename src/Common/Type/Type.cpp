@@ -38,6 +38,12 @@ const MidoriType* MidoriTypeUtil::InsertType(const std::string& name, const Mido
 	return s_types_by_name[name];
 }
 
+const MidoriType* MidoriTypeUtil::InsertUnionType(const std::string& name, std::vector<const MidoriType*>&& member_types)
+{
+	const MidoriType* type = new MidoriType(UnionType{ std::move(member_types), name });
+	return InsertType(name, type);
+}
+
 const MidoriType* MidoriTypeUtil::InsertStructType(const std::string& name, std::vector<const MidoriType*>&& member_types, std::vector<std::string>&& member_names)
 {
 	const MidoriType* type = new MidoriType(StructType{ std::move(member_types), std::move(member_names), name });
@@ -178,6 +184,16 @@ bool MidoriTypeUtil::IsStructType(const MidoriType* type)
 const StructType& MidoriTypeUtil::GetStructType(const MidoriType* type)
 {
 	return std::get<StructType>(*type);
+}
+
+bool MidoriTypeUtil::IsUnionType(const MidoriType* type)
+{
+	return std::holds_alternative<UnionType>(*type);
+}
+
+const UnionType& MidoriTypeUtil::GetUnionType(const MidoriType* type)
+{
+	return std::get<UnionType>(*type);
 }
 
 bool MidoriTypeUtil::IsNumericType(const MidoriType* type)

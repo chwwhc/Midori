@@ -29,6 +29,8 @@ struct PrintAbstractSyntaxTree
 
 	void operator()(const Struct& struct_stmt, int depth = 0) const;
 
+	void operator()(const Union& union_stmt, int depth = 0) const;
+
 	void operator()(const As& as, int depth = 0) const;
 
 	void operator()(const Binary& binary, int depth = 0) const;

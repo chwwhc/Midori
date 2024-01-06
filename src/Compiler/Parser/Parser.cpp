@@ -73,7 +73,8 @@ void Parser::BeginScope()
 
 int Parser::EndScope()
 {
-	int block_local_count = static_cast<int>(m_scopes.back().m_variables.size());
+	const Scope& scope = m_scopes.back();
+	int block_local_count = static_cast<int>(scope.m_variables.size() - scope.m_structs.size()); // struct count is subtracted because they do not take up space in the stack
 	m_total_locals_in_curr_scope -= block_local_count;
 	m_total_variables -= block_local_count;
 	m_scopes.pop_back();
@@ -82,18 +83,26 @@ int Parser::EndScope()
 
 MidoriResult::TokenResult Parser::DefineName(const Token& name, bool is_fixed)
 {
-	Scope::VariableTable::const_iterator it = m_scopes.back().m_variables.find(name.m_lexeme);
-	if (it != m_scopes.back().m_variables.cend())
+	for (int i = static_cast<int>(m_scopes.size()) - 1; i >= 0; --i)
 	{
-		return std::unexpected<std::string>(MidoriError::GenerateParserError("Name already declared in this scope.", name));
+		Scope::StructTable::const_iterator scope_struct_tbl_it = m_scopes[i].m_structs.find(name.m_lexeme);
+		if (scope_struct_tbl_it != m_scopes[i].m_structs.cend())
+		{
+			// TODO: Warning
+			// Overshadowing a struct
+		}
+		Scope::VariableTable::const_iterator scope_var_tbl_it = m_scopes[i].m_variables.find(name.m_lexeme);
+		if (scope_var_tbl_it != m_scopes[i].m_variables.cend())
+		{
+			// TODO: Warning 
+			// Overshadowing a variable
+		}
 	}
-	else
-	{
-		constexpr int relative_index = -1;
-		constexpr int absolute_index = -1;
-		constexpr int closure_depth = -1;
-		m_scopes.back().m_variables[name.m_lexeme] = VariableContext(relative_index, absolute_index, closure_depth, is_fixed);
-	}
+
+	constexpr int relative_index = -1;
+	constexpr int absolute_index = -1;
+	constexpr int closure_depth = -1;
+	m_scopes.back().m_variables[name.m_lexeme] = VariableContext(relative_index, absolute_index, closure_depth, is_fixed);
 
 	return name;
 }
@@ -388,16 +397,26 @@ MidoriResult::ExpressionResult Parser::ParseConstruct()
 		}
 
 		Token& type_token_value = type_token.value();
-		const std::vector<Scope>::const_reverse_iterator found_scope_it = std::find_if(m_scopes.crbegin(), m_scopes.crend(), [&type_token_value](const Scope& scope)
+		std::optional<const MidoriType*> struct_type = std::nullopt;
+		for (Scopes::const_reverse_iterator scopes_iter = m_scopes.crbegin(); scopes_iter != m_scopes.crend(); ++scopes_iter)
+		{
+			const Scope& scope = *scopes_iter;
+			if (scope.m_variables.find(type_token_value.m_lexeme) != scope.m_variables.cend() && scope.m_structs.find(type_token_value.m_lexeme) == scope.m_structs.cend())
 			{
-				return scope.m_structs.find(type_token_value.m_lexeme) != scope.m_structs.cend();
-			});
+				// variable overshadowing struct
+				return std::unexpected<std::string>(GenerateParserError("Cannot construct type '" + type_token_value.m_lexeme + "' because it is overshadowed by a variable with the same name.", type_token_value));
+			}
+			else if (scope.m_structs.find(type_token_value.m_lexeme) != scope.m_structs.cend())
+			{
+				struct_type.emplace(scope.m_structs.at(type_token_value.m_lexeme));
+				break;
+			}
+		}
 
-		if (found_scope_it == m_scopes.crend())
+		if (struct_type == std::nullopt)
 		{
 			return std::unexpected<std::string>(GenerateParserError("Undefined struct.", type_token.value()));
 		}
-		const MidoriType* struct_type = found_scope_it->m_structs.at(type_token_value.m_lexeme);
 
 		MidoriResult::TokenResult paren = Consume(Token::Name::LEFT_PAREN, "Expected '(' after type.");
 		if (!paren.has_value())
@@ -426,7 +445,7 @@ MidoriResult::ExpressionResult Parser::ParseConstruct()
 			return std::unexpected<std::string>(std::move(paren.error()));
 		}
 
-		return std::make_unique<MidoriExpression>(Construct{ std::move(type_token_value), std::move(arguments), struct_type });
+		return std::make_unique<MidoriExpression>(Construct{ std::move(type_token_value), std::move(arguments), struct_type.value()});
 	}
 	else
 	{
@@ -835,6 +854,13 @@ MidoriResult::StatementResult Parser::ParseStructDeclaration()
 		return std::unexpected<std::string>(GenerateParserError("Struct name must start with a capital letter.", name.value()));
 	}
 
+	constexpr bool is_fixed = true;
+	MidoriResult::TokenResult check_defined = DefineName(name.value(), is_fixed);
+	if (!check_defined.has_value())
+	{
+		return std::unexpected<std::string>(std::move(check_defined.error()));
+	}
+
 	MidoriResult::TokenResult brace = Consume(Token::Name::LEFT_BRACE, "Expected '{' before struct body.");
 	if (!brace.has_value())
 	{
@@ -843,11 +869,6 @@ MidoriResult::StatementResult Parser::ParseStructDeclaration()
 
 	std::vector<const MidoriType*> member_types;
 	std::vector<std::string> member_names;
-
-	if (Check(Token::Name::RIGHT_BRACE, 0))
-	{
-		return std::unexpected<std::string>(GenerateParserError("Struct must have at least one member.", Peek(0)));
-	}
 
 	while (!IsAtEnd())
 	{
@@ -895,7 +916,7 @@ MidoriResult::StatementResult Parser::ParseStructDeclaration()
 		}
 	}
 
-	
+
 	const MidoriType* struct_type = MidoriTypeUtil::InsertStructType(name.value().m_lexeme, std::move(member_types), std::move(member_names));
 	m_scopes.back().m_structs[name.value().m_lexeme] = struct_type;
 
@@ -906,6 +927,74 @@ MidoriResult::StatementResult Parser::ParseStructDeclaration()
 	}
 
 	return std::make_unique<MidoriStatement>(Struct{ std::move(name.value()), struct_type });
+}
+
+MidoriResult::StatementResult Parser::ParseUnionDeclaration()
+{
+	MidoriResult::TokenResult name = Consume(Token::Name::IDENTIFIER_LITERAL, "Expected union name.");
+	if (!name.has_value())
+	{
+		return std::unexpected<std::string>(std::move(name.error()));
+	}
+	else if (name.value().m_lexeme[0] != std::toupper(name.value().m_lexeme[0]))
+	{
+		return std::unexpected<std::string>(GenerateParserError("Union name must start with a capital letter.", name.value()));
+	}
+
+	constexpr bool is_fixed = true;
+	MidoriResult::TokenResult check_defind = DefineName(name.value(), is_fixed);
+	if (!check_defind.has_value())
+	{
+		return std::unexpected<std::string>(std::move(check_defind.error()));
+	}
+
+	MidoriResult::TokenResult brace = Consume(Token::Name::LEFT_BRACE, "Expected '{' before union body.");
+	if (!brace.has_value())
+	{
+		return std::unexpected<std::string>(std::move(brace.error()));
+	}
+
+	std::vector<const MidoriType*> member_types;
+
+	while (!IsAtEnd())
+	{
+		if (Match(Token::Name::RIGHT_BRACE))
+		{
+			break;
+		}
+
+		MidoriResult::TypeResult type = ParseType();
+		if (!type.has_value())
+		{
+			return std::unexpected<std::string>(std::move(type.error()));
+		}
+
+		member_types.emplace_back(type.value());
+
+		if (Match(Token::Name::COMMA))
+		{
+			continue;
+		}
+		else if (Match(Token::Name::RIGHT_BRACE))
+		{
+			break;
+		}
+		else
+		{
+			return std::unexpected<std::string>(GenerateParserError("Expected ',' or '}' after union member.", Peek(0)));
+		}
+	}
+
+	const MidoriType* union_type = MidoriTypeUtil::InsertUnionType(name.value().m_lexeme, std::move(member_types));
+	m_scopes.back().m_structs[name.value().m_lexeme] = union_type;
+
+	MidoriResult::TokenResult semi_colon = Consume(Token::Name::SINGLE_SEMICOLON, "Expected ';' after union body.");
+	if (!semi_colon.has_value())
+	{
+		return std::unexpected<std::string>(std::move(semi_colon.error()));
+	}
+
+	return std::make_unique<MidoriStatement>(Union{ std::move(name.value()), union_type });
 }
 
 MidoriResult::StatementResult Parser::ParseIfStatement()
@@ -1310,7 +1399,7 @@ MidoriResult::TypeResult Parser::ParseType(bool is_foreign)
 
 		if (found_scope_it == m_scopes.crend())
 		{
-			return std::unexpected<std::string>(GenerateParserError("Undefined struct.", type_name));
+			return std::unexpected<std::string>(GenerateParserError("Undefined struct or union.", type_name));
 		}
 
 		return found_scope_it->m_structs.at(type_name.m_lexeme);
@@ -1321,7 +1410,7 @@ MidoriResult::TypeResult Parser::ParseType(bool is_foreign)
 	}
 }
 
-bool Parser::HasCircularDependency() const 
+bool Parser::HasCircularDependency() const
 {
 	std::unordered_set<std::string> visited;
 	std::unordered_set<std::string> in_progress;
@@ -1330,20 +1419,20 @@ bool Parser::HasCircularDependency() const
 	queue.emplace(m_file_name);
 	in_progress.emplace(m_file_name);
 
-	while (!queue.empty()) 
+	while (!queue.empty())
 	{
 		std::string current = queue.front();
 		queue.pop();
 		in_progress.erase(current);
 		visited.emplace(current);
 
-		for (const std::string& dependency : s_dependency_graph[current]) 
+		for (const std::string& dependency : s_dependency_graph[current])
 		{
-			if (visited.find(dependency) != visited.cend()) 
+			if (visited.find(dependency) != visited.cend())
 			{
 				continue; // Already visited, skip
 			}
-			if (in_progress.find(dependency) != in_progress.cend()) 
+			if (in_progress.find(dependency) != in_progress.cend())
 			{
 				return true; // Cycle detected
 			}
@@ -1352,7 +1441,7 @@ bool Parser::HasCircularDependency() const
 		}
 	}
 
-	return false; 
+	return false;
 }
 
 MidoriResult::TokenResult Parser::HandleDirective()
@@ -1363,12 +1452,12 @@ MidoriResult::TokenResult Parser::HandleDirective()
 		Consume(Token::Name::TEXT_LITERAL, "Expected text literal after include directive.");
 		Token& include_path = Previous();
 		std::string include_absolute_path_str = std::filesystem::absolute(include_path.m_lexeme).string();
-		
+
 		if (s_dependency_graph.find(include_absolute_path_str) != s_dependency_graph.cend())
 		{
 			return directive;
 		}
-		
+
 		s_dependency_graph[m_file_name].emplace_back(include_absolute_path_str);
 
 		std::ifstream include_file(include_absolute_path_str);
@@ -1465,6 +1554,10 @@ MidoriResult::StatementResult Parser::ParseDeclarationCommon(bool may_throw_erro
 	else if (Match(Token::Name::STRUCT))
 	{
 		return ParseStructDeclaration();
+	}
+	else if (Match(Token::Name::UNION))
+	{
+		return ParseUnionDeclaration();
 	}
 	else if (Match(Token::Name::FOREIGN))
 	{

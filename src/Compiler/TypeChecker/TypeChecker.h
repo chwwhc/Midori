@@ -57,6 +57,8 @@ private:
 
 	void operator()(Struct& struct_stmt);
 
+	void operator()(Union& union_stmt);
+
 	MidoriResult::TypeResult operator()(As& as);
 
 	MidoriResult::TypeResult operator()(Binary& binary);

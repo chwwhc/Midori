@@ -127,6 +127,19 @@ void PrintAbstractSyntaxTree::operator()(const Struct& struct_stmt, int depth) c
 	PrintWithIndentation(depth, "}");
 }
 
+void PrintAbstractSyntaxTree::operator()(const Union& union_stmt, int depth) const
+{
+	PrintWithIndentation(depth, "Union {");
+	PrintWithIndentation(depth + 1, "Name: " + union_stmt.m_name.m_lexeme);
+	const UnionType& union_type = MidoriTypeUtil::GetUnionType(union_stmt.m_self_type);
+	std::ranges::for_each(union_type.m_member_types, [depth, this](const MidoriType* member_type)
+		{
+			PrintWithIndentation(depth + 1, "MemberType: ");
+			PrintWithIndentation(depth + 2, MidoriTypeUtil::GetTypeName(member_type));
+		});
+	PrintWithIndentation(depth, "}");
+}
+
 void PrintAbstractSyntaxTree::operator()(const As& as, int depth) const
 {
 	PrintWithIndentation(depth, "As {");

@@ -15,8 +15,9 @@ struct UnitType {};
 struct ArrayType;
 struct FunctionType;
 struct StructType;
+struct UnionType;
 
-using MidoriType = std::variant<FractionType, TextType, BoolType, UnitType, ArrayType, FunctionType, IntegerType, StructType>;
+using MidoriType = std::variant<FractionType, TextType, BoolType, UnitType, ArrayType, FunctionType, IntegerType, StructType, UnionType>;
 
 struct ArrayType
 {
@@ -34,6 +35,12 @@ struct StructType
 {
 	std::vector<const MidoriType*> m_member_types;
 	std::vector<std::string> m_member_names;
+	std::string m_name;
+};
+
+struct UnionType
+{
+	std::vector<const MidoriType*> m_member_types;
 	std::string m_name;
 };
 
@@ -83,12 +90,19 @@ inline bool operator==(const StructType& lhs, const StructType& rhs) { return lh
 
 inline bool operator!=(const StructType& lhs, const StructType& rhs) { return !(lhs == rhs); }
 
+inline bool operator==(const UnionType& lhs, const UnionType& rhs) { return lhs.m_name == rhs.m_name; }
+
+inline bool operator!=(const UnionType& lhs, const UnionType& rhs) { return !(lhs == rhs); }
+
 inline bool operator==(const MidoriType& lhs, const MidoriType& rhs)
 {
-	return std::visit([](const auto& a, const auto& b) -> bool
+	return std::visit([&rhs](const auto& a, const auto& b) -> bool
 		{
+			using T = std::decay_t<decltype(a)>;
+			using U = std::decay_t<decltype(b)>;
+
 			// If types mismatch, variants are not equal
-			if constexpr (!std::is_same_v<decltype(a), decltype(b)>)
+			if constexpr (!std::is_same_v<T, U>)
 			{
 				return false;
 			}
@@ -114,6 +128,8 @@ private:
 public:
 
 	static void MidoriTypeUtilCleanUp();
+
+	static const MidoriType* InsertUnionType(const std::string& name, std::vector<const MidoriType*>&& member_types);
 
 	static const MidoriType* InsertStructType(const std::string& name, std::vector<const MidoriType*>&& member_types, std::vector<std::string>&& member_names);
 
@@ -156,6 +172,10 @@ public:
 	static bool IsStructType(const MidoriType* type);
 
 	static const StructType& GetStructType(const MidoriType* type);
+
+	static bool IsUnionType(const MidoriType* type);
+
+	static const UnionType& GetUnionType(const MidoriType* type);
 
 	static bool IsNumericType(const MidoriType* type);
 };

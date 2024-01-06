@@ -126,7 +126,7 @@ MidoriResult::CodeGeneratorResult CodeGenerator::GenerateCode(MidoriProgramTree&
 			std::visit([this](auto&& arg) { (*this)(arg); }, *statement);
 		});
 
-	if (!m_main_module_ctx.has_value())
+	if (!m_main_function_ctx.has_value())
 	{
 		AddError(MidoriError::GenerateCodeGeneratorError("Program entry (\"main\") not found.", 0));
 	}
@@ -137,7 +137,7 @@ MidoriResult::CodeGeneratorResult CodeGenerator::GenerateCode(MidoriProgramTree&
 	}
 
 	// invoke the program entry (main)
-	const CodeGenerator::MainProcedureContext& main_module_ctx = m_main_module_ctx.value();
+	const CodeGenerator::MainProcedureContext& main_module_ctx = m_main_function_ctx.value();
 	m_current_procedure_index = main_module_ctx.m_main_procedure_index;
 	EmitVariable(main_module_ctx.m_main_procedure_global_table_index, OpCode::GET_GLOBAL, main_module_ctx.m_main_procedure_line);
 	EmitByte(OpCode::CALL_DEFINED, main_module_ctx.m_main_procedure_line);
@@ -198,7 +198,7 @@ void CodeGenerator::operator()(Define& def)
 		EmitVariable(index.value(), OpCode::DEFINE_GLOBAL, line);
 		if (def.m_name.m_lexeme == "main")
 		{
-			if (m_main_module_ctx.has_value())
+			if (m_main_function_ctx.has_value())
 			{
 				AddError(MidoriError::GenerateCodeGeneratorError("Cannot re-define program entry (\"main\").", line));
 				return;
@@ -206,7 +206,7 @@ void CodeGenerator::operator()(Define& def)
 			else
 			{
 				constexpr int main_module_arity = 0;
-				m_main_module_ctx.emplace(m_current_procedure_index, index.value(), main_module_arity, line);
+				m_main_function_ctx.emplace(m_current_procedure_index, index.value(), main_module_arity, line);
 			}
 		}
 	}
@@ -364,6 +364,11 @@ void CodeGenerator::operator()(Struct&)
 	return;
 }
 
+void CodeGenerator::operator()(Union&)
+{
+	return;
+}
+
 void CodeGenerator::operator()(As& as)
 {
 	int line = as.m_as_keyword.m_line;
@@ -391,6 +396,10 @@ void CodeGenerator::operator()(As& as)
 	else if (MidoriTypeUtil::IsTextType(target_type), line)
 	{
 		EmitByte(OpCode::CAST_TO_TEXT, line);
+	}
+	else  if (MidoriTypeUtil::IsStructType(target_type), line)
+	{
+
 	}
 	else
 	{
@@ -447,7 +456,11 @@ void CodeGenerator::operator()(Binary& binary)
 		MidoriTypeUtil::IsFractionType(expr_type) ? EmitByte(OpCode::NOT_EQUAL_FRACTION, line) : EmitByte(OpCode::NOT_EQUAL_INTEGER, line);
 		break;
 	case Token::Name::DOUBLE_EQUAL:
-		MidoriTypeUtil::IsFractionType(expr_type) ? EmitByte(OpCode::EQUAL_FRACTION, line) : EmitByte(OpCode::EQUAL_INTEGER, line);
+		MidoriTypeUtil::IsFractionType(expr_type) 
+			? EmitByte(OpCode::EQUAL_FRACTION, line) 
+			: MidoriTypeUtil::IsIntegerType(expr_type)
+			? EmitByte(OpCode::EQUAL_INTEGER, line)
+			: EmitByte(OpCode::EQUAL_TEXT, line);
 		break;
 	case Token::Name::SINGLE_AMPERSAND:
 		EmitByte(OpCode::BITWISE_AND, line);

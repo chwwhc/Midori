@@ -34,7 +34,7 @@ private:
 	std::unordered_map<std::string, int> m_global_variables;
 
 	MidoriExecutable m_executable;
-	std::optional<MainProcedureContext> m_main_module_ctx = std::nullopt;
+	std::optional<MainProcedureContext> m_main_function_ctx = std::nullopt;
 	int m_current_procedure_index = 0;
 
 public:
@@ -86,6 +86,8 @@ private:
 	void operator()(Foreign& foreign);
 
 	void operator()(Struct& struct_stmt);
+
+	void operator()(Union& union_stmt);
 
 	void operator()(As& as);
 

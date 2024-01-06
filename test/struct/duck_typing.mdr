@@ -1,0 +1,25 @@
+struct A
+{
+	x : Int,
+	sdas : Frac
+};
+
+struct B
+{
+	s : Int,
+	u : Frac
+};
+
+struct C
+{
+	u : Frac,
+	ss : Int,
+};
+
+fixed main = fn() : Unit
+{
+	var a = new A(1, 1.1);
+	var b : B = new B(2, 2.2);
+	var c = b as A;
+	return ();
+};

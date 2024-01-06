@@ -1,17 +1,14 @@
-#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
-
-struct Term
-{
-	variable : Text,
-	num : Int,
-	is_var : Bool
-};
-
-
 fixed main = fn() : Unit
 {
-	var num_term = new Term("", 1, false);
-	var var_term = new Term("x", 0, true);
+	struct D {};
+	var x = 1;
+	{
+		var y = x;
+		{
+			fixed D : D = new D();
+			var x = y;
+		}
+	}
 
 	return ();
 };
