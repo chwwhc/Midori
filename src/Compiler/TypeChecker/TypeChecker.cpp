@@ -694,7 +694,7 @@ MidoriResult::TypeResult TypeChecker::operator()(Closure& closure)
 
 MidoriResult::TypeResult TypeChecker::operator()(Construct& construct)
 {
-	const FunctionType* constructor_type;
+	std::optional<const FunctionType*> constructor_type = std::nullopt;
 
 	for (TypeChecker::TypeEnvironmentStack::const_reverse_iterator it = m_name_type_table.crbegin(); it != m_name_type_table.crend(); ++it)
 	{
@@ -702,14 +702,17 @@ MidoriResult::TypeResult TypeChecker::operator()(Construct& construct)
 		TypeEnvironment::const_iterator var = env.find(MidoriTypeUtil::GetStructType(construct.m_return_type).m_name);
 		if (var != env.end())
 		{
-			constructor_type = &MidoriTypeUtil::GetFunctionType(var->second);
+			constructor_type.emplace(&MidoriTypeUtil::GetFunctionType(var->second));
 			break;
 		}
 	}
 
-	assert(constructor_type != nullptr);
+	if (constructor_type == std::nullopt)
+	{
+		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Construct expression type error: struct not found", construct.m_type_name, {}, construct.m_return_type));
+	}
 
-	if (constructor_type->m_param_types.size() != construct.m_params.size())
+	if (constructor_type.value()->m_param_types.size() != construct.m_params.size())
 	{
 		{
 			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Construct expression type error: incorrect arity", construct.m_type_name, {}, construct.m_return_type));
@@ -724,9 +727,9 @@ MidoriResult::TypeResult TypeChecker::operator()(Construct& construct)
 			return param_result;
 		}
 
-		if (*param_result.value() != *constructor_type->m_param_types[i])
+		if (*param_result.value() != *constructor_type.value()->m_param_types[i])
 		{
-			std::vector<const MidoriType*> expected_types = { std::addressof(*constructor_type->m_param_types[i]) };
+			std::vector<const MidoriType*> expected_types = { std::addressof(*constructor_type.value()->m_param_types[i])};
 			const MidoriType* actual_type = param_result.value();
 			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Construct expression type error", construct.m_type_name, expected_types, actual_type));
 		}

@@ -85,16 +85,14 @@ MidoriResult::TokenResult Parser::DefineName(const Token& name, bool is_fixed)
 {
 	for (int i = static_cast<int>(m_scopes.size()) - 1; i >= 0; --i)
 	{
-		Scope::StructTable::const_iterator scope_struct_tbl_it = m_scopes[i].m_structs.find(name.m_lexeme);
-		if (scope_struct_tbl_it != m_scopes[i].m_structs.cend())
+		if (m_scopes[i].m_structs.contains(name.m_lexeme))
 		{
 			// TODO: Warning
 			// Overshadowing a struct
 		}
-		Scope::VariableTable::const_iterator scope_var_tbl_it = m_scopes[i].m_variables.find(name.m_lexeme);
-		if (scope_var_tbl_it != m_scopes[i].m_variables.cend())
+		if (m_scopes[i].m_variables.contains(name.m_lexeme))
 		{
-			// TODO: Warning 
+			// TODO: Warning
 			// Overshadowing a variable
 		}
 	}
@@ -183,7 +181,7 @@ MidoriResult::ExpressionResult Parser::ParseBind()
 
 			std::vector<Scope>::const_reverse_iterator found_scope_it = std::find_if(m_scopes.crbegin(), m_scopes.crend(), [&variable_expr](const Scope& scope)
 				{
-					return scope.m_variables.find(variable_expr.m_name.m_lexeme) != scope.m_variables.cend();
+					return scope.m_variables.contains(variable_expr.m_name.m_lexeme);
 				});
 
 			if (found_scope_it != m_scopes.crend())
@@ -401,12 +399,12 @@ MidoriResult::ExpressionResult Parser::ParseConstruct()
 		for (Scopes::const_reverse_iterator scopes_iter = m_scopes.crbegin(); scopes_iter != m_scopes.crend(); ++scopes_iter)
 		{
 			const Scope& scope = *scopes_iter;
-			if (scope.m_variables.find(type_token_value.m_lexeme) != scope.m_variables.cend() && scope.m_structs.find(type_token_value.m_lexeme) == scope.m_structs.cend())
+			if (scope.m_variables.contains(type_token_value.m_lexeme) && scope.m_structs.find(type_token_value.m_lexeme) == scope.m_structs.cend())
 			{
 				// variable overshadowing struct
 				return std::unexpected<std::string>(GenerateParserError("Cannot construct type '" + type_token_value.m_lexeme + "' because it is overshadowed by a variable with the same name.", type_token_value));
 			}
-			else if (scope.m_structs.find(type_token_value.m_lexeme) != scope.m_structs.cend())
+			else if (scope.m_structs.contains(type_token_value.m_lexeme))
 			{
 				struct_type.emplace(scope.m_structs.at(type_token_value.m_lexeme));
 				break;
@@ -503,7 +501,7 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 
 		std::vector<Scope>::const_reverse_iterator found_scope_it = std::find_if(m_scopes.crbegin(), m_scopes.crend(), [&variable](const Scope& scope)
 			{
-				return scope.m_variables.find(variable.m_lexeme) != scope.m_variables.cend();
+				return scope.m_variables.contains(variable.m_lexeme);
 			});
 
 		if (found_scope_it != m_scopes.rend())
@@ -1394,7 +1392,7 @@ MidoriResult::TypeResult Parser::ParseType(bool is_foreign)
 
 		std::vector<Scope>::const_reverse_iterator found_scope_it = std::find_if(m_scopes.crbegin(), m_scopes.crend(), [&type_name](const Scope& scope)
 			{
-				return scope.m_structs.find(type_name.m_lexeme) != scope.m_structs.cend();
+				return scope.m_structs.contains(type_name.m_lexeme);
 			});
 
 		if (found_scope_it == m_scopes.crend())
@@ -1428,11 +1426,11 @@ bool Parser::HasCircularDependency() const
 
 		for (const std::string& dependency : s_dependency_graph[current])
 		{
-			if (visited.find(dependency) != visited.cend())
+			if (visited.contains(dependency))
 			{
 				continue; // Already visited, skip
 			}
-			if (in_progress.find(dependency) != in_progress.cend())
+			if (in_progress.contains(dependency))
 			{
 				return true; // Cycle detected
 			}
@@ -1453,7 +1451,7 @@ MidoriResult::TokenResult Parser::HandleDirective()
 		Token& include_path = Previous();
 		std::string include_absolute_path_str = std::filesystem::absolute(include_path.m_lexeme).string();
 
-		if (s_dependency_graph.find(include_absolute_path_str) != s_dependency_graph.cend())
+		if (s_dependency_graph.contains(include_absolute_path_str))
 		{
 			return directive;
 		}

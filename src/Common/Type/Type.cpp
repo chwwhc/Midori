@@ -54,14 +54,13 @@ const MidoriType* MidoriTypeUtil::InsertArrayType(const MidoriType* element_type
 {
 	std::string array_type_name = "Array<"s + GetTypeName(element_type) + ">"s;
 
-	std::unordered_map<std::string, const MidoriType*>::const_iterator find_result = s_types_by_name.find(array_type_name);
-	if (find_result == s_types_by_name.end())
+	if (s_types_by_name.contains(array_type_name))
 	{
-		return InsertType(array_type_name, new MidoriType(ArrayType{ element_type }));
+		return s_types_by_name[array_type_name];
 	}
 	else
 	{
-		return s_types_by_name[array_type_name];
+		return InsertType(array_type_name, new MidoriType(ArrayType{ element_type }));
 	}
 }
 
@@ -85,14 +84,13 @@ const MidoriType* MidoriTypeUtil::InsertFunctionType(const std::vector<const Mid
 	function_type_name.append("->"s);
 	function_type_name.append(GetTypeName(return_type));
 
-	std::unordered_map<std::string, const MidoriType*>::const_iterator find_result = s_types_by_name.find(function_type_name);
-	if (find_result == s_types_by_name.end())
+	if (s_types_by_name.contains(function_type_name))
 	{
-		return InsertType(function_type_name, new MidoriType(FunctionType{ param_types, return_type, is_foreign }));
+		return s_types_by_name[function_type_name];
 	}
 	else
 	{
-		return s_types_by_name[function_type_name];
+		return InsertType(function_type_name, new MidoriType(FunctionType{ param_types, return_type, is_foreign }));
 	}
 }
 

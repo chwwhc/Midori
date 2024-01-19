@@ -10,7 +10,7 @@
 
 void VirtualMachine::DisplayRuntimeError(std::string_view message) noexcept
 {
-	Printer::Print<Printer::Color::RED>(std::format("\033[31m{}\033[0m\n", message));
+	Printer::Print<Printer::Color::RED>(message);
 }
 
 int VirtualMachine::GetLine()

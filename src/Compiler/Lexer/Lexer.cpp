@@ -239,11 +239,9 @@ Token Lexer::MatchIdentifierOrReserved()
 
 	std::string identifier = m_source_code.substr(m_begin, m_current - m_begin);
 
-	std::unordered_map<std::string, Token::Name>::const_iterator it = s_keywords.find(identifier);
-
-	if (it != s_keywords.cend())
+	if (s_keywords.contains(identifier))
 	{
-		return MakeToken(it->second);
+		return MakeToken(s_keywords.at(identifier));
 	}
 	else
 	{
@@ -265,8 +263,7 @@ MidoriResult::TokenResult Lexer::MatchDirective()
 		result.push_back(Advance());
 	}
 
-	std::unordered_set<std::string>::const_iterator it = s_directives.find(result);
-	if (it != s_directives.cend())
+	if (s_directives.contains(result))
 	{
 		return MakeToken(Token::Name::DIRECTIVE, std::move(result));
 	}

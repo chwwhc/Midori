@@ -5,7 +5,7 @@ fixed main = fn() : Unit
 	{
 		var y = x;
 		{
-			fixed D : D = new D();
+			fixed Dd : D = new D();
 			var x = y;
 		}
 	}
