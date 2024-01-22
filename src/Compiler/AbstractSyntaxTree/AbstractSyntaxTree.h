@@ -150,9 +150,17 @@ struct Closure
 
 struct Construct
 {
-	Token m_type_name;
+	struct Union
+	{
+		int m_index;
+	};
+	struct Struct {};
+	using ConstructContext = std::variant<Union, Struct>;
+
+	Token m_data_name;
 	std::vector<std::unique_ptr<MidoriExpression>> m_params;
 	const MidoriType* m_return_type;
+	ConstructContext m_construct_ctx;
 };
 
 struct Ternary
@@ -285,4 +293,6 @@ struct Union
 {
 	Token m_name;
 	const MidoriType* m_self_type;
+	std::vector<std::vector<const MidoriType*>> m_constructor_types;
+	std::vector<std::string> m_constructor_names;
 };

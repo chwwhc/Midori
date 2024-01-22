@@ -5,6 +5,8 @@
 #include <ranges>
 #include <format>
 
+using namespace std::string_literals;
+
 namespace
 {
 	std::string ConvertToQuotedString(std::string_view input)
@@ -151,53 +153,72 @@ std::string MidoriTraceable::ToString() const
 					return "[]";
 				}
 
-				std::string result = "[";
+				std::string result = "["s;
 				std::ranges::for_each(arg, [&result](const MidoriValue& value) -> void
 					{
 						result.append(value.ToString());
-						result.append(",");
+						result.append(","s);
 					});
 				result.pop_back();
-				result.append("]");
+				result.append("]"s);
 				return result;
 			}
 			else if constexpr (std::is_same_v<T, CellValue>)
 			{
 				if (arg.m_is_on_heap)
 				{
-					return "Cell(" + arg.m_heap_value.ToString() + ")";
+					return "Cell("s + arg.m_heap_value.ToString() + ")"s;
 				}
 				else
 				{
-					return "Cell(" + arg.m_stack_value_ref->ToString() + ")";
+					return "Cell("s + arg.m_stack_value_ref->ToString() + ")"s;
 				}
 			}
-			else if constexpr (std::is_same_v<T, Closure>)
+			else if constexpr (std::is_same_v<T, MidoriClosure>)
 			{
 				return std::format("<closure at: {:p}>", (void*)std::addressof(arg));
+			}
+			else if constexpr (std::is_same_v<T, MidoriUnion>)
+			{
+				if (arg.m_values.empty())
+				{
+					return "Union{}"s;
+				}
+
+				std::string union_val = "Union"s;
+				union_val.append("{"s);
+				std::ranges::for_each(arg.m_values, [&union_val](const MidoriValue& value) -> void
+					{
+						union_val.append(value.ToString());
+						union_val.append(", "s);
+					});
+				union_val.pop_back();
+				union_val.pop_back();
+				union_val.append("}"s);
+				return union_val;
 			}
 			else if constexpr (std::is_same_v<T, MidoriStruct>)
 			{
 				if (arg.m_values.empty())
 				{
-					return "Struct{}";
+					return "Struct{}"s;
 				}
 
-				std::string struct_val = "Struct";
-				struct_val.append("{");
-				std::for_each(arg.m_values.cbegin(), arg.m_values.cend(), [&struct_val](const MidoriValue& value) -> void
+				std::string struct_val = "Struct"s;
+				struct_val.append("{"s);
+				std::ranges::for_each(arg.m_values, [&struct_val](const MidoriValue& value) -> void
 					{
 						struct_val.append(value.ToString());
-						struct_val.append(", ");
+						struct_val.append(", "s);
 					});
 				struct_val.pop_back();
 				struct_val.pop_back();
-				struct_val.append("}");
+				struct_val.append("}"s);
 				return struct_val;
 			}
 			else
 			{
-				return "Unknown MidoriTraceable";
+				return "Unknown MidoriTraceable"s;
 			}
 		}, m_value);
 }
@@ -239,12 +260,12 @@ MidoriTraceable::CellValue& MidoriTraceable::GetCellValue() const
 
 bool MidoriTraceable::IsClosure() const
 {
-	return std::holds_alternative<Closure>(m_value);
+	return std::holds_alternative<MidoriClosure>(m_value);
 }
 
-MidoriTraceable::Closure& MidoriTraceable::GetClosure() const
+MidoriTraceable::MidoriClosure& MidoriTraceable::GetClosure() const
 {
-	return const_cast<Closure&>(std::get<Closure>(m_value));
+	return const_cast<MidoriClosure&>(std::get<MidoriClosure>(m_value));
 }
 
 bool MidoriTraceable::IsStruct() const
@@ -255,6 +276,16 @@ bool MidoriTraceable::IsStruct() const
 MidoriTraceable::MidoriStruct& MidoriTraceable::GetStruct() const
 {
 	return const_cast<MidoriStruct&>(std::get<MidoriStruct>(m_value));
+}
+
+bool MidoriTraceable::IsUnion() const 
+{
+	return std::holds_alternative<MidoriUnion>(m_value);
+}
+
+MidoriTraceable::MidoriUnion& MidoriTraceable::GetUnion() const
+{
+	return const_cast<MidoriUnion&>(std::get<MidoriUnion>(m_value));
 }
 
 size_t MidoriTraceable::GetSize() const
@@ -349,7 +380,7 @@ void MidoriTraceable::Trace()
 	}
 	else if (IsClosure())
 	{
-		Closure& closure = GetClosure();
+		MidoriClosure& closure = GetClosure();
 		std::ranges::for_each(closure.m_cell_values, [](MidoriValue& cell_value) -> void
 			{
 				if (cell_value.IsPointer())

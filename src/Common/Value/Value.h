@@ -96,13 +96,12 @@ public:
 		MidoriValue& GetValue();
 	};
 
-	struct Closure
+	struct MidoriClosure
 	{
 		using Environment = std::vector<MidoriValue>;
 
 		Environment m_cell_values;
 		int m_proc_index;
-		int m_arity;
 	};
 
 	struct MidoriStruct
@@ -110,8 +109,14 @@ public:
 		std::vector<MidoriValue> m_values;
 	};
 
+	struct MidoriUnion
+	{
+		std::vector<MidoriValue> m_values;
+		int m_index;
+	};
+
 private:
-	std::variant<MidoriText, MidoriArray, MidoriStruct, CellValue, Closure> m_value;
+	std::variant<MidoriText, MidoriArray, MidoriStruct, MidoriUnion, CellValue, MidoriClosure> m_value;
 	size_t m_size;
 	bool m_is_marked = false;
 
@@ -137,11 +142,15 @@ public:
 
 	bool IsClosure() const;
 
-	Closure& GetClosure() const;
+	MidoriClosure& GetClosure() const;
 
 	bool IsStruct() const;
 
 	MidoriStruct& GetStruct() const;
+
+	bool IsUnion() const;
+
+	MidoriUnion& GetUnion() const;
 
 	size_t GetSize() const;
 
@@ -180,7 +189,9 @@ private:
 
 	MidoriTraceable(MidoriValue* stack_value_ref) : m_value(CellValue{ MidoriValue(), stack_value_ref, false }) {}
 
-	MidoriTraceable(Closure&& closure) : m_value(std::move(closure)) {}
+	MidoriTraceable(MidoriClosure&& closure) : m_value(std::move(closure)) {}
 
 	MidoriTraceable(MidoriStruct&& midori_struct) : m_value(std::move(midori_struct)) {}
+
+	MidoriTraceable(MidoriUnion&& midori_union) : m_value(std::move(midori_union)) {}
 };

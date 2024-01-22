@@ -68,7 +68,7 @@ private:
 	GlobalVariables m_global_vars;
 	GarbageCollector m_garbage_collector;
 	std::vector<MidoriTraceable::CellValue*> m_cells_to_promote;
-	std::vector<MidoriTraceable::Closure::Environment*> m_closure_stack;
+	std::vector<MidoriTraceable::MidoriClosure::Environment*> m_closure_stack;
 	std::unique_ptr<std::array<MidoriValue, s_value_stack_max>> m_value_stack = std::make_unique<std::array<MidoriValue, s_value_stack_max>>();
 	std::unique_ptr<std::array<CallFrame, s_frame_stack_max>> m_call_stack = std::make_unique<std::array<CallFrame, s_frame_stack_max>>();
 	ValueStackPointer m_base_pointer = m_value_stack->begin();

@@ -2,15 +2,15 @@
 
 fixed foo = fn() : Unit
 {
-	var arr : Array<() -> Int> = [fn() : Int { return 1; }, fn() : Int { return 1; }, fn() : Int { return 1; }];
+	var arr : Array<() -> Int> = [];
 	for (var i : Int = 0; i < 3; i = i + 1)
 	{
 		(fn(fixed i : Int) : Unit
 		{
-			arr[i] = fn() : Int
+			arr = arr ++ [fn() : Int
 			{
 				return i;
-			};
+			}];
 			return ();
 		})(i);
 	}

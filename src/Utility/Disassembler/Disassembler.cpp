@@ -109,16 +109,23 @@ namespace
 	}
 
 	void ClosureCreateInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
-	{
-		// TODO: fix this	
+	{	
 		int captured_count = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
-		int arity = static_cast<int>(executable.ReadByteCode(offset + 2, proc_index));
-		int index = static_cast<int>(executable.ReadByteCode(offset + 3, proc_index));
-		offset += 4;
+		offset += 2;
 
 		std::cout << std::left << std::setw(instr_width) << name;
-		std::cout << ' ' << std::dec << captured_count << ", " << std::dec << arity << ", " << std::dec << index;
-		std::cout << std::setw(comment_width) << " // number of captured variables: " << std::dec << captured_count << std::setfill(' ') << std::endl;
+		std::cout << ' ' << std::dec << captured_count;
+		std::cout << two_tabs << std::setw(comment_width) << " // number of captured variables: " << std::dec << captured_count << std::setfill(' ') << std::endl;
+	}
+
+	void AllocateClosureInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
+	{
+		int index = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
+		offset += 2;
+
+		std::cout << std::left << std::setw(instr_width) << name;
+		std::cout << ' ' << std::dec << index;
+		std::cout << two_tabs << std::setw(comment_width) << " // code index: " << std::dec << index << std::setfill(' ') << std::endl;
 	}
 
 	void CallInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
@@ -141,14 +148,24 @@ namespace
 		std::cout << two_tabs << std::setw(comment_width) << " // member index: " << std::dec << operand << std::setfill(' ') << std::endl;
 	}
 
-	void StructInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
+	void DataInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
 		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
 		offset += 2;
 
 		std::cout << std::left << std::setw(instr_width) << name;
 		std::cout << ' ' << std::dec << operand;
-		std::cout << two_tabs << std::setw(comment_width) << " // struct size: " << std::dec << operand << std::setfill(' ') << std::endl;
+		std::cout << two_tabs << std::setw(comment_width) << " // data size: " << std::dec << operand << std::setfill(' ') << std::endl;
+	}
+
+	void AllocateUnionInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
+	{
+		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
+		offset += 2;
+
+		std::cout << std::left << std::setw(instr_width) << name;
+		std::cout << ' ' << std::dec << operand;
+		std::cout << two_tabs << std::setw(comment_width) << " // union tag: " << std::dec << operand << std::setfill(' ') << std::endl;
 	}
 }
 
@@ -346,13 +363,22 @@ namespace Disassembler
 			CallInstruction("CALL_DEFINED", executable, proc_index, offset);
 			break;
 		case OpCode::CONSTRUCT_STRUCT:
-			StructInstruction("CONSTRUCT_STRUCT", executable, proc_index, offset);
+			DataInstruction("CONSTRUCT_STRUCT", executable, proc_index, offset);
 			break;
 		case OpCode::ALLOCATE_STRUCT:
 			SimpleInstruction("ALLOCATE_STRUCT", offset);
 			break;
-		case OpCode::CREATE_CLOSURE:
-			ClosureCreateInstruction("CREATE_CLOSURE", executable, proc_index, offset);
+		case OpCode::CONSTRUCT_UNION:
+			DataInstruction("CONSTRUCT_UNION", executable, proc_index, offset);
+			break;
+		case OpCode::ALLOCATE_UNION:
+			AllocateUnionInstruction("ALLOCATE_UNION", executable, proc_index, offset);
+			break;
+		case OpCode::ALLOCATE_CLOSURE:
+			AllocateClosureInstruction("ALLOCATE_CLOSURE", executable, proc_index, offset);
+			break;
+		case OpCode::CONSTRUCT_CLOSURE:
+			ClosureCreateInstruction("CONSTRUCT_CLOSURE", executable, proc_index, offset);
 			break;
 		case OpCode::DEFINE_GLOBAL:
 			GlobalVariableInstruction("DEFINE_GLOBAL", executable, proc_index, offset);

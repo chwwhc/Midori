@@ -40,7 +40,6 @@ struct StructType
 
 struct UnionType
 {
-	std::vector<const MidoriType*> m_member_types;
 	std::string m_name;
 };
 
@@ -129,7 +128,7 @@ public:
 
 	static void MidoriTypeUtilCleanUp();
 
-	static const MidoriType* InsertUnionType(const std::string& name, std::vector<const MidoriType*>&& member_types);
+	static const MidoriType* InsertUnionType(const std::string& name);
 
 	static const MidoriType* InsertStructType(const std::string& name, std::vector<const MidoriType*>&& member_types, std::vector<std::string>&& member_names);
 

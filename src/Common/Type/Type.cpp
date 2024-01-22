@@ -38,9 +38,9 @@ const MidoriType* MidoriTypeUtil::InsertType(const std::string& name, const Mido
 	return s_types_by_name[name];
 }
 
-const MidoriType* MidoriTypeUtil::InsertUnionType(const std::string& name, std::vector<const MidoriType*>&& member_types)
+const MidoriType* MidoriTypeUtil::InsertUnionType(const std::string& name)
 {
-	const MidoriType* type = new MidoriType(UnionType{ std::move(member_types), name });
+	const MidoriType* type = new MidoriType(UnionType{ name });
 	return InsertType(name, type);
 }
 

@@ -315,12 +315,16 @@ void TypeChecker::operator()(Foreign& foreign)
 void TypeChecker::operator()(Struct& struct_stmt)
 {
 	const MidoriType* struct_constructor_type = MidoriTypeUtil::InsertFunctionType(MidoriTypeUtil::GetStructType(struct_stmt.m_self_type).m_member_types, struct_stmt.m_self_type);
-	m_name_type_table.back()[struct_stmt.m_name.m_lexeme] = std::move(struct_constructor_type);
+	m_name_type_table.back()[struct_stmt.m_name.m_lexeme] = struct_constructor_type;
 }
 
-void TypeChecker::operator()(Union&)
+void TypeChecker::operator()(Union& union_stmt)
 {
-
+	for (size_t i = 0u; i < union_stmt.m_constructor_names.size(); i += 1u)
+	{
+		const MidoriType* union_constructor_type = MidoriTypeUtil::InsertFunctionType(union_stmt.m_constructor_types[i], union_stmt.m_self_type);
+		m_name_type_table.back()[union_stmt.m_constructor_names[i]] = union_constructor_type;
+	}
 }
 
 MidoriResult::TypeResult TypeChecker::operator()(As& as)
@@ -699,7 +703,15 @@ MidoriResult::TypeResult TypeChecker::operator()(Construct& construct)
 	for (TypeChecker::TypeEnvironmentStack::const_reverse_iterator it = m_name_type_table.crbegin(); it != m_name_type_table.crend(); ++it)
 	{
 		const TypeEnvironment& env = *it;
-		TypeEnvironment::const_iterator var = env.find(MidoriTypeUtil::GetStructType(construct.m_return_type).m_name);
+		TypeEnvironment::const_iterator var;
+		if (std::holds_alternative<Construct::Struct>(construct.m_construct_ctx))
+		{
+			var = env.find(MidoriTypeUtil::GetStructType(construct.m_return_type).m_name);
+		}
+		else
+		{
+			var = env.find(construct.m_data_name.m_lexeme);
+		}
 		if (var != env.end())
 		{
 			constructor_type.emplace(&MidoriTypeUtil::GetFunctionType(var->second));
@@ -709,13 +721,13 @@ MidoriResult::TypeResult TypeChecker::operator()(Construct& construct)
 
 	if (constructor_type == std::nullopt)
 	{
-		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Construct expression type error: struct not found", construct.m_type_name, {}, construct.m_return_type));
+		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Construct expression type error: struct or union not found", construct.m_data_name, {}, construct.m_return_type));
 	}
 
 	if (constructor_type.value()->m_param_types.size() != construct.m_params.size())
 	{
 		{
-			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Construct expression type error: incorrect arity", construct.m_type_name, {}, construct.m_return_type));
+			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Construct expression type error: incorrect arity", construct.m_data_name, {}, construct.m_return_type));
 		}
 	}
 
@@ -731,7 +743,7 @@ MidoriResult::TypeResult TypeChecker::operator()(Construct& construct)
 		{
 			std::vector<const MidoriType*> expected_types = { std::addressof(*constructor_type.value()->m_param_types[i])};
 			const MidoriType* actual_type = param_result.value();
-			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Construct expression type error", construct.m_type_name, expected_types, actual_type));
+			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Construct expression type error", construct.m_data_name, expected_types, actual_type));
 		}
 	}
 

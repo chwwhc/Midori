@@ -675,23 +675,57 @@ void CodeGenerator::operator()(Closure& closure)
 
 	m_current_procedure_index = prev_index;
 
-	EmitByte(OpCode::CREATE_CLOSURE, line);
-	EmitThreeBytes(static_cast<int>(closure.m_captured_count), static_cast<int>(arity), static_cast<int>(closure_proc_index), line);
+	if (m_current_procedure_index > UINT8_MAX)
+	{
+		AddError(MidoriError::GenerateCodeGeneratorError("Too many functions (max 255).", line));
+		return;
+	}
+
+	EmitByte(OpCode::ALLOCATE_CLOSURE, line);
+	EmitByte(static_cast<OpCode>(closure_proc_index), line);
+
+	EmitByte(OpCode::CONSTRUCT_CLOSURE, line);
+	EmitByte(static_cast<OpCode>(closure.m_captured_count), line);
 }
 
 void CodeGenerator::operator()(Construct& construct)
 {
-	int line = construct.m_type_name.m_line;
+	int line = construct.m_data_name.m_line;
 	OpCode size = static_cast<OpCode>(construct.m_params.size());
+	bool is_struct = std::holds_alternative<Construct::Struct>(construct.m_construct_ctx);
 
-	EmitByte(OpCode::ALLOCATE_STRUCT, line);
+	if (is_struct)
+	{
+		EmitByte(OpCode::ALLOCATE_STRUCT, line);
+	}
+	else
+	{
+		int tag = std::get<Construct::Union>(construct.m_construct_ctx).m_index;
+
+		if (tag > UINT8_MAX)
+		{
+			AddError(MidoriError::GenerateCodeGeneratorError("Union tag too large (max 255).", line));
+			return;
+		}
+
+		EmitByte(OpCode::ALLOCATE_UNION, line);
+		EmitByte(static_cast<OpCode>(tag), line);
+	}
 
 	std::for_each(construct.m_params.begin(), construct.m_params.end(), [this](std::unique_ptr<MidoriExpression>& param)
 		{
 			std::visit([this](auto&& arg) {(*this)(arg); }, *param);
 		});
 
-	EmitByte(OpCode::CONSTRUCT_STRUCT, line);
+	if (is_struct)
+	{
+		EmitByte(OpCode::CONSTRUCT_STRUCT, line);
+	}
+	else
+	{
+		EmitByte(OpCode::CONSTRUCT_UNION, line);
+	}
+
 	EmitByte(size, line);
 }
 

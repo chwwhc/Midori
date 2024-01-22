@@ -28,9 +28,15 @@ private:
 	{
 		using VariableTable = std::unordered_map<std::string, VariableContext>;
 		using StructTable = std::unordered_map<std::string, const MidoriType*>;
+		using UnionTable = std::unordered_map<std::string, const MidoriType*>;
+		using UnionTagTable = std::unordered_map<std::string, int>;
+		using DefinedTypeTable = std::unordered_map<std::string, const MidoriType*>;
 
 		VariableTable m_variables;
 		StructTable m_structs;
+		UnionTable m_unions;
+		DefinedTypeTable m_defined_types;
+		UnionTagTable m_union_tags;
 	};
 
 	using DependencyGraph = std::unordered_map<std::string, std::vector<std::string>>;

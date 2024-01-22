@@ -847,7 +847,7 @@ void VirtualMachine::Execute()
 				const MidoriValue& callable = Pop();
 				int arity = static_cast<int>(ReadByte());
 
-				MidoriTraceable::Closure& closure = callable.GetPointer()->GetClosure();
+				MidoriTraceable::MidoriClosure& closure = callable.GetPointer()->GetClosure();
 
 				m_closure_stack.emplace_back(std::addressof(closure.m_cell_values));
 
@@ -879,23 +879,50 @@ void VirtualMachine::Execute()
 				Push(MidoriTraceable::AllocateTraceable(MidoriTraceable::MidoriStruct()));
 				break;
 			}
-			case OpCode::CREATE_CLOSURE:
+			case OpCode::CONSTRUCT_UNION:
 			{
-				int captured_count = static_cast<int>(ReadByte());
-				int arity = static_cast<int>(ReadByte());
+				int size = static_cast<int>(ReadByte());
+				std::vector<MidoriValue> args(size);
+
+				for (int i = size - 1; i >= 0; i -= 1)
+				{
+					args[i] = Pop();
+				}
+
+				std::vector<MidoriValue>& members = Peek().GetPointer()->GetUnion().m_values;
+				members = std::move(args);
+
+				break;
+			}
+			case OpCode::ALLOCATE_UNION:
+			{
+				int tag = static_cast<int>(ReadByte());
+				Push(MidoriTraceable::AllocateTraceable(MidoriTraceable::MidoriUnion()));
+
+				Peek().GetPointer()->GetUnion().m_index = tag;
+				break;
+			}
+			case OpCode::ALLOCATE_CLOSURE:
+			{
 				int proc_index = static_cast<int>(ReadByte());
 
-				Push(MidoriTraceable::AllocateTraceable(MidoriTraceable::Closure(MidoriTraceable::Closure::Environment(), proc_index, arity)));
+				Push(MidoriTraceable::AllocateTraceable(MidoriTraceable::MidoriClosure{ MidoriTraceable::MidoriClosure::Environment{}, proc_index }));
+				break;
+			}
+			case OpCode::CONSTRUCT_CLOSURE:
+			{
+				int captured_count = static_cast<int>(ReadByte());
+
 				if (captured_count == 0)
 				{
 					break;
 				}
 
-				MidoriTraceable::Closure::Environment& captured_variables = std::prev(m_value_stack_pointer)->GetPointer()->GetClosure().m_cell_values;
+				MidoriTraceable::MidoriClosure::Environment& captured_variables = std::prev(m_value_stack_pointer)->GetPointer()->GetClosure().m_cell_values;
 
 				if (!m_closure_stack.empty())
 				{
-					const MidoriTraceable::Closure::Environment& parent_closure = *m_closure_stack.back();
+					const MidoriTraceable::MidoriClosure::Environment& parent_closure = *m_closure_stack.back();
 					captured_variables = parent_closure;
 					captured_count -= static_cast<int>(parent_closure.size());
 				}
