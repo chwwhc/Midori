@@ -78,6 +78,9 @@ enum class OpCode : uint8_t
 	JUMP,
 	JUMP_BACK,
 
+	// Switch
+	LOAD_TAG,
+
 	// Callable
 	CALL_FOREIGN,
 	CALL_DEFINED,
@@ -103,7 +106,9 @@ enum class OpCode : uint8_t
 
 	// Stack Operations
 	POP,
+	DUP,
 	POP_SCOPE,
+	POP_MULTIPLE,
 
 	// Return
 	RETURN,

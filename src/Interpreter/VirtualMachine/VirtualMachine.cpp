@@ -805,6 +805,17 @@ void VirtualMachine::Execute()
 				m_instruction_pointer -= offset;
 				break;
 			}
+			case OpCode::LOAD_TAG:
+			{
+				const MidoriValue& union_val = Pop();
+				const MidoriTraceable::MidoriUnion& union_ref = union_val.GetPointer()->GetUnion();
+				std::ranges::for_each(union_ref.m_values, [this](const MidoriValue& val)
+					{
+						Push(val);
+					});
+				Push(static_cast<MidoriValue::MidoriInteger>(union_ref.m_index));
+				break;
+			}
 			case OpCode::CALL_FOREIGN:
 			{
 				const MidoriValue& foreign_function_name = Pop();
@@ -1006,11 +1017,21 @@ void VirtualMachine::Execute()
 				--m_value_stack_pointer;
 				break;
 			}
+			case OpCode::DUP:
+			{
+				Push(Peek());
+				break;
+			}
 			case OpCode::POP_SCOPE:
 			{
 				// on scope exit, promote all cells to heap
 				PromoteCells();
 
+				m_value_stack_pointer -= static_cast<int>(ReadByte());
+				break;
+			}
+			case OpCode::POP_MULTIPLE:
+			{
 				m_value_stack_pointer -= static_cast<int>(ReadByte());
 				break;
 			}

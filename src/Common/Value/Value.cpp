@@ -408,4 +408,15 @@ void MidoriTraceable::Trace()
 				}
 			});
 	}
+	else if (IsUnion())
+	{
+		MidoriUnion& midori_union = GetUnion();
+		std::ranges::for_each(midori_union.m_values, [](MidoriValue& value) -> void
+			{
+				if (value.IsPointer())
+				{
+					value.GetPointer()->Trace();
+				}
+			});
+	}
 }

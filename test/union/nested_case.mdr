@@ -1,0 +1,51 @@
+#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+
+
+struct S1
+{
+};
+
+union U1
+{
+	A(Int),
+	B,
+	C(Frac, Int, Text),
+	D(U1),
+	E(S1),
+};
+
+var main = fn() : Unit
+{
+	var z = new D(new D(new E(new S1())));
+	switch(z)
+	{
+		case D(var u):
+		{
+			PrintLine("1 Nested D case");
+
+			switch(u)
+			{
+				case D(var uu):
+				{
+					PrintLine("2 Nested D case");
+
+					switch(uu)
+					{
+						case B():
+						{}
+						default:
+							PrintLine("3 Nested default case");
+					}
+				}
+				default:
+				{
+					PrintLine("Default case");
+				}
+			}
+		}
+		default:
+			PrintLine("default case");
+	}
+
+	return ();
+};

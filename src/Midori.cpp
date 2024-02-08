@@ -41,7 +41,7 @@ int main()
 	else
 	{
 		Printer::Print<Printer::Color::RED>("Compilation failed :( \n");
-		Printer::Print<Printer::Color::YELLOW>(compilation_result.error() + '\n');
+		Printer::Print<Printer::Color::RED>(compilation_result.error() + '\n');
 	}
 
 	return 0;

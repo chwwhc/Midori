@@ -222,6 +222,7 @@ void CodeGenerator::operator()(If& if_stmt)
 
 	int else_jump = EmitJump(OpCode::JUMP, line);
 	PatchJump(true_jump, line);
+	EmitByte(OpCode::POP, line);
 
 	if (if_stmt.m_else_branch.has_value())
 	{
@@ -246,7 +247,6 @@ void CodeGenerator::operator()(While& while_stmt)
 
 	EmitLoop(loop_start, line);
 	PatchJump(jump_if_false, line);
-
 	EmitByte(OpCode::POP, line);
 
 	EndLoop(line);
@@ -322,7 +322,7 @@ void CodeGenerator::operator()(Continue& continue_stmt)
 	while (continue_stmt.m_number_to_pop > 0)
 	{
 		int count_to_pop = std::min(continue_stmt.m_number_to_pop, static_cast<int>(UINT8_MAX));
-		EmitByte(OpCode::POP_SCOPE, line);
+		EmitByte(OpCode::POP_MULTIPLE, line);
 		EmitByte(static_cast<OpCode>(count_to_pop), line);
 		continue_stmt.m_number_to_pop -= count_to_pop;
 	}
@@ -369,6 +369,62 @@ void CodeGenerator::operator()(Union&)
 	return;
 }
 
+void CodeGenerator::operator()(Switch& switch_stmt)
+{
+	int line = switch_stmt.m_switch_keyword.m_line;
+	std::visit([this](auto&& arg) {(*this)(arg); }, *switch_stmt.m_arg_expr);
+	EmitByte(OpCode::LOAD_TAG, line);
+
+	// for each case
+	// compare tag
+	std::vector<int> jumps;
+	for (Switch::Case& switch_case : switch_stmt.m_cases)
+	{
+		if (Switch::IsMemberCase(switch_case))
+		{
+			const Switch::MemberCase& member_case = Switch::GetMemberCase(switch_case);
+
+			EmitByte(OpCode::DUP, line);
+			MidoriValue::MidoriInteger member_tag = static_cast<MidoriValue::MidoriInteger>(member_case.m_tag);
+			EmitConstant(member_tag, line);
+			EmitByte(OpCode::EQUAL_INTEGER, line);
+			int jump_if_false = EmitJump(OpCode::JUMP_IF_FALSE, line);
+			EmitByte(OpCode::POP, line); // pop tag
+			EmitByte(OpCode::POP, line); // pop comp result
+
+			std::visit([this](auto&& arg) {(*this)(arg); }, *member_case.m_stmt);
+
+			int num_to_pop = static_cast<int>(member_case.m_binding_names.size());
+			while (num_to_pop > 0)
+			{
+				int count_to_pop = std::min(num_to_pop, static_cast<int>(UINT8_MAX));
+				EmitByte(OpCode::POP_MULTIPLE, line);
+				EmitByte(static_cast<OpCode>(count_to_pop), line);
+				num_to_pop -= count_to_pop;
+			}
+			jumps.emplace_back(EmitJump(OpCode::JUMP, line));
+
+			PatchJump(jump_if_false, line);
+			EmitByte(OpCode::POP, line); // pop comp result
+		}
+		else
+		{
+			const Switch::DefaultCase& default_case = Switch::GetDefaultCase(switch_case);
+
+			std::visit([this](auto&& arg) {(*this)(arg); }, *default_case.m_stmt);
+
+			EmitByte(OpCode::POP, line);
+			jumps.emplace_back(EmitJump(OpCode::JUMP, line));
+			break;
+		}
+	}
+
+	std::ranges::for_each(jumps, [this, line](int jump_addr)
+		{
+			PatchJump(jump_addr, line);
+		});
+}
+
 void CodeGenerator::operator()(As& as)
 {
 	int line = as.m_as_keyword.m_line;
@@ -399,7 +455,7 @@ void CodeGenerator::operator()(As& as)
 	}
 	else  if (MidoriTypeUtil::IsStructType(target_type), line)
 	{
-
+		// TODO: implement
 	}
 	else
 	{
@@ -590,7 +646,7 @@ void CodeGenerator::operator()(Variable& variable)
 				AddError(MidoriError::GenerateCodeGeneratorError("Bad Variable MidoriExpression.", variable.m_name.m_line));
 				return;
 			}
-		}, variable.m_semantic);
+		}, variable.m_semantic_tag);
 }
 
 void CodeGenerator::operator()(Bind& bind)
@@ -618,7 +674,7 @@ void CodeGenerator::operator()(Bind& bind)
 				AddError(MidoriError::GenerateCodeGeneratorError("Bad Bind MidoriExpression.", bind.m_name.m_line));
 				return;
 			}
-		}, bind.m_semantic);
+		}, bind.m_semantic_tag);
 }
 
 void CodeGenerator::operator()(TextLiteral& text)
@@ -803,6 +859,7 @@ void CodeGenerator::operator()(Ternary& ternary)
 	std::visit([this](auto&& arg) {(*this)(arg); }, *ternary.m_true_branch);
 	int jump = EmitJump(OpCode::JUMP, line);
 	PatchJump(jump_if_false, line);
+	EmitByte(OpCode::POP, line);
 	std::visit([this](auto&& arg) {(*this)(arg); }, *ternary.m_else_branch);
 	PatchJump(jump, line);
 }

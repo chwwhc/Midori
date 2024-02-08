@@ -40,7 +40,7 @@ const MidoriType* MidoriTypeUtil::InsertType(const std::string& name, const Mido
 
 const MidoriType* MidoriTypeUtil::InsertUnionType(const std::string& name)
 {
-	const MidoriType* type = new MidoriType(UnionType{ name });
+	const MidoriType* type = new MidoriType(UnionType{ {}, name });
 	return InsertType(name, type);
 }
 

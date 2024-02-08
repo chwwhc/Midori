@@ -29,7 +29,10 @@ const std::unordered_map<std::string, Token::Name> Lexer::s_keywords =
 	{"struct"s, Token::Name::STRUCT},
 	{"union"s, Token::Name::UNION},
 	{"new"s, Token::Name::NEW},
-	{"foreign"s, Token::Name::FOREIGN },
+	{"foreign"s, Token::Name::FOREIGN},
+	{"case"s, Token::Name::CASE},
+	{"default"s, Token::Name::DEFAULT},
+	{"switch"s, Token::Name::SWITCH},
 };
 
 const std::unordered_set<std::string> Lexer::s_directives =
@@ -37,49 +40,49 @@ const std::unordered_set<std::string> Lexer::s_directives =
 	"include",
 };
 
-bool Lexer::IsAtEnd(int offset) const 
-{ 
-	return m_current + offset >= m_source_code.size(); 
+bool Lexer::IsAtEnd(int offset) const
+{
+	return m_current + offset >= m_source_code.size();
 }
 
 bool Lexer::IsDigit(char c) const
-{ 
-	return isdigit(c); 
+{
+	return isdigit(c);
 }
 
-bool Lexer::IsAlpha(char c) const 
-{ 
-	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c == '_'); 
+bool Lexer::IsAlpha(char c) const
+{
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c == '_');
 }
 
-bool Lexer::IsAlphaNumeric(char c) const 
-{ 
-	return IsDigit(c) || IsAlpha(c); 
+bool Lexer::IsAlphaNumeric(char c) const
+{
+	return IsDigit(c) || IsAlpha(c);
 }
 
-char Lexer::Advance() 
-{ 
-	return m_source_code[m_current++]; 
+char Lexer::Advance()
+{
+	return m_source_code[m_current++];
 }
 
 char Lexer::LookAhead(int offset) const
-{ 
-	return (IsAtEnd(0u) || m_current + offset >= static_cast<int>(m_source_code.size())) ? '\0' : m_source_code[m_current + offset]; 
+{
+	return (IsAtEnd(0u) || m_current + offset >= static_cast<int>(m_source_code.size())) ? '\0' : m_source_code[m_current + offset];
 }
 
-bool Lexer::MatchNext(char expected) 
-{ 
+bool Lexer::MatchNext(char expected)
+{
 	return ((IsAtEnd(0u) || m_source_code[m_current] != expected) ? false : (++m_current, true));
 }
 
 Token Lexer::MakeToken(Token::Name type) const
-{ 
+{
 	return Token(type, m_source_code.substr(m_begin, m_current - m_begin), m_line);
 }
 
 Token Lexer::MakeToken(Token::Name type, std::string&& lexeme) const
-{ 
-	return Token(type, std::move(lexeme), m_line); 
+{
+	return Token(type, std::move(lexeme), m_line);
 }
 
 std::optional<std::string> Lexer::SkipWhitespaceAndComments()
@@ -115,11 +118,11 @@ std::optional<std::string> Lexer::SkipWhitespaceAndComments()
 				Advance();
 				Advance();
 
-				while (LookAhead(0) != '*' && LookAhead(1) != '/' && !IsAtEnd(0))
+				while (!(LookAhead(0) == '*' && LookAhead(1) == '/') && !IsAtEnd(0))
 				{
 					if (LookAhead(0) == '\n')
 					{
-						m_line += 1;
+						m_line++;
 					}
 					Advance();
 				}

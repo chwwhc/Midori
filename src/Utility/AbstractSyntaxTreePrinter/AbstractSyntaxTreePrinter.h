@@ -7,6 +7,8 @@ struct PrintAbstractSyntaxTree
 {
 	void PrintWithIndentation(int depth, std::string_view text) const;
 
+	void PrintVariableSemantic(int depth, const VariableSemantic::Tag& tag) const;
+
 	void operator()(const Block& block, int depth = 0) const;
 
 	void operator()(const Simple& simple, int depth = 0) const;
@@ -30,6 +32,8 @@ struct PrintAbstractSyntaxTree
 	void operator()(const Struct& struct_stmt, int depth = 0) const;
 
 	void operator()(const Union& union_stmt, int depth = 0) const;
+
+	void operator()(const Switch& switch_stmt, int depth = 0) const;
 
 	void operator()(const As& as, int depth = 0) const;
 

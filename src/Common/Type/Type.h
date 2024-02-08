@@ -40,6 +40,13 @@ struct StructType
 
 struct UnionType
 {
+	struct UnionMemberContext
+	{
+		std::vector<const MidoriType*> m_member_types;
+		int m_tag;
+	};
+
+	std::unordered_map<std::string, UnionMemberContext> m_member_info;
 	std::string m_name;
 };
 

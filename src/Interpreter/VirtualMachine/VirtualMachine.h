@@ -33,6 +33,7 @@ public:
 	{
 		constexpr int runtime_startup_proc_index = 0;
 		m_instruction_pointer = &*m_executable.GetBytecodeStream(runtime_startup_proc_index).cbegin();
+		m_cells_to_promote.reserve(UINT8_MAX);
 	}
 
 	~VirtualMachine()

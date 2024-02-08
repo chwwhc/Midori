@@ -8,13 +8,13 @@ namespace Printer
 {
 	enum class Color
 	{
-		RED,
-		GREEN,
-		YELLOW,
-		BLUE,
-		MAGENTA,
-		CYAN,
-		WHITE,
+		RED,		// error
+		GREEN,		// success
+		YELLOW,		// warning
+		BLUE,		// info
+		MAGENTA,	// debug
+		CYAN,		// trace
+		WHITE,		// default
 	};
 
 	template<Color color = Color::WHITE>

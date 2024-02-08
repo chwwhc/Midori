@@ -12,6 +12,32 @@ void PrintAbstractSyntaxTree::PrintWithIndentation(int depth, std::string_view t
 	Printer::Print("\n");
 }
 
+void PrintAbstractSyntaxTree::PrintVariableSemantic(int depth, const VariableSemantic::Tag& tag) const
+{
+	std::visit
+	(
+		[depth, this](auto&& arg) -> void
+		{
+			using T = std::decay_t<decltype(arg)>;
+
+			if constexpr (std::is_same_v<T, VariableSemantic::Local>)
+			{
+				PrintWithIndentation(depth, "Local");
+				PrintWithIndentation(depth, "Index: " + std::to_string(arg.m_index));
+			}
+			else if constexpr (std::is_same_v<T, VariableSemantic::Global>)
+			{
+				PrintWithIndentation(depth, "Global");
+			}
+			else if constexpr (std::is_same_v<T, VariableSemantic::Cell>)
+			{
+				PrintWithIndentation(depth, "Cell");
+				PrintWithIndentation(depth, "Index: " + std::to_string(arg.m_index));
+			}
+		}, tag
+	);
+}
+
 void PrintAbstractSyntaxTree::operator()(const Block& block, int depth) const
 {
 	PrintWithIndentation(depth, "Block {");
@@ -131,6 +157,38 @@ void PrintAbstractSyntaxTree::operator()(const Union& union_stmt, int depth) con
 {
 	PrintWithIndentation(depth, "Union {");
 	PrintWithIndentation(depth + 1, "Name: " + union_stmt.m_name.m_lexeme);
+	PrintWithIndentation(depth + 1, "Constructors: ");
+
+	const UnionType& union_type = MidoriTypeUtil::GetUnionType(union_stmt.m_self_type);
+
+	for (const auto& [name, info] : union_type.m_member_info)
+	{
+		std::string constructor = name;
+		constructor.push_back('(');
+		for (size_t i = 0u; i < info.m_member_types.size(); i += 1u)
+		{
+			constructor.append(MidoriTypeUtil::GetTypeName(info.m_member_types[i]));
+			if (i != info.m_member_types.size() - 1u)
+			{
+				constructor.append(", "s);
+			}
+		}
+		constructor.push_back(')');
+		PrintWithIndentation(depth + 1, constructor);
+	}
+	PrintWithIndentation(depth, "}");
+}
+
+void PrintAbstractSyntaxTree::operator()(const Switch& switch_stmt, int depth) const
+{
+	PrintWithIndentation(depth, "Switch {");
+	PrintWithIndentation(depth + 1, "Value: ");
+	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *switch_stmt.m_arg_expr);
+	PrintWithIndentation(depth + 1, "Cases: ");
+	std::ranges::for_each(switch_stmt.m_cases, [depth, this](const Switch::Case& switch_case)
+		{
+			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *Switch::GetCaseStatement(switch_case));
+		});
 	PrintWithIndentation(depth, "}");
 }
 
@@ -209,25 +267,7 @@ void PrintAbstractSyntaxTree::operator()(const Variable& variable, int depth) co
 	PrintWithIndentation(depth, "Variable {");
 	PrintWithIndentation(depth + 1, "Name: " + variable.m_name.m_lexeme);
 	PrintWithIndentation(depth + 1, "VariableSemantic: ");
-	std::visit([depth, this]([[maybe_unused]] auto&& arg)
-		{
-			using T = std::decay_t<decltype(arg)>;
-
-			if constexpr (std::is_same_v<T, VariableSemantic::Local>)
-			{
-				PrintWithIndentation(depth + 2, "Local");
-				PrintWithIndentation(depth + 2, "Index: " + std::to_string(arg.m_index));
-			}
-			else if constexpr (std::is_same_v<T, VariableSemantic::Cell>)
-			{
-				PrintWithIndentation(depth + 2, "Cell");
-				PrintWithIndentation(depth + 2, "Index: " + std::to_string(arg.m_index));
-			}
-			else if constexpr (std::is_same_v<T, VariableSemantic::Global>)
-			{
-				PrintWithIndentation(depth + 2, "Global");
-			}
-		}, variable.m_semantic);
+	PrintVariableSemantic(depth, variable.m_semantic_tag);
 	PrintWithIndentation(depth, "}");
 }
 
@@ -238,25 +278,7 @@ void PrintAbstractSyntaxTree::operator()(const Bind& bind, int depth) const
 	PrintWithIndentation(depth + 1, "Value: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *bind.m_value);
 	PrintWithIndentation(depth + 1, "VariableSemantic: ");
-	std::visit([depth, this]([[maybe_unused]] auto&& arg)
-		{
-			using T = std::decay_t<decltype(arg)>;
-
-			if constexpr (std::is_same_v<T, VariableSemantic::Local>)
-			{
-				PrintWithIndentation(depth + 2, "Local");
-				PrintWithIndentation(depth + 2, "Index: " + std::to_string(arg.m_index));
-			}
-			else if constexpr (std::is_same_v<T, VariableSemantic::Cell>)
-			{
-				PrintWithIndentation(depth + 2, "Cell");
-				PrintWithIndentation(depth + 2, "Index: " + std::to_string(arg.m_index));
-			}
-			else if constexpr (std::is_same_v<T, VariableSemantic::Global>)
-			{
-				PrintWithIndentation(depth + 2, "Global");
-			}
-		}, bind.m_semantic);
+	PrintVariableSemantic(depth, bind.m_semantic_tag);
 	PrintWithIndentation(depth, "}");
 }
 
@@ -290,7 +312,7 @@ void PrintAbstractSyntaxTree::operator()(const IntegerLiteral& integer, int dept
 
 void PrintAbstractSyntaxTree::operator()(const UnitLiteral&, int depth) const
 {
-	PrintWithIndentation(depth, "#");
+	PrintWithIndentation(depth, "()");
 }
 
 void PrintAbstractSyntaxTree::operator()(const Closure& closure, int depth) const

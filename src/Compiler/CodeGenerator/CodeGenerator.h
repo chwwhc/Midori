@@ -89,6 +89,8 @@ private:
 
 	void operator()(Union& union_stmt);
 
+	void operator()(Switch& switch_stmt);
+
 	void operator()(As& as);
 
 	void operator()(Binary& binary);

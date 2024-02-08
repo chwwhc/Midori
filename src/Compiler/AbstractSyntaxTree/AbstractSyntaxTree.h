@@ -44,8 +44,9 @@ struct Return;
 struct Foreign;
 struct Struct;
 struct Union;
+struct Switch;
 
-using MidoriStatement = std::variant<Block, Simple, Define, If, While, For, Break, Continue, Return, Foreign, Struct, Union>;
+using MidoriStatement = std::variant<Block, Simple, Define, If, While, For, Break, Continue, Return, Foreign, Struct, Union, Switch>;
 using MidoriProgramTree = std::vector<std::unique_ptr<MidoriStatement>>;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -61,6 +62,8 @@ namespace VariableSemantic
 		int m_index = 0;
 	};
 	struct Global {};
+
+	using Tag = std::variant<Local, Cell, Global>;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -121,13 +124,13 @@ struct Bind
 {
 	Token m_name;
 	std::unique_ptr<MidoriExpression> m_value;
-	std::variant<VariableSemantic::Local, VariableSemantic::Global, VariableSemantic::Cell> m_semantic;
+	VariableSemantic::Tag m_semantic_tag;
 };
 
 struct Variable
 {
 	Token m_name;
-	std::variant<VariableSemantic::Local, VariableSemantic::Global, VariableSemantic::Cell> m_semantic;
+	VariableSemantic::Tag m_semantic_tag;
 };
 
 struct Call
@@ -293,6 +296,40 @@ struct Union
 {
 	Token m_name;
 	const MidoriType* m_self_type;
-	std::vector<std::vector<const MidoriType*>> m_constructor_types;
-	std::vector<std::string> m_constructor_names;
+};
+
+struct Switch
+{
+	struct MemberCase
+	{
+		Token m_keyword;
+		std::vector<std::string> m_binding_names;
+		std::string m_member_name;
+		std::unique_ptr<MidoriStatement> m_stmt;
+		int m_tag;
+	};
+
+	struct DefaultCase
+	{
+		Token m_keyword;
+		std::unique_ptr<MidoriStatement> m_stmt;
+	};
+
+	using Case = std::variant<MemberCase, DefaultCase>;
+
+	Token m_switch_keyword;
+	std::unique_ptr<MidoriExpression> m_arg_expr;
+	std::vector<Case> m_cases;
+
+	static bool IsMemberCase(const Case& c) { return std::holds_alternative<MemberCase>(c); }
+
+	static bool IsDefaultCase(const Case& c) { return std::holds_alternative<DefaultCase>(c); }
+
+	static MemberCase& GetMemberCase(const Case& c) { return const_cast<MemberCase&>(std::get<MemberCase>(c)); }
+
+	static DefaultCase& GetDefaultCase(const Case& c) { return const_cast<DefaultCase&>(std::get<DefaultCase>(c)); }
+
+	static const Token& GetKeyword(const Case& c) { return std::visit([](auto&& arg) -> const Token& { return arg.m_keyword; }, c); }
+
+	static const std::unique_ptr<MidoriStatement>& GetCaseStatement(const Case& c) { return std::visit([](auto&& arg) -> const std::unique_ptr<MidoriStatement>&{ return arg.m_stmt; }, c); }
 };

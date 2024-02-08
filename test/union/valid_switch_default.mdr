@@ -1,0 +1,59 @@
+#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+
+struct S1
+{
+};
+
+union U1
+{
+	A(Int),
+	B,
+	C(Frac, Int, Text),
+	D(U1),
+	E(S1),
+};
+
+fixed main = fn() : Unit
+{
+	var x = new D(new E(new S1()));
+	x = new C(1.2, 2, "sss");
+
+	switch(x)
+	{
+		case A(fixed a):
+		{
+			PrintLine("case A");
+		}
+		case B():
+			PrintLine("case B");
+		case C(var frac_1, var int_1, var text_1):
+		{
+			PrintLine("case C");
+		}
+		case D(var u):
+		{
+			PrintLine("case D");
+		}
+		default:
+		{
+			PrintLine("default case");
+		}
+		case E(var s):
+			PrintLine("case E");
+	}
+
+
+	x = new B();
+
+	switch(x)
+	{
+		case D(var u):
+		{
+			PrintLine("case D");
+		}
+		default:
+			PrintLine("default case");
+	}
+
+	return ();
+};

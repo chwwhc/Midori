@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <chrono>
 #include <span>
+#include <memory>
 
 #if defined(_WIN32) || defined(_WIN64)
 #define MIDORI_API __declspec(dllexport)
@@ -15,7 +16,7 @@ extern "C"
 	MIDORI_API void Print(std::span<MidoriValue> args, MidoriValue* ret)
 	{
 		std::printf("%s", args[0].GetPointer()->GetText().c_str());
-		new (ret) MidoriValue();
+		std::construct_at(ret);
 	}
 
 	MIDORI_API void GetTime(std::span<MidoriValue>, MidoriValue* ret)
@@ -24,6 +25,6 @@ extern "C"
 		std::chrono::time_point now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
 		std::chrono::milliseconds value = now_ms.time_since_epoch();
 		std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(value);
-		new (ret) MidoriValue(static_cast<MidoriValue::MidoriFraction>(duration.count()));
+		std::construct_at(ret, static_cast<MidoriValue::MidoriFraction>(duration.count()));
 	}
 }

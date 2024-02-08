@@ -14,12 +14,14 @@ public:
 private:
 	struct VariableContext
 	{
-		int m_relative_index = -1;
-		int m_absolute_index = -1;
-		int m_closure_depth = -1;
+		std::optional<int> m_relative_index = std::nullopt;
+		std::optional<int> m_absolute_index = std::nullopt;
+		std::optional<int> m_closure_depth = std::nullopt;
 		bool m_is_fixed = true;
 
 		VariableContext() = default;
+
+		VariableContext(bool is_fixed) : m_is_fixed(is_fixed) {}
 
 		VariableContext(int relative_index, int absolute_index, int closure_depth, bool is_fixed) : m_relative_index(relative_index), m_absolute_index(absolute_index), m_closure_depth(closure_depth), m_is_fixed(is_fixed) {}
 	};
@@ -29,20 +31,18 @@ private:
 		using VariableTable = std::unordered_map<std::string, VariableContext>;
 		using StructTable = std::unordered_map<std::string, const MidoriType*>;
 		using UnionTable = std::unordered_map<std::string, const MidoriType*>;
-		using UnionTagTable = std::unordered_map<std::string, int>;
 		using DefinedTypeTable = std::unordered_map<std::string, const MidoriType*>;
 
 		VariableTable m_variables;
 		StructTable m_structs;
 		UnionTable m_unions;
 		DefinedTypeTable m_defined_types;
-		UnionTagTable m_union_tags;
 	};
 
 	using DependencyGraph = std::unordered_map<std::string, std::vector<std::string>>;
 	using Scopes = std::vector<Scope>;
 	
-	static DependencyGraph s_dependency_graph;
+	inline static DependencyGraph s_dependency_graph{};
 	TokenStream m_tokens;
 	std::string m_file_name;
 	Scopes m_scopes;
@@ -95,6 +95,10 @@ private:
 
 		return lower_expr;
 	}
+
+	bool IsGlobalName(const std::vector<Scope>::const_reverse_iterator& found_scope_it) const;
+
+	bool IsLocalName(const Scope::VariableTable::const_iterator& found_scope_it) const;
 
 	void Synchronize();
 
@@ -168,6 +172,8 @@ private:
 
 	MidoriResult::ExpressionResult ParseLogicalOr();
 
+	MidoriResult::ExpressionResult ParseMatch();
+
 	MidoriResult::StatementResult ParseDeclarationCommon(bool may_throw_error);
 
 	MidoriResult::StatementResult ParseDeclaration();
@@ -197,6 +203,8 @@ private:
 	MidoriResult::StatementResult ParseReturnStatement();
 
 	MidoriResult::StatementResult ParseForeignStatement();
+
+	MidoriResult::StatementResult ParseSwitchStatement();
 
 	MidoriResult::StatementResult ParseStatement();
 

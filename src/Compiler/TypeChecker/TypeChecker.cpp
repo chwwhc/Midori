@@ -5,6 +5,7 @@
 #include <iterator>
 #include <format>
 #include <cassert>
+#include <ranges>
 
 void TypeChecker::AddError(std::string&& error)
 {
@@ -320,10 +321,88 @@ void TypeChecker::operator()(Struct& struct_stmt)
 
 void TypeChecker::operator()(Union& union_stmt)
 {
-	for (size_t i = 0u; i < union_stmt.m_constructor_names.size(); i += 1u)
+	const UnionType& union_type = MidoriTypeUtil::GetUnionType(union_stmt.m_self_type);
+	for (const auto& [member_name, member_ctx] : union_type.m_member_info)
 	{
-		const MidoriType* union_constructor_type = MidoriTypeUtil::InsertFunctionType(union_stmt.m_constructor_types[i], union_stmt.m_self_type);
-		m_name_type_table.back()[union_stmt.m_constructor_names[i]] = union_constructor_type;
+		const MidoriType* union_constructor_type = MidoriTypeUtil::InsertFunctionType(member_ctx.m_member_types, union_stmt.m_self_type);
+		m_name_type_table.back()[member_name] = union_constructor_type;
+	}
+}
+
+void TypeChecker::operator()(Switch& switch_stmt)
+{
+	MidoriResult::TypeResult switch_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *switch_stmt.m_arg_expr);
+	if (!switch_result.has_value())
+	{
+		AddError(std::move(switch_result.error()));
+		return;
+	}
+
+	const MidoriType* switch_type = switch_result.value();
+	if (!MidoriTypeUtil::IsUnionType(switch_type))
+	{
+		const MidoriType* actual_type = switch_type;
+		AddError(MidoriError::GenerateTypeCheckerError("Switch statement type error", switch_stmt.m_switch_keyword, {}, actual_type));
+		return;
+	}
+
+	const UnionType& union_type = MidoriTypeUtil::GetUnionType(switch_type);
+
+	std::optional<const MidoriType*> output_type;
+	auto key_view = union_type.m_member_info | std::views::transform([](const auto& pair) { return pair.first; });
+	std::unordered_set<std::string> expected_member_names(key_view.begin(), key_view.end());
+	bool has_default_case = false;
+
+	for (Switch::Case& branch : switch_stmt.m_cases)
+	{
+		BeginScope();
+
+		if (Switch::IsDefaultCase(branch))
+		{
+			has_default_case = true;
+		}
+		else
+		{
+			if (has_default_case)
+			{
+				// TODO: Add warning for unreachable code
+			}
+
+			Switch::MemberCase& member_case = Switch::GetMemberCase(branch);
+			const std::string& branch_name = member_case.m_member_name;
+			if (!expected_member_names.contains(branch_name))
+			{
+				AddError(MidoriError::GenerateTypeCheckerError("Switch statement type error: unrecognized member", Switch::GetKeyword(branch), {}, nullptr));
+				return;
+			}
+			else
+			{
+				if (member_case.m_binding_names.size() != union_type.m_member_info.at(branch_name).m_member_types.size())
+				{
+					AddError(MidoriError::GenerateTypeCheckerError("Switch statement type error: incorrect case arity", Switch::GetKeyword(branch), {}, nullptr));
+					return;
+				}
+
+				member_case.m_tag = union_type.m_member_info.at(branch_name).m_tag;
+
+				expected_member_names.erase(branch_name);
+				for (size_t i = 0u; i < member_case.m_binding_names.size(); i += 1u)
+				{
+					const std::string& binding_name = member_case.m_binding_names[i];
+					m_name_type_table.back()[binding_name] = union_type.m_member_info.at(branch_name).m_member_types[i];
+				}
+			}
+		}
+
+		std::visit([this](auto&& arg) { return (*this)(arg); }, *Switch::GetCaseStatement(branch));
+
+		EndScope();
+	}
+
+	if (!expected_member_names.empty() && !has_default_case)
+	{
+		AddError(MidoriError::GenerateTypeCheckerError("Not all union members are matched", switch_stmt.m_switch_keyword, {}, nullptr));
+		return;
 	}
 }
 
@@ -410,7 +489,7 @@ MidoriResult::TypeResult TypeChecker::operator()(Binary& binary)
 	{
 		if (!MidoriTypeUtil::IsIntegerType(actual_type))
 		{
-			std::vector<const MidoriType*> expected_types = { MidoriTypeUtil::GetType("Int"s)};
+			std::vector<const MidoriType*> expected_types = { MidoriTypeUtil::GetType("Int"s) };
 			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Binary expression type error", binary.m_op, expected_types, actual_type));
 		}
 	}
@@ -481,7 +560,7 @@ MidoriResult::TypeResult TypeChecker::operator()(Unary& unary)
 	{
 		if (!MidoriTypeUtil::IsIntegerType(right_result.value()))
 		{
-			std::vector<const MidoriType*> expected_types = { &m_atomic_types[1] };
+			std::array<const MidoriType*, 1> expected_types = { MidoriTypeUtil::GetType("Int"s) };
 			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Unary expression type error", unary.m_op, expected_types, actual_type));
 		}
 	}
@@ -741,7 +820,7 @@ MidoriResult::TypeResult TypeChecker::operator()(Construct& construct)
 
 		if (*param_result.value() != *constructor_type.value()->m_param_types[i])
 		{
-			std::vector<const MidoriType*> expected_types = { std::addressof(*constructor_type.value()->m_param_types[i])};
+			std::vector<const MidoriType*> expected_types = { std::addressof(*constructor_type.value()->m_param_types[i]) };
 			const MidoriType* actual_type = param_result.value();
 			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Construct expression type error", construct.m_data_name, expected_types, actual_type));
 		}
@@ -805,7 +884,7 @@ MidoriResult::TypeResult TypeChecker::operator()(ArrayGet& array_get)
 
 		if (!MidoriTypeUtil::IsIntegerType(index_result.value()))
 		{
-			std::vector<const MidoriType*> expected_types = { &m_atomic_types[1] };
+			std::array<const MidoriType*, 1> expected_types = { MidoriTypeUtil::GetType("Int"s) };
 			const MidoriType* actual_type = index_result.value();
 			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Array get expression type error", array_get.m_op, expected_types, actual_type));
 		}
@@ -816,8 +895,9 @@ MidoriResult::TypeResult TypeChecker::operator()(ArrayGet& array_get)
 	{
 		if (!MidoriTypeUtil::IsArrayType(array_var_type))
 		{
-			std::vector<const MidoriType*> expected_types = { &m_atomic_types[2] };
+			// TODO: improve error message, expect generic array type
 			const MidoriType* actual_type = array_var_type;
+			std::array<const MidoriType*, 1> expected_types = { MidoriTypeUtil::GetType("Unit"s) };
 			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Array get expression type error", array_get.m_op, expected_types, actual_type));
 		}
 
@@ -852,7 +932,7 @@ MidoriResult::TypeResult TypeChecker::operator()(ArraySet& array_set)
 
 		if (!MidoriTypeUtil::IsIntegerType(index_result.value()))
 		{
-			std::vector<const MidoriType*> expected_types = { &m_atomic_types[1] };
+			std::array<const MidoriType*, 1> expected_types = { MidoriTypeUtil::GetType("Int"s) };
 			const MidoriType* actual_type = index_result.value();
 			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Array get expression type error", array_set.m_op, expected_types, actual_type));
 		}
@@ -863,8 +943,9 @@ MidoriResult::TypeResult TypeChecker::operator()(ArraySet& array_set)
 	{
 		if (!MidoriTypeUtil::IsArrayType(array_var_type))
 		{
-			std::vector<const MidoriType*> expected_types = { &m_atomic_types[2] };
+			// TODO: improve error message, expect generic array type
 			const MidoriType* actual_type = array_var_type;
+			std::array<const MidoriType*, 1> expected_types = { MidoriTypeUtil::GetType("Unit"s) };
 			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Array get expression type error", array_set.m_op, expected_types, actual_type));
 		}
 
@@ -909,7 +990,7 @@ MidoriResult::TypeResult TypeChecker::operator()(Ternary& ternary)
 
 	if (*true_result.value() != *else_result.value())
 	{
-		std::vector<const MidoriType*> expected_types = { std::addressof(*true_result.value()) };
+		std::array<const MidoriType*, 1> expected_types = { &*true_result.value() };
 		const MidoriType* actual_type = else_result.value();
 		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Ternary expression type error", ternary.m_question, expected_types, actual_type));
 	}

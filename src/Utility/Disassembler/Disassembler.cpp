@@ -1,31 +1,37 @@
 #ifdef DEBUG
 #include "Disassembler.h"
 #include "Common/Executable/Executable.h"
+#include "Common/Printer/Printer.h"
 
-#include <iostream>
+#include <sstream>
 #include <iomanip>
+#include <string>
 
 namespace
 {
 	constexpr int address_width = 8;
 	constexpr int instr_width = 20;
 	constexpr int comment_width = 20;
-	std::string_view two_tabs = "\t\t";
+	constexpr std::string_view two_tabs = "\t\t";
 
 	void SimpleInstruction(std::string_view name, int& offset)
 	{
 		offset += 1;
+		std::ostringstream formated_str;
 
-		std::cout << std::left << std::setw(instr_width) << name << std::endl;
+		formated_str << std::left << std::setw(instr_width) << name << '\n';
+		Printer::Print(formated_str.str());
 	}
 
 	void PopMultipleInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
 		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
 		offset += 2;
+		std::ostringstream formated_str;
 
-		std::cout << std::left << std::setw(instr_width) << name;
-		std::cout << ' ' << std::dec << operand << std::endl;
+		formated_str << std::left << std::setw(instr_width) << name;
+		formated_str << ' ' << std::dec << operand << '\n';
+		Printer::Print(formated_str.str());
 	}
 
 	void ConstantInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
@@ -49,10 +55,12 @@ namespace
 			operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
 			offset += 2;
 		}
+		std::ostringstream formated_str;
 
-		std::cout << std::left << std::setw(instr_width) << name;
-		std::cout << ' ' << std::dec << operand;
-		std::cout << two_tabs << std::setw(comment_width) << " // static value: " << executable.GetConstant(operand).ToString() << std::setfill(' ') << std::endl;
+		formated_str << std::left << std::setw(instr_width) << name;
+		formated_str << ' ' << std::dec << operand;
+		formated_str << two_tabs << std::setw(comment_width) << " // static value: " << executable.GetConstant(operand).ToString() << std::setfill(' ') << '\n';
+		Printer::Print(formated_str.str());
 	}
 
 	void JumpInstruction(std::string_view name, int sign, const MidoriExecutable& executable, int proc_index, int& offset)
@@ -60,40 +68,48 @@ namespace
 		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index)) |
 			(static_cast<int>(executable.ReadByteCode(offset + 2, proc_index)) << 8);
 		offset += 3;
+		std::ostringstream formated_str;
 
-		std::cout << std::left << std::setw(instr_width) << name;
-		std::cout << ' ' << std::dec << operand;
-		std::cout << two_tabs << std::setw(comment_width) << " // destination: " << '[' << std::right << std::setfill('0') << std::setw(address_width) << std::hex << (offset + sign * operand) << ']' << std::setfill(' ') << std::endl;
+		formated_str << std::left << std::setw(instr_width) << name;
+		formated_str << ' ' << std::dec << operand;
+		formated_str << two_tabs << std::setw(comment_width) << " // destination: " << '[' << std::right << std::setfill('0') << std::setw(address_width) << std::hex << (offset + sign * operand) << ']' << std::setfill(' ') << '\n';
+		Printer::Print(formated_str.str());
 	}
 
 	void GlobalVariableInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
 		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
 		offset += 2;
+		std::ostringstream formated_str;
 
-		std::cout << std::left << std::setw(instr_width) << name;
-		std::cout << ' ' << std::dec << operand;
-		std::cout << two_tabs << std::setw(comment_width) << " // global variable: " << executable.GetGlobalVariable(operand) << std::setfill(' ') << std::endl;
+		formated_str << std::left << std::setw(instr_width) << name;
+		formated_str << ' ' << std::dec << operand;
+		formated_str << two_tabs << std::setw(comment_width) << " // global variable: " << executable.GetGlobalVariable(operand) << std::setfill(' ') << '\n';
+		Printer::Print(formated_str.str());
 	}
 
 	void LocalOrCellVariableInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
 		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
 		offset += 2;
+		std::ostringstream formated_str;
 
-		std::cout << std::left << std::setw(instr_width) << name;
-		std::cout << ' ' << std::dec << operand;
-		std::cout << two_tabs << std::setw(comment_width) << " // stack offset: " << std::dec << operand << std::setfill(' ') << std::endl;
+		formated_str << std::left << std::setw(instr_width) << name;
+		formated_str << ' ' << std::dec << operand;
+		formated_str << two_tabs << std::setw(comment_width) << " // stack offset: " << std::dec << operand << std::setfill(' ') << '\n';
+		Printer::Print(formated_str.str());
 	}
 
 	void ArrayInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
 		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
 		offset += 2;
+		std::ostringstream formated_str;
 
-		std::cout << std::left << std::setw(instr_width) << name;
-		std::cout << ' ' << std::dec << operand;
-		std::cout << two_tabs << std::setw(comment_width) << " // number of indices: " << std::dec << operand << std::setfill(' ') << std::endl;
+		formated_str << std::left << std::setw(instr_width) << name;
+		formated_str << ' ' << std::dec << operand;
+		formated_str << two_tabs << std::setw(comment_width) << " // number of indices: " << std::dec << operand << std::setfill(' ') << '\n';
+		Printer::Print(formated_str.str());
 	}
 
 	void ArrayCreateInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
@@ -102,70 +118,96 @@ namespace
 			(static_cast<int>(executable.ReadByteCode(offset + 2, proc_index)) << 8) |
 			(static_cast<int>(executable.ReadByteCode(offset + 3, proc_index)) << 16);
 		offset += 4;
+		std::ostringstream formated_str;
 
-		std::cout << std::left << std::setw(instr_width) << name;
-		std::cout << ' ' << std::dec << operand;
-		std::cout << two_tabs << std::setw(comment_width) << " // array length: " << std::dec << operand << std::setfill(' ') << std::endl;
+		formated_str << std::left << std::setw(instr_width) << name;
+		formated_str << ' ' << std::dec << operand;
+		formated_str << two_tabs << std::setw(comment_width) << " // array length: " << std::dec << operand << std::setfill(' ') << '\n';
+		Printer::Print(formated_str.str());
 	}
 
 	void ClosureCreateInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{	
 		int captured_count = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
 		offset += 2;
+		std::ostringstream formated_str;
 
-		std::cout << std::left << std::setw(instr_width) << name;
-		std::cout << ' ' << std::dec << captured_count;
-		std::cout << two_tabs << std::setw(comment_width) << " // number of captured variables: " << std::dec << captured_count << std::setfill(' ') << std::endl;
+		formated_str << std::left << std::setw(instr_width) << name;
+		formated_str << ' ' << std::dec << captured_count;
+		formated_str << two_tabs << std::setw(comment_width) << " // number of captured variables: " << std::dec << captured_count << std::setfill(' ') << '\n';
+		Printer::Print(formated_str.str());
 	}
 
 	void AllocateClosureInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
 		int index = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
 		offset += 2;
+		std::ostringstream formated_str;
 
-		std::cout << std::left << std::setw(instr_width) << name;
-		std::cout << ' ' << std::dec << index;
-		std::cout << two_tabs << std::setw(comment_width) << " // code index: " << std::dec << index << std::setfill(' ') << std::endl;
+		formated_str << std::left << std::setw(instr_width) << name;
+		formated_str << ' ' << std::dec << index;
+		formated_str << two_tabs << std::setw(comment_width) << " // code index: " << std::dec << index << std::setfill(' ') << '\n';
+		Printer::Print(formated_str.str());
 	}
 
 	void CallInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
 		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
 		offset += 2;
+		std::ostringstream formated_str;
 
-		std::cout << std::left << std::setw(instr_width) << name;
-		std::cout << ' ' << std::dec << operand;
-		std::cout << two_tabs << std::setw(comment_width) << " // number of parameters: " << std::dec << operand << std::setfill(' ') << std::endl;
+		formated_str << std::left << std::setw(instr_width) << name;
+		formated_str << ' ' << std::dec << operand;
+		formated_str << two_tabs << std::setw(comment_width) << " // number of parameters: " << std::dec << operand << std::setfill(' ') << '\n';
+		Printer::Print(formated_str.str());
 	}
 
 	void MemberInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
 		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
 		offset += 2;
+		std::ostringstream formated_str;
 
-		std::cout << std::left << std::setw(instr_width) << name;
-		std::cout << ' ' << std::dec << operand;
-		std::cout << two_tabs << std::setw(comment_width) << " // member index: " << std::dec << operand << std::setfill(' ') << std::endl;
+		formated_str << std::left << std::setw(instr_width) << name;
+		formated_str << ' ' << std::dec << operand;
+		formated_str << two_tabs << std::setw(comment_width) << " // member index: " << std::dec << operand << std::setfill(' ') << '\n';
+		Printer::Print(formated_str.str());
 	}
 
 	void DataInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
 		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
 		offset += 2;
+		std::ostringstream formated_str;
 
-		std::cout << std::left << std::setw(instr_width) << name;
-		std::cout << ' ' << std::dec << operand;
-		std::cout << two_tabs << std::setw(comment_width) << " // data size: " << std::dec << operand << std::setfill(' ') << std::endl;
+		formated_str << std::left << std::setw(instr_width) << name;
+		formated_str << ' ' << std::dec << operand;
+		formated_str << two_tabs << std::setw(comment_width) << " // data size: " << std::dec << operand << std::setfill(' ') << '\n';
+		Printer::Print(formated_str.str());
 	}
 
 	void AllocateUnionInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
 		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
 		offset += 2;
+		std::ostringstream formated_str;
 
-		std::cout << std::left << std::setw(instr_width) << name;
-		std::cout << ' ' << std::dec << operand;
-		std::cout << two_tabs << std::setw(comment_width) << " // union tag: " << std::dec << operand << std::setfill(' ') << std::endl;
+		formated_str << std::left << std::setw(instr_width) << name;
+		formated_str << ' ' << std::dec << operand;
+		formated_str << two_tabs << std::setw(comment_width) << " // union tag: " << std::dec << operand << std::setfill(' ') << '\n';
+		Printer::Print(formated_str.str());
+	}
+
+	void DropUnionInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
+	{
+		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
+		offset += 2;
+		std::ostringstream formated_str;
+
+		formated_str << std::left << std::setw(instr_width) << name;
+		formated_str << ' ' << std::dec << operand;
+		formated_str << two_tabs << std::setw(comment_width) << " // slots to drop: " << std::dec << operand << std::setfill(' ') << '\n';
+		Printer::Print(formated_str.str());
 	}
 }
 
@@ -173,30 +215,34 @@ namespace Disassembler
 {
 	void DisassembleBytecodeStream(const MidoriExecutable& executable, int proc_index, std::string_view proc_name)
 	{
-		std::cout << "================================================== " << proc_name << " ==================================================" << std::endl;
+		Printer::Print("================================================== ");
+		Printer::Print(proc_name);
+		Printer::Print(" ==================================================\n");
 
 		int offset = 0;
 		while (offset < executable.GetByteCodeSize(proc_index))
 		{
 			DisassembleInstruction(executable, proc_index, offset);
 		}
-		std::cout << "-----------------------------------------------------------------------------------------------\n" << std::endl;
+		Printer::Print("-----------------------------------------------------------------------------------------------\n\n");
 	}
 
 	void DisassembleInstruction(const MidoriExecutable& executable, int proc_index, int& offset)
 	{
-		std::cout << '[' << std::right << std::setfill('0') << std::setw(::address_width) << std::hex << offset << "] " << std::setfill(' ');
+		std::ostringstream formated_str;
+		formated_str << '[' << std::right << std::setfill('0') << std::setw(::address_width) << std::hex << offset << "] " << std::setfill(' ');
 
-		std::cout << std::setw(::address_width) << std::left;
+		formated_str << std::setw(::address_width) << std::left;
 		if (offset > 0 && executable.GetLine(offset, proc_index) == executable.GetLine(offset - 1, proc_index))
 		{
-			std::cout << "|" << std::setfill(' ');
+			formated_str << "|" << std::setfill(' ');
 		}
 		else
 		{
-			std::cout << std::dec << executable.GetLine(offset, proc_index) << std::setfill(' ');
+			formated_str << std::dec << executable.GetLine(offset, proc_index) << std::setfill(' ');
 		}
-		std::cout << std::right << ' ';
+		formated_str << std::right << ' ';
+		Printer::Print(formated_str.str());
 
 		OpCode instruction = executable.ReadByteCode(offset, proc_index);
 		switch (instruction) {
@@ -356,6 +402,9 @@ namespace Disassembler
 		case OpCode::JUMP_BACK:
 			JumpInstruction("JUMP_BACK", -1, executable, proc_index, offset);
 			break;
+		case OpCode::LOAD_TAG:
+			SimpleInstruction("LOAD_TAG", offset);
+			break;
 		case OpCode::CALL_FOREIGN:
 			CallInstruction("CALL_FOREIGN", executable, proc_index, offset);
 			break;
@@ -410,8 +459,14 @@ namespace Disassembler
 		case OpCode::POP:
 			SimpleInstruction("POP", offset);
 			break;
+		case OpCode::DUP:
+			SimpleInstruction("DUP", offset);
+			break;
 		case OpCode::POP_SCOPE:
 			PopMultipleInstruction("POP_SCOPE", executable, proc_index, offset);
+			break;
+		case OpCode::POP_MULTIPLE:
+			PopMultipleInstruction("POP_MULTIPLE", executable, proc_index, offset);
 			break;
 		case OpCode::RETURN:
 			SimpleInstruction("RETURN", offset);

@@ -72,6 +72,9 @@ struct Token
 		NEW,
 		AS,
 		FOREIGN,
+		CASE,
+		DEFAULT,
+		SWITCH,
 
 		// types
 		FRACTION,

@@ -19,7 +19,6 @@ private:
 	const std::array<Token::Name, 2> m_binary_equality_operators = { Token::Name::DOUBLE_EQUAL, Token::Name::BANG_EQUAL };
 	const std::array<Token::Name, 2> m_binary_logical_operators = { Token::Name::DOUBLE_AMPERSAND, Token::Name::DOUBLE_BAR };
 	const std::array<Token::Name, 5> m_binary_bitwise_operators = { Token::Name::CARET, Token::Name::SINGLE_AMPERSAND, Token::Name::SINGLE_BAR, Token::Name::RIGHT_SHIFT, Token::Name::LEFT_SHIFT };
-	const std::array<MidoriType, 5> m_atomic_types = { FractionType{}, IntegerType{}, TextType{}, BoolType{}, UnitType{} };
 	TypeEnvironmentStack m_name_type_table;
 	const MidoriType* m_curr_closure_return_type = nullptr;
 
@@ -56,8 +55,10 @@ private:
 	void operator()(Foreign& foreign);
 
 	void operator()(Struct& struct_stmt);
-
+	
 	void operator()(Union& union_stmt);
+
+	void operator()(Switch& switch_stmt);
 
 	MidoriResult::TypeResult operator()(As& as);
 
