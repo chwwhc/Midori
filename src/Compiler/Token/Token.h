@@ -71,6 +71,7 @@ struct Token
 		UNION,
 		NEW,
 		AS,
+		OF,
 		FOREIGN,
 		CASE,
 		DEFAULT,

@@ -1375,7 +1375,7 @@ MidoriResult::StatementResult Parser::ParseSwitchStatement()
 	while (Match(Token::Name::CASE) || Match(Token::Name::DEFAULT))
 	{
 		Token& keyword = Previous();
-		if (keyword.m_token_name != Token::Name::DEFAULT)
+		if (keyword.m_token_name == Token::Name::CASE)
 		{
 			MidoriResult::TokenResult member_name = Consume(Token::Name::IDENTIFIER_LITERAL, "Expected constructor name.");
 			if (!member_name.has_value())
@@ -1392,52 +1392,49 @@ MidoriResult::StatementResult Parser::ParseSwitchStatement()
 				visited_members.emplace(member_name.value().m_lexeme);
 			}
 
-			paren = Consume(Token::Name::LEFT_PAREN, "Expected '(' after constructor name.");
-			if (!paren.has_value())
-			{
-				return std::unexpected<std::string>(std::move(paren.error()));
-			}
-
 			BeginScope();
 			std::vector<std::string> binding_names;
-			if (!Match(Token::Name::RIGHT_PAREN))
+			if (Match(Token::Name::LEFT_PAREN))
 			{
-				do
+				if (!Match(Token::Name::RIGHT_PAREN))
 				{
-					bool is_fixed = false;
-					if (Match(Token::Name::FIXED))
+					do
 					{
-						is_fixed = true;
-					}
-					else if (Match(Token::Name::VAR))
-					{
-						is_fixed = false;
-					}
-					else
-					{
-						return std::unexpected<std::string>(GenerateParserError("Expected 'var' or 'fixed'.", Previous()));
-					}
+						bool is_fixed = false;
+						if (Match(Token::Name::FIXED))
+						{
+							is_fixed = true;
+						}
+						else if (Match(Token::Name::VAR))
+						{
+							is_fixed = false;
+						}
+						else
+						{
+							return std::unexpected<std::string>(GenerateParserError("Expected 'var' or 'fixed'.", Previous()));
+						}
 
-					MidoriResult::TokenResult field_name = Consume(Token::Name::IDENTIFIER_LITERAL, "Expected field name.");
-					if (!field_name.has_value())
+						MidoriResult::TokenResult field_name = Consume(Token::Name::IDENTIFIER_LITERAL, "Expected field name.");
+						if (!field_name.has_value())
+						{
+							return std::unexpected<std::string>(std::move(field_name.error()));
+						}
+
+						field_name = DefineName(field_name.value(), is_fixed);
+						if (!field_name.has_value())
+						{
+							return std::unexpected<std::string>(std::move(field_name.error()));
+						}
+						GetLocalVariableIndex(field_name.value().m_lexeme, is_fixed);
+
+						binding_names.emplace_back(std::move(field_name.value().m_lexeme));
+					} while (Match(Token::Name::COMMA));
+
+					paren = Consume(Token::Name::RIGHT_PAREN, "Expected ')' after constructor name.");
+					if (!paren.has_value())
 					{
-						return std::unexpected<std::string>(std::move(field_name.error()));
+						return std::unexpected<std::string>(std::move(paren.error()));
 					}
-
-					field_name = DefineName(field_name.value(), is_fixed);
-					if (!field_name.has_value())
-					{
-						return std::unexpected<std::string>(std::move(field_name.error()));
-					}
-					GetLocalVariableIndex(field_name.value().m_lexeme, is_fixed);
-
-					binding_names.emplace_back(std::move(field_name.value().m_lexeme));
-				} while (Match(Token::Name::COMMA));
-
-				paren = Consume(Token::Name::RIGHT_PAREN, "Expected ')' after constructor name.");
-				if (!paren.has_value())
-				{
-					return std::unexpected<std::string>(std::move(paren.error()));
 				}
 			}
 
@@ -1557,7 +1554,7 @@ MidoriResult::TypeResult Parser::ParseType(bool is_foreign)
 	}
 	else if (Match(Token::Name::ARRAY))
 	{
-		Consume(Token::Name::LEFT_ANGLE, "Expected '<' after array type token.");
+		Consume(Token::Name::OF, "Expected 'of' after array type token.");
 		MidoriResult::TypeResult type = ParseType();
 		if (!type.has_value())
 		{
@@ -1565,7 +1562,6 @@ MidoriResult::TypeResult Parser::ParseType(bool is_foreign)
 		}
 		else
 		{
-			Consume(Token::Name::RIGHT_ANGLE, "Expected '>' after array type token.");
 			return MidoriTypeUtil::InsertArrayType(type.value());
 		}
 	}

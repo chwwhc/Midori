@@ -22,6 +22,7 @@ const std::unordered_map<std::string, Token::Name> Lexer::s_keywords =
 	{"fn"s, Token::Name::CLOSURE},
 	{"while"s, Token::Name::WHILE},
 	{"do"s, Token::Name::DO},
+	{"of"s, Token::Name::OF},
 	{"as"s, Token::Name::AS},
 	{"break"s, Token::Name::BREAK},
 	{"continue"s, Token::Name::CONTINUE},
@@ -346,14 +347,7 @@ MidoriResult::TokenResult Lexer::LexOneToken()
 			return MakeToken(Token::Name::SINGLE_COLON);
 		}
 	case '%':
-		if (MatchNext('>'))
-		{
-			return MakeToken(Token::Name::RIGHT_SHIFT);
-		}
-		else
-		{
-			return MakeToken(Token::Name::PERCENT);
-		}
+		return MakeToken(Token::Name::PERCENT);
 	case '*':
 		return MakeToken(Token::Name::STAR);
 	case '/':
@@ -401,6 +395,10 @@ MidoriResult::TokenResult Lexer::LexOneToken()
 		{
 			return MakeToken(Token::Name::GREATER_EQUAL);
 		}
+		else if (MatchNext('>'))
+		{
+			return MakeToken(Token::Name::RIGHT_SHIFT);
+		}
 		else
 		{
 			return MakeToken(Token::Name::RIGHT_ANGLE);
@@ -410,7 +408,7 @@ MidoriResult::TokenResult Lexer::LexOneToken()
 		{
 			return MakeToken(Token::Name::LESS_EQUAL);
 		}
-		else if (MatchNext('%'))
+		else if (MatchNext('<'))
 		{
 			return MakeToken(Token::Name::LEFT_SHIFT);
 		}

@@ -9,7 +9,6 @@
 #include <array>
 #include <functional>
 #include <unordered_map>
-#include <stdexcept>
 
 // handle std library
 #if defined(_WIN32) || defined(_WIN64)
@@ -18,41 +17,22 @@
 #include <dlfcn.h>
 #endif
 
-class InterpreterException : public std::runtime_error
-{
-public:
-	explicit InterpreterException(const std::string& message) : std::runtime_error(message) {}
-};
-
 class VirtualMachine
 {
 
 public:
 
-	VirtualMachine(MidoriExecutable&& executable) : m_executable(std::move(executable)), m_garbage_collector(m_executable.GetConstantRoots())
-	{
-		constexpr int runtime_startup_proc_index = 0;
-		m_instruction_pointer = &*m_executable.GetBytecodeStream(runtime_startup_proc_index).cbegin();
-		m_cells_to_promote.reserve(UINT8_MAX);
-	}
+	VirtualMachine(MidoriExecutable&& executable) noexcept;
 
-	~VirtualMachine()
-	{
-		MidoriTraceable::CleanUp();
-#ifdef _WIN32
-		FreeLibrary(m_library_handle);
-#else
-		dlclose(m_library_handle);
-#endif
-	}
+	~VirtualMachine();
 
 private:
 
 	static constexpr int s_value_stack_max = 30000;
-	static constexpr int s_frame_stack_max = 10000;
+	static constexpr int s_call_stack_max = 10000;
 	static constexpr int s_garbage_collection_threshold = 1024;
 
-	using ValueStackPointer = std::array<MidoriValue, s_value_stack_max>::iterator;
+	using ValueStackPointer = MidoriValue*;
 	using InstructionPointer = const OpCode*;
 	using GlobalVariables = std::unordered_map<std::string, MidoriValue>;
 
@@ -63,21 +43,25 @@ private:
 		InstructionPointer m_return_ip = nullptr;
 	};
 
-	using CallStackPointer = std::array<CallFrame, s_frame_stack_max>::iterator;
+	using CallStackPointer = CallFrame*;
 
 	MidoriExecutable m_executable;
 	GlobalVariables m_global_vars;
 	GarbageCollector m_garbage_collector;
 	std::vector<MidoriTraceable::CellValue*> m_cells_to_promote;
-	std::vector<MidoriTraceable::MidoriClosure::Environment*> m_closure_stack;
+	std::unique_ptr<std::array<MidoriTraceable::MidoriClosure::Environment*, s_call_stack_max>> m_closure_stack = std::make_unique<std::array<MidoriTraceable::MidoriClosure::Environment*, s_call_stack_max>>();
 	std::unique_ptr<std::array<MidoriValue, s_value_stack_max>> m_value_stack = std::make_unique<std::array<MidoriValue, s_value_stack_max>>();
-	std::unique_ptr<std::array<CallFrame, s_frame_stack_max>> m_call_stack = std::make_unique<std::array<CallFrame, s_frame_stack_max>>();
-	ValueStackPointer m_base_pointer = m_value_stack->begin();
-	ValueStackPointer m_value_stack_pointer = m_value_stack->begin();
-	ValueStackPointer m_value_stack_end = m_value_stack->end();
-	CallStackPointer m_call_stack_pointer = m_call_stack->begin();
-	CallStackPointer m_call_stack_begin = m_call_stack->begin();
-	CallStackPointer m_call_stack_end = m_call_stack->end();
+	std::unique_ptr<std::array<CallFrame, s_call_stack_max>> m_call_stack = std::make_unique<std::array<CallFrame, s_call_stack_max>>();
+	ValueStackPointer m_base_pointer = &(*m_value_stack)[0u];
+	ValueStackPointer m_value_stack_pointer = &(*m_value_stack)[0u];
+	ValueStackPointer m_value_stack_begin = &(*m_value_stack)[0u];
+	ValueStackPointer m_value_stack_end = &(*m_value_stack)[static_cast<size_t>(s_value_stack_max) - 1u];
+	CallStackPointer m_call_stack_pointer = &(*m_call_stack)[0u];
+	CallStackPointer m_call_stack_begin = &(*m_call_stack)[0u];
+	CallStackPointer m_call_stack_end = &(*m_call_stack)[static_cast<size_t>(s_call_stack_max) - 1u];
+	MidoriTraceable::MidoriClosure::Environment** m_env_pointer = &(*m_closure_stack)[0u];
+	MidoriTraceable::MidoriClosure::Environment** m_env_pointer_begin = &(*m_closure_stack)[0u];
+	MidoriTraceable::MidoriClosure::Environment** m_env_pointer_end = &(*m_closure_stack)[static_cast<size_t>(s_call_stack_max) - 1u];
 	InstructionPointer m_instruction_pointer;
 
 #ifdef _WIN32
@@ -88,14 +72,14 @@ private:
 
 public:
 
-	void Execute();
+	void Execute() noexcept;
 
 private:
 
-	void DisplayRuntimeError(std::string_view message) noexcept;
+	void TerminateExecution(std::string_view message) noexcept;
 
 	// only used for error reporting, efficiency is not a concern
-	int GetLine();
+	int GetLine() noexcept;
 
 	OpCode ReadByte() noexcept;
 
@@ -109,60 +93,63 @@ private:
 
 	std::string GenerateRuntimeError(std::string_view message, int line) noexcept;
 
-	void PushCallFrame(ValueStackPointer m_return_bp, ValueStackPointer m_return_sp, InstructionPointer m_return_ip);
+	void PushCallFrame(ValueStackPointer m_return_bp, ValueStackPointer m_return_sp, InstructionPointer m_return_ip) noexcept;
 
-	const MidoriValue& Peek() const noexcept;
+	MidoriValue& Peek() noexcept;
 
 	MidoriValue& Pop() noexcept;
 
 	void PromoteCells() noexcept;
 
-	void CheckIndexBounds(const MidoriValue& index, MidoriValue::MidoriInteger size);
+	void CheckIndexBounds(const MidoriValue& index, MidoriValue::MidoriInteger size) noexcept;
 
-	MidoriTraceable::GarbageCollectionRoots GetValueStackGarbageCollectionRoots();
+	MidoriTraceable::GarbageCollectionRoots GetValueStackGarbageCollectionRoots() const noexcept;
 
-	MidoriTraceable::GarbageCollectionRoots GetGlobalTableGarbageCollectionRoots();
+	MidoriTraceable::GarbageCollectionRoots GetGlobalTableGarbageCollectionRoots() const noexcept;
 
-	MidoriTraceable::GarbageCollectionRoots GetGarbageCollectionRoots();
+	MidoriTraceable::GarbageCollectionRoots GetGarbageCollectionRoots() const noexcept;
 
-	void CollectGarbage();
+	void CollectGarbage() noexcept;
 
 	template<typename T>
-	MidoriTraceable* CollectGarbageThenAllocateTraceable(T&& value)
+	MidoriTraceable* CollectGarbageThenAllocateTraceable(T&& arg) noexcept
 	{
 		CollectGarbage();
-		return MidoriTraceable::AllocateTraceable(std::forward<T>(value));
+		return MidoriTraceable::AllocateTraceable(std::forward<T>(arg));
 	}
 
 	template<typename... Args>
-	void Push(Args&&... args)
+		requires MidoriValueConstructible<Args...>
+	void Push(Args&&... args) noexcept
 	{
-		if (m_value_stack_pointer != m_value_stack_end)
+		if (m_value_stack_pointer <= m_value_stack_end) [[likely]]
 		{
-			*m_value_stack_pointer = MidoriValue(std::forward<Args>(args)...);
+			std::construct_at(m_value_stack_pointer, std::forward<Args>(args)...);
 			++m_value_stack_pointer;
 			return;
 		}
-		
-		throw InterpreterException(GenerateRuntimeError("Value stack overflow.", GetLine()));
+		else [[unlikely]]
+		{
+			TerminateExecution(GenerateRuntimeError("Value stack overflow.", GetLine()));
+		}
 	}
 
 	template<typename T>
-		requires (std::is_same_v<T, MidoriValue::MidoriInteger> || std::is_same_v<T, MidoriValue::MidoriFraction>)
-	void CheckZeroDivision(const T& value)
+		requires MidoriNumeric<T>
+	void CheckZeroDivision(const T& value) noexcept
 	{
 		if constexpr (std::is_same_v<T, MidoriValue::MidoriInteger>)
 		{
-			if (value == 0ll)
+			if (value == 0ll) [[unlikely]]
 			{
-				throw InterpreterException(GenerateRuntimeError("Division by zero.", GetLine()));
+				TerminateExecution(GenerateRuntimeError("Division by zero.", GetLine()));
 			}
 		}
 		else
 		{
-			if (value == 0.0)
+			if (value == 0.0) [[unlikely]]
 			{
-				throw InterpreterException(GenerateRuntimeError("Division by zero.", GetLine()));
+				TerminateExecution(GenerateRuntimeError("Division by zero.", GetLine()));
 			}
 		}
 	}

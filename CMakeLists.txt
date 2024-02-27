@@ -9,11 +9,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Compiler flags
 if (MSVC)
-    add_compile_options(/W4 /permissive-)
+    add_compile_options(/W4 /permissive- /GS- /EHa-)
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /Zi")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG /OPT:REF /OPT:ICF")
 else()
-    add_compile_options(-Wall -Wextra -pedantic -Werror -Wconversion)
+    add_compile_options(-Wall -Wextra -pedantic -Werror -Wconversion -fno-stack-protector -fno-exceptions)
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -g")
 endif()
 

@@ -20,19 +20,47 @@ public:
 	using MidoriBool = bool;
 
 private:
-	std::variant<MidoriFraction, MidoriInteger, MidoriUnit, MidoriBool, MidoriTraceable*> m_value;
+	union MidoriValueUnion
+	{
+		MidoriFraction m_fraction;
+		MidoriInteger m_integer;
+		MidoriUnit m_unit;
+		MidoriBool m_bool;
+		MidoriTraceable* m_pointer;
+
+		MidoriValueUnion(MidoriFraction d) noexcept;
+
+		MidoriValueUnion(MidoriInteger l) noexcept;
+
+		MidoriValueUnion(MidoriUnit u) noexcept;
+
+		MidoriValueUnion(MidoriBool b) noexcept;
+
+		MidoriValueUnion(MidoriTraceable* o) noexcept;
+	};
+	enum class MidoriValueTypeTag
+	{
+		Fraction,
+		Integer,
+		Unit,
+		Bool,
+		Pointer
+	};
+
+	MidoriValueUnion m_value{ MidoriUnit{} };
+	MidoriValueTypeTag m_type_tag{ MidoriValueTypeTag::Unit };
 
 public:
 
-	MidoriValue() noexcept : m_value(MidoriUnit()) {}
+	MidoriValue() noexcept = default;
 
-	MidoriValue(MidoriFraction d) noexcept : m_value(d) {}
+	MidoriValue(MidoriFraction d) noexcept;
 
-	MidoriValue(MidoriInteger l) noexcept : m_value(l) {}
+	MidoriValue(MidoriInteger l) noexcept;
 
-	MidoriValue(MidoriBool b) noexcept : m_value(b) {}
+	MidoriValue(MidoriBool b) noexcept;
 
-	MidoriValue(MidoriTraceable* o) noexcept : m_value(o) {}
+	MidoriValue(MidoriTraceable* o) noexcept;
 
 	MidoriValue(const MidoriValue& other) noexcept = default;
 
@@ -62,18 +90,17 @@ public:
 
 	bool IsPointer() const;
 
-	inline friend bool operator==(const MidoriValue& lhs, const MidoriValue& rhs)
-	{
-		return lhs.m_value == rhs.m_value;
-	}
-
-	inline friend bool operator!=(const MidoriValue& lhs, const MidoriValue& rhs)
-	{
-		return !(lhs == rhs);
-	}
-
 	std::string ToString() const;
 };
+
+template<typename... Args>
+concept MidoriValueConstructible = std::constructible_from<MidoriValue, Args...>;
+
+template<typename T>
+concept MidoriTraceableConstructible = std::constructible_from<MidoriTraceable, T>;
+
+template <typename T>
+concept MidoriNumeric = std::same_as<T, MidoriValue::MidoriFraction> || std::same_as<T, MidoriValue::MidoriInteger>;
 
 class MidoriTraceable
 {
@@ -122,35 +149,31 @@ private:
 
 public:
 
-	template<typename T>
-	static MidoriTraceable* AllocateTraceable(T&& value)
-	{
-		return new MidoriTraceable(std::forward<T>(value));
-	}
+	~MidoriTraceable() = default;
 
-	MidoriText& GetText() const;
+	MidoriText& GetText();
 
 	bool IsText() const;
 
-	MidoriArray& GetArray() const;
+	MidoriArray& GetArray();
 
 	bool IsArray() const;
 
-	inline bool IsCellValue() const;
+	bool IsCellValue() const;
 
-	CellValue& GetCellValue() const;
+	CellValue& GetCellValue();
 
 	bool IsClosure() const;
 
-	MidoriClosure& GetClosure() const;
+	MidoriClosure& GetClosure();
 
 	bool IsStruct() const;
 
-	MidoriStruct& GetStruct() const;
+	MidoriStruct& GetStruct();
 
 	bool IsUnion() const;
 
-	MidoriUnion& GetUnion() const;
+	MidoriUnion& GetUnion();
 
 	size_t GetSize() const;
 
@@ -160,9 +183,9 @@ public:
 
 	bool Marked() const;
 
-	static  void* operator new(size_t size) noexcept;
+	static void* operator new(size_t size) noexcept;
 
-	static  void operator delete(void* object, size_t size) noexcept;
+	static void operator delete(void* object, size_t size) noexcept;
 
 	std::string ToString() const;
 
@@ -171,6 +194,12 @@ public:
 	static void CleanUp();
 
 	static void PrintMemoryTelemetry();
+
+	template<typename T>
+	static MidoriTraceable* AllocateTraceable(T&& arg)
+	{
+		return new MidoriTraceable(std::forward<T>(arg));
+	}
 
 private:
 	MidoriTraceable() = delete;
@@ -183,15 +212,15 @@ private:
 
 	MidoriTraceable& operator=(MidoriTraceable&& other) noexcept = delete;
 
-	MidoriTraceable(MidoriText&& str) : m_value(std::move(str)) {}
+	MidoriTraceable(MidoriText&& str) noexcept;
 
-	MidoriTraceable(MidoriArray&& array) : m_value(std::move(array)) {}
+	MidoriTraceable(MidoriArray&& array) noexcept;
 
-	MidoriTraceable(MidoriValue* stack_value_ref) : m_value(CellValue{ MidoriValue(), stack_value_ref, false }) {}
+	MidoriTraceable(MidoriValue* stack_value_ref) noexcept;
 
-	MidoriTraceable(MidoriClosure&& closure) : m_value(std::move(closure)) {}
+	MidoriTraceable(MidoriClosure&& closure) noexcept;
 
-	MidoriTraceable(MidoriStruct&& midori_struct) : m_value(std::move(midori_struct)) {}
+	MidoriTraceable(MidoriStruct&& midori_struct) noexcept;
 
-	MidoriTraceable(MidoriUnion&& midori_union) : m_value(std::move(midori_union)) {}
+	MidoriTraceable(MidoriUnion&& midori_union) noexcept;
 };

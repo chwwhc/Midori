@@ -2,6 +2,7 @@
 #include "Common/Printer/Printer.h"
 
 #include <algorithm>
+#include <execution>
 #include <ranges>
 #include <format>
 
@@ -54,87 +55,133 @@ namespace
 	}
 }
 
+MidoriValue::MidoriValueUnion::MidoriValueUnion(MidoriFraction d) noexcept : m_fraction(d)
+{
+}
+
+MidoriValue::MidoriValueUnion::MidoriValueUnion(MidoriInteger l) noexcept : m_integer(l)
+{
+}
+
+MidoriValue::MidoriValueUnion::MidoriValueUnion(MidoriUnit u) noexcept : m_unit(u)
+{
+}
+
+MidoriValue::MidoriValueUnion::MidoriValueUnion(MidoriBool b) noexcept : m_bool(b)
+{
+}
+
+MidoriValue::MidoriValueUnion::MidoriValueUnion(MidoriTraceable* o) noexcept : m_pointer(o)
+{
+}
+
+MidoriValue::MidoriValue(MidoriFraction d) noexcept : m_value(d), m_type_tag(MidoriValueTypeTag::Fraction)
+{
+}
+
+MidoriValue::MidoriValue(MidoriInteger l) noexcept : m_value(l), m_type_tag(MidoriValueTypeTag::Integer)
+{
+}
+
+MidoriValue::MidoriValue(MidoriBool b) noexcept : m_value(b), m_type_tag(MidoriValueTypeTag::Bool)
+{
+}
+
+MidoriValue::MidoriValue(MidoriTraceable* o) noexcept : m_value(o), m_type_tag(MidoriValueTypeTag::Pointer)
+{
+}
+
 MidoriValue::MidoriFraction MidoriValue::GetFraction() const
 {
-	return std::get<MidoriFraction>(m_value);
+	return m_value.m_fraction;
 }
 
 bool MidoriValue::IsFraction() const
 {
-	return std::holds_alternative<MidoriFraction>(m_value);
+	return m_type_tag == MidoriValueTypeTag::Fraction;
 }
 
 MidoriValue::MidoriInteger MidoriValue::GetInteger() const
 {
-	return std::get<MidoriInteger>(m_value);
+	return m_value.m_integer;
 }
 
 bool MidoriValue::IsInteger() const
 {
-	return std::holds_alternative<MidoriInteger>(m_value);
+	return m_type_tag == MidoriValueTypeTag::Integer;
 }
 
 MidoriValue::MidoriUnit MidoriValue::GetUnit() const
 {
-	return std::get<MidoriUnit>(m_value);
+	return m_value.m_unit;
 }
 
 bool MidoriValue::IsUnit() const
 {
-	return std::holds_alternative<MidoriUnit>(m_value);
+	return m_type_tag == MidoriValueTypeTag::Unit;
 }
 
 MidoriValue::MidoriBool MidoriValue::GetBool() const
 {
-	return std::get<MidoriBool>(m_value);
+	return m_value.m_bool;
 }
 
 bool MidoriValue::IsBool() const
 {
-	return std::holds_alternative<MidoriBool>(m_value);
+	return m_type_tag == MidoriValueTypeTag::Bool;
 }
 
 MidoriTraceable* MidoriValue::GetPointer() const
 {
-	return std::get<MidoriTraceable*>(m_value);
+	return m_value.m_pointer;
 }
 
 bool MidoriValue::IsPointer() const
 {
-	return std::holds_alternative<MidoriTraceable*>(m_value);
+	return m_type_tag == MidoriValueTypeTag::Pointer;
 }
 
 std::string MidoriValue::ToString() const
 {
-	return std::visit([](auto&& arg) -> std::string
-		{
-			using T = std::decay_t<decltype(arg)>;
+	switch (m_type_tag)
+	{
+	case MidoriValue::MidoriValueTypeTag::Fraction:
+		return std::to_string(GetFraction());
+	case MidoriValue::MidoriValueTypeTag::Integer:
+		return std::to_string(GetInteger());
+	case MidoriValue::MidoriValueTypeTag::Unit:
+		return "()"s;
+	case MidoriValue::MidoriValueTypeTag::Bool:
+		return GetBool() ? "true"s : "false"s;
+	case MidoriValue::MidoriValueTypeTag::Pointer:
+		return GetPointer()->ToString();
+	default:
+		return "Unknown MidoriValue"s; // Unreachable
+	}
+}
 
-			if constexpr (std::is_same_v<T, MidoriFraction>)
-			{
-				return std::to_string(arg);
-			}
-			else if constexpr (std::is_same_v<T, MidoriInteger>)
-			{
-				return std::to_string(arg);
-			}
-			else if constexpr (std::is_same_v<T, MidoriUnit>)
-			{
-				return "()";
-			}
-			else if constexpr (std::is_same_v<T, MidoriBool>)
-			{
-				return arg ? "true" : "false";
-			}
-			else if constexpr (std::is_same_v<T, MidoriTraceable*>)
-			{
-				return arg->ToString();
-			}
-			else
-			{
-				return "Unknown value";
-			}
-		}, m_value);
+MidoriTraceable::MidoriTraceable(MidoriText&& str) noexcept : m_value(std::move(str))
+{
+}
+
+MidoriTraceable::MidoriTraceable(MidoriArray&& array) noexcept : m_value(std::move(array))
+{
+}
+
+MidoriTraceable::MidoriTraceable(MidoriValue* stack_value_ref) noexcept : m_value(CellValue{ MidoriValue(), stack_value_ref, false })
+{
+}
+
+MidoriTraceable::MidoriTraceable(MidoriClosure&& closure) noexcept : m_value(std::move(closure))
+{
+}
+
+MidoriTraceable::MidoriTraceable(MidoriStruct&& midori_struct)noexcept : m_value(std::move(midori_struct))
+{
+}
+
+MidoriTraceable::MidoriTraceable(MidoriUnion&& midori_union) noexcept : m_value(std::move(midori_union))
+{
 }
 
 std::string MidoriTraceable::ToString() const
@@ -150,7 +197,7 @@ std::string MidoriTraceable::ToString() const
 			{
 				if (arg.empty())
 				{
-					return "[]";
+					return "[]"s;
 				}
 
 				std::string result = "["s;
@@ -228,19 +275,14 @@ MidoriValue& MidoriTraceable::CellValue::GetValue()
 	return m_is_on_heap ? m_heap_value : *m_stack_value_ref;
 }
 
-MidoriTraceable::MidoriText& MidoriTraceable::GetText() const
-{
-	return const_cast<MidoriText&>(std::get<MidoriText>(m_value));
-}
-
 bool MidoriTraceable::IsText() const
 {
 	return std::holds_alternative<MidoriText>(m_value);
 }
 
-MidoriTraceable::MidoriArray& MidoriTraceable::GetArray() const
+MidoriTraceable::MidoriText& MidoriTraceable::GetText()
 {
-	return const_cast<MidoriArray&>(std::get<MidoriArray>(m_value));
+	return std::get<MidoriText>(m_value);
 }
 
 bool MidoriTraceable::IsArray() const
@@ -248,14 +290,19 @@ bool MidoriTraceable::IsArray() const
 	return std::holds_alternative<MidoriArray>(m_value);
 }
 
+MidoriTraceable::MidoriArray& MidoriTraceable::GetArray()
+{
+	return std::get<MidoriArray>(m_value);
+}
+
 bool MidoriTraceable::IsCellValue() const
 {
 	return std::holds_alternative<CellValue>(m_value);
 }
 
-MidoriTraceable::CellValue& MidoriTraceable::GetCellValue() const
+MidoriTraceable::CellValue& MidoriTraceable::GetCellValue()
 {
-	return const_cast<CellValue&>(std::get<CellValue>(m_value));
+	return std::get<CellValue>(m_value);
 }
 
 bool MidoriTraceable::IsClosure() const
@@ -263,9 +310,9 @@ bool MidoriTraceable::IsClosure() const
 	return std::holds_alternative<MidoriClosure>(m_value);
 }
 
-MidoriTraceable::MidoriClosure& MidoriTraceable::GetClosure() const
+MidoriTraceable::MidoriClosure& MidoriTraceable::GetClosure()
 {
-	return const_cast<MidoriClosure&>(std::get<MidoriClosure>(m_value));
+	return std::get<MidoriClosure>(m_value);
 }
 
 bool MidoriTraceable::IsStruct() const
@@ -273,9 +320,9 @@ bool MidoriTraceable::IsStruct() const
 	return std::holds_alternative<MidoriStruct>(m_value);
 }
 
-MidoriTraceable::MidoriStruct& MidoriTraceable::GetStruct() const
+MidoriTraceable::MidoriStruct& MidoriTraceable::GetStruct()
 {
-	return const_cast<MidoriStruct&>(std::get<MidoriStruct>(m_value));
+	return std::get<MidoriStruct>(m_value);
 }
 
 bool MidoriTraceable::IsUnion() const 
@@ -283,9 +330,9 @@ bool MidoriTraceable::IsUnion() const
 	return std::holds_alternative<MidoriUnion>(m_value);
 }
 
-MidoriTraceable::MidoriUnion& MidoriTraceable::GetUnion() const
+MidoriTraceable::MidoriUnion& MidoriTraceable::GetUnion()
 {
-	return const_cast<MidoriUnion&>(std::get<MidoriUnion>(m_value));
+	return std::get<MidoriUnion>(m_value);
 }
 
 size_t MidoriTraceable::GetSize() const
@@ -331,7 +378,13 @@ void MidoriTraceable::operator delete(void* object, size_t size) noexcept
 void MidoriTraceable::CleanUp()
 {
 	s_static_bytes_allocated = 0u;
-	std::ranges::for_each(s_traceables, [](MidoriTraceable* object) { delete object; });
+	std::for_each
+	(
+		std::execution::par_unseq,
+		s_traceables.begin(), 
+		s_traceables.end(),
+		[](MidoriTraceable* object) { delete object; }
+	);
 	s_traceables.clear();
 }
 

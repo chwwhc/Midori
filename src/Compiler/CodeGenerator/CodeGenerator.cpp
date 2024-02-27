@@ -116,15 +116,26 @@ void CodeGenerator::EndLoop(int line)
 {
 	LoopContext loop = m_loop_contexts.top();
 	m_loop_contexts.pop();
-	std::for_each(loop.m_break_positions.begin(), loop.m_break_positions.end(), [line, this](int break_position) { PatchJump(break_position, line); });
+	std::ranges::for_each
+	(
+		loop.m_break_positions, 
+		[line, this](int break_position) 
+		{
+			PatchJump(break_position, line);
+		}
+	);
 }
 
 MidoriResult::CodeGeneratorResult CodeGenerator::GenerateCode(MidoriProgramTree&& program_tree)
 {
-	std::for_each(program_tree.begin(), program_tree.end(), [this](std::unique_ptr<MidoriStatement>& statement)
+	std::ranges::for_each
+	(
+		program_tree, 
+		[this](std::unique_ptr<MidoriStatement>& statement)
 		{
 			std::visit([this](auto&& arg) { (*this)(arg); }, *statement);
-		});
+		}
+	);
 
 	if (!m_main_function_ctx.has_value())
 	{
@@ -155,10 +166,14 @@ MidoriResult::CodeGeneratorResult CodeGenerator::GenerateCode(MidoriProgramTree&
 
 void CodeGenerator::operator()(Block& block)
 {
-	std::for_each(block.m_stmts.begin(), block.m_stmts.end(), [this](std::unique_ptr<MidoriStatement>& statement)
+	std::ranges::for_each
+	(
+		block.m_stmts,
+		[this](std::unique_ptr<MidoriStatement>& statement)
 		{
 			std::visit([this](auto&& arg) { (*this)(arg); }, *statement);
-		});
+		}
+	);
 	if (m_procedures[m_current_procedure_index].ReadByteCode(m_procedures[m_current_procedure_index].GetByteCodeSize() - 1) == OpCode::RETURN)
 	{
 		return;
@@ -419,10 +434,14 @@ void CodeGenerator::operator()(Switch& switch_stmt)
 		}
 	}
 
-	std::ranges::for_each(jumps, [this, line](int jump_addr)
+	std::ranges::for_each
+	(
+		jumps, 
+		[this, line](int jump_addr)
 		{
 			PatchJump(jump_addr, line);
-		});
+		}
+	);
 }
 
 void CodeGenerator::operator()(As& as)
@@ -589,7 +608,14 @@ void CodeGenerator::operator()(Call& call)
 		return;
 	}
 
-	std::for_each(call.m_arguments.begin(), call.m_arguments.end(), [this](std::unique_ptr<MidoriExpression>& arg) { std::visit([this](auto&& arg) {(*this)(arg); }, *arg); });
+	std::ranges::for_each
+	(
+		call.m_arguments, 
+		[this](std::unique_ptr<MidoriExpression>& arg) 
+		{
+			std::visit([this](auto&& arg) {(*this)(arg); }, *arg); 
+		}
+	);
 	std::visit([this](auto&& arg) {(*this)(arg); }, *call.m_callee);
 
 	if (call.m_is_foreign)
@@ -768,10 +794,14 @@ void CodeGenerator::operator()(Construct& construct)
 		EmitByte(static_cast<OpCode>(tag), line);
 	}
 
-	std::for_each(construct.m_params.begin(), construct.m_params.end(), [this](std::unique_ptr<MidoriExpression>& param)
+	std::ranges::for_each
+	(
+		construct.m_params, 
+		[this](std::unique_ptr<MidoriExpression>& param)
 		{
 			std::visit([this](auto&& arg) {(*this)(arg); }, *param);
-		});
+		}
+	);
 
 	if (is_struct)
 	{
@@ -798,10 +828,14 @@ void CodeGenerator::operator()(Array& array)
 		return;
 	}
 
-	std::for_each(array.m_elems.begin(), array.m_elems.end(), [this](std::unique_ptr<MidoriExpression>& elem)
+	std::ranges::for_each
+	(
+		array.m_elems, 
+		[this](std::unique_ptr<MidoriExpression>& elem)
 		{
 			std::visit([this](auto&& arg) {(*this)(arg); }, *elem);
-		});
+		}
+	);
 	EmitByte(OpCode::CREATE_ARRAY, line);
 	EmitThreeBytes(length, length >> 8, length >> 16, line);
 }
@@ -818,10 +852,14 @@ void CodeGenerator::operator()(ArrayGet& array_get)
 
 	std::visit([this](auto&& arg) {(*this)(arg); }, *array_get.m_arr_var);
 
-	std::for_each(array_get.m_indices.begin(), array_get.m_indices.end(), [this](std::unique_ptr<MidoriExpression>& index)
+	std::ranges::for_each
+	(
+		array_get.m_indices, 
+		[this](std::unique_ptr<MidoriExpression>& index)
 		{
 			std::visit([this](auto&& arg) {(*this)(arg); }, *index);
-		});
+		}
+	);
 
 	EmitByte(OpCode::GET_ARRAY, line);
 	EmitByte(static_cast<OpCode>(array_get.m_indices.size()), line);
@@ -839,10 +877,14 @@ void CodeGenerator::operator()(ArraySet& array_set)
 
 	std::visit([this](auto&& arg) {(*this)(arg); }, *array_set.m_arr_var);
 
-	std::for_each(array_set.m_indices.begin(), array_set.m_indices.end(), [this](std::unique_ptr<MidoriExpression>& index)
+	std::ranges::for_each
+	(
+		array_set.m_indices, 
+		[this](std::unique_ptr<MidoriExpression>& index)
 		{
 			std::visit([this](auto&& arg) {(*this)(arg); }, *index);
-		});
+		}
+	);
 
 	std::visit([this](auto&& arg) {(*this)(arg); }, *array_set.m_value);
 

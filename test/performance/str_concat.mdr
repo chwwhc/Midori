@@ -1,0 +1,25 @@
+#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+
+fixed TestStringManipulation = fn() : Unit
+{
+    fixed start = GetTime();
+
+    var testString = "";
+    for (var i = 0; i < 10000; i = i + 1)
+    {
+        testString = testString ++ "a";
+    }
+
+    fixed end = GetTime();
+
+    PrintLine("String manipulation benchmark took " ++ ((end - start) as Text) ++ " milliseconds");
+    
+    return ();
+};
+
+
+fixed main = fn() : Int
+{
+    TestStringManipulation();
+    return 0;
+};

@@ -15,8 +15,12 @@ fixed TestFib = fn() : Unit
 
 	fixed end = GetTime();
 
-	PrintLine("fib(35) = " ++ (fib_35 as Text));
-	PrintLine("Benchmark took " ++ ((end - start) as Text) ++ " milliseconds");
+	PrintLine("Fibonacci(35) benchmark took " ++ ((end - start) as Text) ++ " milliseconds");
 
 	return ();
+};
+
+fixed main = fn() : Unit
+{
+	return TestFib();
 };

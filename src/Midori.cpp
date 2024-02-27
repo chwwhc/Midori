@@ -6,7 +6,7 @@
 #include <sstream>
 #include <algorithm>
 
-std::optional<std::string> ReadFile(const char* filename)
+std::optional<std::string> ReadFile(const char* filename) noexcept
 {
 	std::ifstream file(filename);
 	if (!file.is_open())
@@ -15,23 +15,23 @@ std::optional<std::string> ReadFile(const char* filename)
 		return std::nullopt;
 	}
 
-	std::stringstream buffer;
+	std::ostringstream buffer;
 	buffer << file.rdbuf();
-	return buffer.str();
+	return std::optional(buffer.str());
 }
 
-int main()
+int main() noexcept
 {
-	const char* file_name = "E:\\Projects\\Midori\\test\\test.mdr";
+	std::string file_name = "E:\\Projects\\Midori\\test\\test.mdr"s;
 
-	std::optional<std::string> script = ReadFile(file_name);
-	if (!script.has_value())
+	std::optional<std::string> code = ReadFile(file_name.data());
+	if (!code.has_value())
 	{
 		Printer::Print<Printer::Color::RED>("Could not read file: \n");
-		std::exit(60);
+		std::exit(EXIT_FAILURE);
 	}
 
-	MidoriResult::CompilerResult compilation_result = Compiler::Compile(std::move(script.value()), std::string(file_name));
+	MidoriResult::CompilerResult compilation_result = Compiler::Compile(std::move(code.value()), std::move(file_name));
 	if (compilation_result.has_value())
 	{
 		MidoriExecutable& compilation_result_value = compilation_result.value();
@@ -41,7 +41,8 @@ int main()
 	else
 	{
 		Printer::Print<Printer::Color::RED>("Compilation failed :( \n");
-		Printer::Print<Printer::Color::RED>(compilation_result.error() + '\n');
+		Printer::Print<Printer::Color::RED>(std::format("{}\n", compilation_result.error()));
+		std::exit(EXIT_FAILURE);
 	}
 
 	return 0;

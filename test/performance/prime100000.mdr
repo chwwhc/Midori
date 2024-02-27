@@ -1,0 +1,43 @@
+#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+
+fixed TestPrimeNumbers = fn() : Unit
+{
+	fixed IsPrime = fn(fixed n : Int) : Bool
+	{
+		if (n <= 1)
+		{
+			return false;
+		}
+
+		for (var i = 2; i * i <= n; i = i + 1)
+		{
+			if (n % i == 0)
+			{
+				return false;
+			}
+		}
+		return true;
+	};
+
+	fixed start = GetTime();
+
+	var prime_count = 0;
+	for (var i = 0; i < 100000; i = i + 1)
+	{
+		if (IsPrime(i))
+		{
+			prime_count = prime_count + 1;
+		}
+	}
+
+	fixed end = GetTime();
+
+	PrintLine("Prime(100000) benchmark took " ++ ((end - start) as Text) ++ " milliseconds");
+
+	return ();
+};
+
+fixed main = fn() : Unit
+{
+	return TestPrimeNumbers();
+};

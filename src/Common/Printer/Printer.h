@@ -2,7 +2,7 @@
 
 #include <string_view>
 #include <concepts>
-#include <cstdio>
+#include <print>
 
 namespace Printer
 {
@@ -53,7 +53,7 @@ namespace Printer
 			std::printf("\033[0m");
 		}
 
-		std::printf(message.data());
+		std::print("{}", message);
 		std::printf("\033[0m");
 	}
 }
