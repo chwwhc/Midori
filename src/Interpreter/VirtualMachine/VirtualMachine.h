@@ -38,9 +38,10 @@ private:
 
 	struct CallFrame
 	{
-		ValueStackPointer  m_return_bp;
-		ValueStackPointer  m_return_sp;
+		ValueStackPointer  m_return_bp = nullptr;
+		ValueStackPointer  m_return_sp = nullptr;
 		InstructionPointer m_return_ip = nullptr;
+		MidoriTraceable*   m_closure = nullptr;
 	};
 
 	using CallStackPointer = CallFrame*;
@@ -49,19 +50,18 @@ private:
 	GlobalVariables m_global_vars;
 	GarbageCollector m_garbage_collector;
 	std::vector<MidoriTraceable::CellValue*> m_cells_to_promote;
-	std::unique_ptr<std::array<MidoriTraceable::MidoriClosure::Environment*, s_call_stack_max>> m_closure_stack = std::make_unique<std::array<MidoriTraceable::MidoriClosure::Environment*, s_call_stack_max>>();
-	std::unique_ptr<std::array<MidoriValue, s_value_stack_max>> m_value_stack = std::make_unique<std::array<MidoriValue, s_value_stack_max>>();
-	std::unique_ptr<std::array<CallFrame, s_call_stack_max>> m_call_stack = std::make_unique<std::array<CallFrame, s_call_stack_max>>();
-	ValueStackPointer m_base_pointer = &(*m_value_stack)[0u];
-	ValueStackPointer m_value_stack_pointer = &(*m_value_stack)[0u];
-	ValueStackPointer m_value_stack_begin = &(*m_value_stack)[0u];
-	ValueStackPointer m_value_stack_end = &(*m_value_stack)[static_cast<size_t>(s_value_stack_max) - 1u];
-	CallStackPointer m_call_stack_pointer = &(*m_call_stack)[0u];
-	CallStackPointer m_call_stack_begin = &(*m_call_stack)[0u];
-	CallStackPointer m_call_stack_end = &(*m_call_stack)[static_cast<size_t>(s_call_stack_max) - 1u];
-	MidoriTraceable::MidoriClosure::Environment** m_env_pointer = &(*m_closure_stack)[0u];
-	MidoriTraceable::MidoriClosure::Environment** m_env_pointer_begin = &(*m_closure_stack)[0u];
-	MidoriTraceable::MidoriClosure::Environment** m_env_pointer_end = &(*m_closure_stack)[static_cast<size_t>(s_call_stack_max) - 1u];
+	std::array<MidoriTraceable::MidoriClosure::Environment*, s_call_stack_max> m_closure_stack{};
+	std::array<MidoriValue, s_value_stack_max> m_value_stack{};
+	std::array<CallFrame, s_call_stack_max> m_call_stack{};
+	ValueStackPointer m_value_stack_base_pointer = &m_value_stack[0u];
+	ValueStackPointer m_value_stack_pointer = &m_value_stack[0u];
+	ValueStackPointer m_value_stack_begin = &m_value_stack[0u];
+	ValueStackPointer m_value_stack_end = &m_value_stack[static_cast<size_t>(s_value_stack_max) - 1u];
+	CallStackPointer m_call_stack_pointer = &m_call_stack[0u];
+	CallStackPointer m_call_stack_begin = &m_call_stack[0u];
+	CallStackPointer m_call_stack_end = &m_call_stack[static_cast<size_t>(s_call_stack_max) - 1u];
+	MidoriTraceable::MidoriClosure::Environment** m_env_pointer = &m_closure_stack[0u];
+	MidoriTraceable::MidoriClosure::Environment** m_env_pointer_begin = &m_closure_stack[0u];
 	InstructionPointer m_instruction_pointer;
 
 #ifdef _WIN32
@@ -93,7 +93,7 @@ private:
 
 	std::string GenerateRuntimeError(std::string_view message, int line) noexcept;
 
-	void PushCallFrame(ValueStackPointer m_return_bp, ValueStackPointer m_return_sp, InstructionPointer m_return_ip) noexcept;
+	void PushCallFrame(ValueStackPointer return_bp, ValueStackPointer return_sp, InstructionPointer return_ip, MidoriTraceable* closure_ptr) noexcept;
 
 	MidoriValue& Peek() noexcept;
 
@@ -111,13 +111,6 @@ private:
 
 	void CollectGarbage() noexcept;
 
-	template<typename T>
-	MidoriTraceable* CollectGarbageThenAllocateTraceable(T&& arg) noexcept
-	{
-		CollectGarbage();
-		return MidoriTraceable::AllocateTraceable(std::forward<T>(arg));
-	}
-
 	template<typename... Args>
 		requires MidoriValueConstructible<Args...>
 	void Push(Args&&... args) noexcept
@@ -131,26 +124,6 @@ private:
 		else [[unlikely]]
 		{
 			TerminateExecution(GenerateRuntimeError("Value stack overflow.", GetLine()));
-		}
-	}
-
-	template<typename T>
-		requires MidoriNumeric<T>
-	void CheckZeroDivision(const T& value) noexcept
-	{
-		if constexpr (std::is_same_v<T, MidoriValue::MidoriInteger>)
-		{
-			if (value == 0ll) [[unlikely]]
-			{
-				TerminateExecution(GenerateRuntimeError("Division by zero.", GetLine()));
-			}
-		}
-		else
-		{
-			if (value == 0.0) [[unlikely]]
-			{
-				TerminateExecution(GenerateRuntimeError("Division by zero.", GetLine()));
-			}
 		}
 	}
 };

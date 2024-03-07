@@ -195,7 +195,7 @@ public:
 
 	const BytecodeStream& GetBytecodeStream(int proc_index) const;
 
-	MidoriTraceable::GarbageCollectionRoots&& GetConstantRoots();
+	const MidoriTraceable::GarbageCollectionRoots& GetConstantRoots();
 
 	OpCode ReadByteCode(int instr_index, int proc_index) const;
 

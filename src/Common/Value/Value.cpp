@@ -16,7 +16,8 @@ namespace
 
 		for (char c : input)
 		{
-			switch (c) {
+			switch (c)
+			{
 			case '\n':
 			{
 				result.append("\\n");
@@ -56,40 +57,31 @@ namespace
 }
 
 MidoriValue::MidoriValueUnion::MidoriValueUnion(MidoriFraction d) noexcept : m_fraction(d)
-{
-}
+{}
 
 MidoriValue::MidoriValueUnion::MidoriValueUnion(MidoriInteger l) noexcept : m_integer(l)
-{
-}
+{}
 
 MidoriValue::MidoriValueUnion::MidoriValueUnion(MidoriUnit u) noexcept : m_unit(u)
-{
-}
+{}
 
 MidoriValue::MidoriValueUnion::MidoriValueUnion(MidoriBool b) noexcept : m_bool(b)
-{
-}
+{}
 
 MidoriValue::MidoriValueUnion::MidoriValueUnion(MidoriTraceable* o) noexcept : m_pointer(o)
-{
-}
+{}
 
 MidoriValue::MidoriValue(MidoriFraction d) noexcept : m_value(d), m_type_tag(MidoriValueTypeTag::Fraction)
-{
-}
+{}
 
 MidoriValue::MidoriValue(MidoriInteger l) noexcept : m_value(l), m_type_tag(MidoriValueTypeTag::Integer)
-{
-}
+{}
 
 MidoriValue::MidoriValue(MidoriBool b) noexcept : m_value(b), m_type_tag(MidoriValueTypeTag::Bool)
-{
-}
+{}
 
 MidoriValue::MidoriValue(MidoriTraceable* o) noexcept : m_value(o), m_type_tag(MidoriValueTypeTag::Pointer)
-{
-}
+{}
 
 MidoriValue::MidoriFraction MidoriValue::GetFraction() const
 {
@@ -161,28 +153,22 @@ std::string MidoriValue::ToString() const
 }
 
 MidoriTraceable::MidoriTraceable(MidoriText&& str) noexcept : m_value(std::move(str))
-{
-}
+{}
 
 MidoriTraceable::MidoriTraceable(MidoriArray&& array) noexcept : m_value(std::move(array))
-{
-}
+{}
 
 MidoriTraceable::MidoriTraceable(MidoriValue* stack_value_ref) noexcept : m_value(CellValue{ MidoriValue(), stack_value_ref, false })
-{
-}
+{}
 
 MidoriTraceable::MidoriTraceable(MidoriClosure&& closure) noexcept : m_value(std::move(closure))
-{
-}
+{}
 
 MidoriTraceable::MidoriTraceable(MidoriStruct&& midori_struct)noexcept : m_value(std::move(midori_struct))
-{
-}
+{}
 
 MidoriTraceable::MidoriTraceable(MidoriUnion&& midori_union) noexcept : m_value(std::move(midori_union))
-{
-}
+{}
 
 std::string MidoriTraceable::ToString() const
 {
@@ -325,7 +311,7 @@ MidoriTraceable::MidoriStruct& MidoriTraceable::GetStruct()
 	return std::get<MidoriStruct>(m_value);
 }
 
-bool MidoriTraceable::IsUnion() const 
+bool MidoriTraceable::IsUnion() const
 {
 	return std::holds_alternative<MidoriUnion>(m_value);
 }
@@ -377,15 +363,36 @@ void MidoriTraceable::operator delete(void* object, size_t size) noexcept
 
 void MidoriTraceable::CleanUp()
 {
-	s_static_bytes_allocated = 0u;
+#ifdef DEBUG
+	Printer::Print<Printer::Color::BLUE>("\nBefore the final clean-up:\n");
+	PrintMemoryTelemetry();
+	std::ranges::for_each
+	(
+		s_traceables,
+		[](MidoriTraceable* traceable_ptr)
+		{
+			Printer::Print<Printer::Color::MAGENTA>(std::format("Deleting traceable pointer: {:p}\n", static_cast<void*>(traceable_ptr)));
+			delete traceable_ptr;
+		}
+	);
+#else
 	std::for_each
 	(
 		std::execution::par_unseq,
-		s_traceables.begin(), 
+		s_traceables.begin(),
 		s_traceables.end(),
-		[](MidoriTraceable* object) { delete object; }
+		[](MidoriTraceable* traceable_ptr)
+		{
+			delete traceable_ptr;
+		}
 	);
+#endif
 	s_traceables.clear();
+	s_static_bytes_allocated = 0u;
+#ifdef DEBUG
+	Printer::Print<Printer::Color::BLUE>("\nAfter the final clean-up:\n");
+	PrintMemoryTelemetry();
+#endif
 }
 
 void MidoriTraceable::PrintMemoryTelemetry()
@@ -396,7 +403,7 @@ void MidoriTraceable::PrintMemoryTelemetry()
 			(
 				"\n\t------------------------------\n"
 				"\tMemory telemetry:\n"
-				"\tHeap objects allocated: {}\n"
+				"\tHeap pointers allocated: {}\n"
 				"\tTotal Bytes allocated: {}\n"
 				"\tStatic Bytes allocated: {}\n"
 				"\tDynamic Bytes allocated: {}\n"
@@ -422,25 +429,23 @@ void MidoriTraceable::Trace()
 
 	if (IsArray())
 	{
-		MidoriArray& array = GetArray();
-		std::ranges::for_each(array, [](MidoriValue& value) -> void
+		for (auto& pointer : GetArray() | std::views::filter([](const auto& val)
 			{
-				if (value.IsPointer())
-				{
-					value.GetPointer()->Trace();
-				}
-			});
+				return val.IsPointer();
+			}))
+		{
+			pointer.GetPointer()->Trace();
+		}
 	}
 	else if (IsClosure())
 	{
-		MidoriClosure& closure = GetClosure();
-		std::ranges::for_each(closure.m_cell_values, [](MidoriValue& cell_value) -> void
+		for (auto& pointer : GetClosure().m_cell_values | std::views::filter([](const auto& val)
 			{
-				if (cell_value.IsPointer())
-				{
-					cell_value.GetPointer()->Trace();
-				}
-			});
+				return val.IsPointer();
+			}))
+		{
+			pointer.GetPointer()->Trace();
+		}
 	}
 	else if (IsCellValue())
 	{
@@ -452,24 +457,22 @@ void MidoriTraceable::Trace()
 	}
 	else if (IsStruct())
 	{
-		MidoriStruct& midori_struct = GetStruct();
-		std::ranges::for_each(midori_struct.m_values, [](MidoriValue& value) -> void
+		for (auto& pointer : GetStruct().m_values | std::views::filter([](const auto& val)
 			{
-				if (value.IsPointer())
-				{
-					value.GetPointer()->Trace();
-				}
-			});
+				return val.IsPointer();
+			}))
+		{
+			pointer.GetPointer()->Trace();
+		}
 	}
 	else if (IsUnion())
 	{
-		MidoriUnion& midori_union = GetUnion();
-		std::ranges::for_each(midori_union.m_values, [](MidoriValue& value) -> void
+		for (auto& pointer : GetUnion().m_values | std::views::filter([](const auto& val)
 			{
-				if (value.IsPointer())
-				{
-					value.GetPointer()->Trace();
-				}
-			});
+				return val.IsPointer();
+			}))
+		{
+			pointer.GetPointer()->Trace();
+		}
 	}
 }

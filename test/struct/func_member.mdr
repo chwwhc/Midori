@@ -20,8 +20,5 @@ fixed main = fn() : Int
 	fixed s = new FunStruct(0, fn(fixed x : Int) : Int { return x; }, 
 		fn() : Unit { s.num = s.num + 1; return (); }, fn(fixed x : Int) : Int { return s.num + x; });
 
-	fixed fib_35 = new Fib(35, fn(fixed x : Int) : Int { return fib_35.n < 2 ? fib_35.n : fib_35.calc(fib_35.n - 1) + fib_35.calc(fib_35.n - 2); });
-	fib_35.calc(fib_35.n);
-
     return 0;
 };

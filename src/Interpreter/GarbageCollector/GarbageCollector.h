@@ -5,10 +5,10 @@
 class GarbageCollector
 {
 private:
-	MidoriTraceable::GarbageCollectionRoots m_constant_roots;
+	const MidoriTraceable::GarbageCollectionRoots& m_constant_roots;
 
 public:
-	explicit GarbageCollector(MidoriTraceable::GarbageCollectionRoots&& roots) : m_constant_roots(std::move(roots)) {}
+	explicit GarbageCollector(const MidoriTraceable::GarbageCollectionRoots& roots) : m_constant_roots(roots) {}
 
 	void ReclaimMemory(MidoriTraceable::GarbageCollectionRoots&& roots)
 	{

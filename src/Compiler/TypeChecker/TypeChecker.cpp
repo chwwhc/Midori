@@ -30,7 +30,10 @@ MidoriResult::TypeCheckerResult TypeChecker::TypeCheck(MidoriProgramTree& progra
 	(
 		program_tree, [this](std::unique_ptr<MidoriStatement>& statement)
 		{
-			std::visit([this](auto&& arg) { (*this)(arg); }, *statement);
+			std::visit([this](auto&& arg)
+				{
+					(*this)(arg);
+				}, *statement);
 		}
 	);
 	EndScope();
@@ -50,10 +53,13 @@ void TypeChecker::operator()(Block& block)
 	BeginScope();
 	std::ranges::for_each
 	(
-		block.m_stmts, 
+		block.m_stmts,
 		[this](std::unique_ptr<MidoriStatement>& statement)
 		{
-			std::visit([this](auto&& arg) { (*this)(arg); }, *statement);
+			std::visit([this](auto&& arg)
+				{
+					(*this)(arg);
+				}, *statement);
 		}
 	);
 	EndScope();
@@ -61,7 +67,10 @@ void TypeChecker::operator()(Block& block)
 
 void TypeChecker::operator()(Simple& simple)
 {
-	MidoriResult::TypeResult result = std::visit([this](auto&& arg) { return (*this)(arg); }, *simple.m_expr);
+	MidoriResult::TypeResult result = std::visit([this](auto&& arg)
+		{
+			return (*this)(arg);
+		}, *simple.m_expr);
 
 	if (!result.has_value())
 	{
@@ -95,7 +104,10 @@ void TypeChecker::operator()(Define& def)
 			}
 		}
 
-		MidoriResult::TypeResult closure_type_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *def.m_value);
+		MidoriResult::TypeResult closure_type_result = std::visit([this](auto&& arg)
+			{
+				return (*this)(arg);
+			}, *def.m_value);
 		if (!closure_type_result.has_value())
 		{
 			AddError(std::move(closure_type_result.error()));
@@ -126,7 +138,10 @@ void TypeChecker::operator()(Define& def)
 			m_name_type_table.back().emplace(def.m_name.m_lexeme, construct.m_return_type);
 		}
 
-		MidoriResult::TypeResult construct_type_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *def.m_value);
+		MidoriResult::TypeResult construct_type_result = std::visit([this](auto&& arg)
+			{
+				return (*this)(arg);
+			}, *def.m_value);
 		if (!construct_type_result.has_value())
 		{
 			AddError(std::move(construct_type_result.error()));
@@ -152,7 +167,10 @@ void TypeChecker::operator()(Define& def)
 		}
 		else
 		{
-			MidoriResult::TypeResult init_expr_type = std::visit([this](auto&& arg) { return (*this)(arg); }, *def.m_value);
+			MidoriResult::TypeResult init_expr_type = std::visit([this](auto&& arg)
+				{
+					return (*this)(arg);
+				}, *def.m_value);
 			if (!init_expr_type.has_value())
 			{
 				AddError(std::move(init_expr_type.error()));
@@ -177,7 +195,10 @@ void TypeChecker::operator()(Define& def)
 	}
 	else
 	{
-		MidoriResult::TypeResult init_expr_type = std::visit([this](auto&& arg) { return (*this)(arg); }, *def.m_value);
+		MidoriResult::TypeResult init_expr_type = std::visit([this](auto&& arg)
+			{
+				return (*this)(arg);
+			}, *def.m_value);
 		if (!init_expr_type.has_value())
 		{
 			AddError(std::move(init_expr_type.error()));
@@ -205,7 +226,10 @@ void TypeChecker::operator()(Define& def)
 
 void TypeChecker::operator()(If& if_stmt)
 {
-	MidoriResult::TypeResult condition_type = std::visit([this](auto&& arg) { return (*this)(arg); }, *if_stmt.m_condition);
+	MidoriResult::TypeResult condition_type = std::visit([this](auto&& arg)
+		{
+			return (*this)(arg);
+		}, *if_stmt.m_condition);
 	if (condition_type.has_value())
 	{
 		if (!MidoriTypeUtil::IsBoolType(condition_type.value()))
@@ -220,17 +244,26 @@ void TypeChecker::operator()(If& if_stmt)
 		AddError(std::move(condition_type.error()));
 	}
 
-	std::visit([this](auto&& arg) { (*this)(arg); }, *if_stmt.m_true_branch);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *if_stmt.m_true_branch);
 
 	if (if_stmt.m_else_branch.has_value())
 	{
-		std::visit([this](auto&& arg) { (*this)(arg); }, *(*if_stmt.m_else_branch));
+		std::visit([this](auto&& arg)
+			{
+				(*this)(arg);
+			}, *(*if_stmt.m_else_branch));
 	}
 }
 
 void TypeChecker::operator()(While& while_stmt)
 {
-	MidoriResult::TypeResult condition_type = std::visit([this](auto&& arg) { return (*this)(arg); }, *while_stmt.m_condition);
+	MidoriResult::TypeResult condition_type = std::visit([this](auto&& arg)
+		{
+			return (*this)(arg);
+		}, *while_stmt.m_condition);
 	if (condition_type.has_value())
 	{
 		const MidoriType* actual_type = condition_type.value();
@@ -247,7 +280,10 @@ void TypeChecker::operator()(While& while_stmt)
 		return;
 	}
 
-	std::visit([this](auto&& arg) { (*this)(arg); }, *while_stmt.m_body);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *while_stmt.m_body);
 }
 
 void TypeChecker::operator()(For& for_stmt)
@@ -255,11 +291,17 @@ void TypeChecker::operator()(For& for_stmt)
 	BeginScope();
 	if (for_stmt.m_condition_intializer.has_value())
 	{
-		std::visit([this](auto&& arg) { (*this)(arg); }, *for_stmt.m_condition_intializer.value());
+		std::visit([this](auto&& arg)
+			{
+				(*this)(arg);
+			}, *for_stmt.m_condition_intializer.value());
 	}
 	if (for_stmt.m_condition.has_value())
 	{
-		MidoriResult::TypeResult condition_type = std::visit([this](auto&& arg) { return (*this)(arg); }, *for_stmt.m_condition.value());
+		MidoriResult::TypeResult condition_type = std::visit([this](auto&& arg)
+			{
+				return (*this)(arg);
+			}, *for_stmt.m_condition.value());
 		if (condition_type.has_value())
 		{
 			const MidoriType* actual_type = condition_type.value();
@@ -278,10 +320,16 @@ void TypeChecker::operator()(For& for_stmt)
 	}
 	if (for_stmt.m_condition_incrementer.has_value())
 	{
-		std::visit([this](auto&& arg) { (*this)(arg); }, *for_stmt.m_condition_incrementer.value());
+		std::visit([this](auto&& arg)
+			{
+				(*this)(arg);
+			}, *for_stmt.m_condition_incrementer.value());
 	}
 
-	std::visit([this](auto&& arg) { (*this)(arg); }, *for_stmt.m_body);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *for_stmt.m_body);
 	EndScope();
 }
 
@@ -297,7 +345,10 @@ void TypeChecker::operator()(Continue&)
 
 void TypeChecker::operator()(Return& return_stmt)
 {
-	MidoriResult::TypeResult return_type = std::visit([this](auto&& arg) { return (*this)(arg); }, *return_stmt.m_value);
+	MidoriResult::TypeResult return_type = std::visit([this](auto&& arg)
+		{
+			return (*this)(arg);
+		}, *return_stmt.m_value);
 
 	if (!return_type.has_value())
 	{
@@ -338,7 +389,10 @@ void TypeChecker::operator()(Union& union_stmt)
 
 void TypeChecker::operator()(Switch& switch_stmt)
 {
-	MidoriResult::TypeResult switch_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *switch_stmt.m_arg_expr);
+	MidoriResult::TypeResult switch_result = std::visit([this](auto&& arg)
+		{
+			return (*this)(arg);
+		}, *switch_stmt.m_arg_expr);
 	if (!switch_result.has_value())
 	{
 		AddError(std::move(switch_result.error()));
@@ -356,7 +410,10 @@ void TypeChecker::operator()(Switch& switch_stmt)
 	const UnionType& union_type = MidoriTypeUtil::GetUnionType(switch_type);
 
 	std::optional<const MidoriType*> output_type;
-	auto key_view = union_type.m_member_info | std::views::transform([](const auto& pair) { return pair.first; });
+	auto key_view = union_type.m_member_info | std::views::transform([](const auto& pair)
+		{
+			return pair.first;
+		});
 	std::unordered_set<std::string> expected_member_names(key_view.begin(), key_view.end());
 	bool has_default_case = false;
 
@@ -393,7 +450,7 @@ void TypeChecker::operator()(Switch& switch_stmt)
 				member_case.m_tag = union_type.m_member_info.at(branch_name).m_tag;
 
 				expected_member_names.erase(branch_name);
-				for (size_t i = 0u; i < member_case.m_binding_names.size(); i += 1u)
+				for (size_t i : std::views::iota(0u, member_case.m_binding_names.size()))
 				{
 					const std::string& binding_name = member_case.m_binding_names[i];
 					m_name_type_table.back()[binding_name] = union_type.m_member_info.at(branch_name).m_member_types[i];
@@ -401,7 +458,10 @@ void TypeChecker::operator()(Switch& switch_stmt)
 			}
 		}
 
-		std::visit([this](auto&& arg) { return (*this)(arg); }, *Switch::GetCaseStatement(branch));
+		std::visit([this](auto&& arg)
+			{
+				return (*this)(arg);
+			}, *Switch::GetCaseStatement(branch));
 
 		EndScope();
 	}
@@ -415,36 +475,36 @@ void TypeChecker::operator()(Switch& switch_stmt)
 
 MidoriResult::TypeResult TypeChecker::operator()(As& as)
 {
-	MidoriResult::TypeResult expr_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *as.m_expr);
+	MidoriResult::TypeResult expr_result = std::visit([this](auto&& arg)
+		{
+			return (*this)(arg);
+		}, *as.m_expr);
 	if (!expr_result.has_value())
 	{
 		return expr_result;
 	}
 
 	const MidoriType* expr_type = expr_result.value();
-	if (MidoriTypeUtil::IsStructType(as.m_target_type) || MidoriTypeUtil::IsStructType(expr_type))
+	if (MidoriTypeUtil::IsStructType(as.m_target_type) && MidoriTypeUtil::IsStructType(expr_type))
 	{
-		if (MidoriTypeUtil::IsStructType(as.m_target_type) && MidoriTypeUtil::IsStructType(expr_type))
-		{
-			const StructType& from_struct_type = MidoriTypeUtil::GetStructType(expr_type);
-			const StructType& to_struct_type = MidoriTypeUtil::GetStructType(as.m_target_type);
-			if (to_struct_type.m_member_types.size() != from_struct_type.m_member_types.size())
-			{
-				return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Type cast expression type error.", as.m_as_keyword, {}, as.m_target_type));
-			}
-
-			for (size_t i = 0u; i < to_struct_type.m_member_types.size(); i += 1u)
-			{
-				if (*from_struct_type.m_member_types[i] != *to_struct_type.m_member_types[i])
-				{
-					return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Type cast expression type error.", as.m_as_keyword, {}, as.m_target_type));
-				}
-			}
-		}
-		else
+		const StructType& from_struct_type = MidoriTypeUtil::GetStructType(expr_type);
+		const StructType& to_struct_type = MidoriTypeUtil::GetStructType(as.m_target_type);
+		if (to_struct_type.m_member_types.size() != from_struct_type.m_member_types.size())
 		{
 			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Type cast expression type error.", as.m_as_keyword, {}, as.m_target_type));
 		}
+
+		for (size_t i : std::views::iota(0u, to_struct_type.m_member_types.size()))
+		{
+			if (*from_struct_type.m_member_types[i] != *to_struct_type.m_member_types[i])
+			{
+				return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Type cast expression type error.", as.m_as_keyword, {}, as.m_target_type));
+			}
+		}
+	}
+	else if (MidoriTypeUtil::IsStructType(as.m_target_type))
+	{
+		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Type cast expression type error.", as.m_as_keyword, {}, as.m_target_type));
 	}
 
 	return as.m_target_type;
@@ -452,8 +512,14 @@ MidoriResult::TypeResult TypeChecker::operator()(As& as)
 
 MidoriResult::TypeResult TypeChecker::operator()(Binary& binary)
 {
-	MidoriResult::TypeResult left_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *binary.m_left);
-	MidoriResult::TypeResult right_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *binary.m_right);
+	MidoriResult::TypeResult left_result = std::visit([this](auto&& arg)
+		{
+			return (*this)(arg);
+		}, *binary.m_left);
+	MidoriResult::TypeResult right_result = std::visit([this](auto&& arg)
+		{
+			return (*this)(arg);
+		}, *binary.m_right);
 	if (!left_result.has_value())
 	{
 		return left_result;
@@ -533,12 +599,18 @@ MidoriResult::TypeResult TypeChecker::operator()(Binary& binary)
 
 MidoriResult::TypeResult TypeChecker::operator()(Group& group)
 {
-	return std::visit([this](auto&& arg) { return (*this)(arg); }, *group.m_expr_in);
+	return std::visit([this](auto&& arg)
+		{
+			return (*this)(arg);
+		}, *group.m_expr_in);
 }
 
 MidoriResult::TypeResult TypeChecker::operator()(Unary& unary)
 {
-	MidoriResult::TypeResult right_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *unary.m_right);
+	MidoriResult::TypeResult right_result = std::visit([this](auto&& arg)
+		{
+			return (*this)(arg);
+		}, *unary.m_right);
 
 	if (!right_result.has_value())
 	{
@@ -578,7 +650,10 @@ MidoriResult::TypeResult TypeChecker::operator()(Unary& unary)
 
 MidoriResult::TypeResult TypeChecker::operator()(Call& call)
 {
-	MidoriResult::TypeResult callee_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *call.m_callee);
+	MidoriResult::TypeResult callee_result = std::visit([this](auto&& arg)
+		{
+			return (*this)(arg);
+		}, *call.m_callee);
 	if (!callee_result.has_value())
 	{
 		return callee_result;
@@ -601,7 +676,10 @@ MidoriResult::TypeResult TypeChecker::operator()(Call& call)
 	(
 		call.m_arguments, [this, &arg_results](std::unique_ptr<MidoriExpression>& arg)
 		{
-			arg_results.emplace_back(std::visit([this](auto&& arg) { return (*this)(arg); }, *arg));
+			arg_results.emplace_back(std::visit([this](auto&& arg)
+				{
+					return (*this)(arg);
+				}, *arg));
 		}
 	);
 
@@ -631,7 +709,10 @@ MidoriResult::TypeResult TypeChecker::operator()(Call& call)
 
 MidoriResult::TypeResult TypeChecker::operator()(Get& get)
 {
-	MidoriResult::TypeResult struct_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *get.m_struct);
+	MidoriResult::TypeResult struct_result = std::visit([this](auto&& arg)
+		{
+			return (*this)(arg);
+		}, *get.m_struct);
 	if (!struct_result.has_value())
 	{
 		return struct_result;
@@ -657,12 +738,18 @@ MidoriResult::TypeResult TypeChecker::operator()(Get& get)
 
 MidoriResult::TypeResult TypeChecker::operator()(Set& set)
 {
-	MidoriResult::TypeResult struct_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *set.m_struct);
+	MidoriResult::TypeResult struct_result = std::visit([this](auto&& arg)
+		{
+			return (*this)(arg);
+		}, *set.m_struct);
 	if (!struct_result.has_value())
 	{
 		return struct_result;
 	}
-	MidoriResult::TypeResult value_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *set.m_value);
+	MidoriResult::TypeResult value_result = std::visit([this](auto&& arg)
+		{
+			return (*this)(arg);
+		}, *set.m_value);
 	if (!value_result.has_value())
 	{
 		return value_result;
@@ -707,13 +794,16 @@ MidoriResult::TypeResult TypeChecker::operator()(Variable& variable)
 		}
 	}
 
-	return result;
+	return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Variable expression type error: variable not found", variable.m_name, {}, nullptr));
 }
 
 MidoriResult::TypeResult TypeChecker::operator()(Bind& bind)
 {
 	MidoriResult::TypeResult result;
-	MidoriResult::TypeResult value_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *bind.m_value);
+	MidoriResult::TypeResult value_result = std::visit([this](auto&& arg)
+		{
+			return (*this)(arg);
+		}, *bind.m_value);
 	if (!value_result.has_value())
 	{
 		return value_result;
@@ -777,7 +867,10 @@ MidoriResult::TypeResult TypeChecker::operator()(Closure& closure)
 		m_name_type_table.back().emplace(closure.m_params[i].m_lexeme, closure.m_param_types[i]);
 	}
 
-	std::visit([this](auto&& arg) { (*this)(arg); }, *closure.m_body);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *closure.m_body);
 
 	EndScope();
 
@@ -822,7 +915,10 @@ MidoriResult::TypeResult TypeChecker::operator()(Construct& construct)
 
 	for (size_t i = 0u; i < construct.m_params.size(); i += 1u)
 	{
-		MidoriResult::TypeResult param_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *construct.m_params[i]);
+		MidoriResult::TypeResult param_result = std::visit([this](auto&& arg)
+			{
+				return (*this)(arg);
+			}, *construct.m_params[i]);
 		if (!param_result.has_value())
 		{
 			return param_result;
@@ -849,16 +945,20 @@ MidoriResult::TypeResult TypeChecker::operator()(Array& array)
 	}
 
 	std::vector<MidoriResult::TypeResult> element_results;
+	element_results.reserve(array.m_elems.size());
 	std::ranges::for_each
 	(
-		array.m_elems, 
+		array.m_elems,
 		[&element_results, this](const std::unique_ptr<MidoriExpression>& element) -> void
 		{
-			element_results.emplace_back(std::visit([this](auto&& arg) { return (*this)(arg); }, *element));
+			element_results.emplace_back(std::visit([this](auto&& arg)
+				{
+					return (*this)(arg);
+				}, *element));
 		}
 	);
 
-	for (size_t i = 0u; i < element_results.size(); i += 1u)
+	for (size_t i : std::views::iota(0u, element_results.size()))
 	{
 		if (!element_results[i].has_value())
 		{
@@ -868,7 +968,7 @@ MidoriResult::TypeResult TypeChecker::operator()(Array& array)
 
 	std::array<const MidoriType*, 1> expected_types = { std::addressof(*element_results[0].value()) };
 
-	for (size_t i = 0u; i < element_results.size(); i += 1u)
+	for (size_t i : std::views::iota(0u, element_results.size()))
 	{
 		if (*expected_types[0] != *element_results[i].value())
 		{
@@ -881,16 +981,22 @@ MidoriResult::TypeResult TypeChecker::operator()(Array& array)
 
 MidoriResult::TypeResult TypeChecker::operator()(ArrayGet& array_get)
 {
-	MidoriResult::TypeResult array_var_type_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *array_get.m_arr_var);
+	MidoriResult::TypeResult array_var_type_result = std::visit([this](auto&& arg)
+		{
+			return (*this)(arg);
+		}, *array_get.m_arr_var);
 	if (!array_var_type_result.has_value())
 	{
 		return array_var_type_result;
 	}
 
 	size_t indices_size = array_get.m_indices.size();
-	for (size_t i = 0u; i < indices_size; i += 1u)
+	for (size_t i : std::views::iota(0u, indices_size))
 	{
-		MidoriResult::TypeResult index_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *array_get.m_indices[i]);
+		MidoriResult::TypeResult index_result = std::visit([this](auto&& arg)
+			{
+				return (*this)(arg);
+			}, *array_get.m_indices[i]);
 		if (!index_result.has_value())
 		{
 			return index_result;
@@ -905,7 +1011,7 @@ MidoriResult::TypeResult TypeChecker::operator()(ArrayGet& array_get)
 	}
 
 	const MidoriType* array_var_type = std::addressof(*array_var_type_result.value());
-	for (size_t i = 0u; i < indices_size; i += 1u)
+	for (auto _ : std::views::repeat(0, indices_size))
 	{
 		if (!MidoriTypeUtil::IsArrayType(array_var_type))
 		{
@@ -923,13 +1029,19 @@ MidoriResult::TypeResult TypeChecker::operator()(ArrayGet& array_get)
 
 MidoriResult::TypeResult TypeChecker::operator()(ArraySet& array_set)
 {
-	MidoriResult::TypeResult array_var_type_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *array_set.m_arr_var);
+	MidoriResult::TypeResult array_var_type_result = std::visit([this](auto&& arg)
+		{
+			return (*this)(arg);
+		}, *array_set.m_arr_var);
 	if (!array_var_type_result.has_value())
 	{
 		return array_var_type_result;
 	}
 
-	MidoriResult::TypeResult value_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *array_set.m_value);
+	MidoriResult::TypeResult value_result = std::visit([this](auto&& arg)
+		{
+			return (*this)(arg);
+		}, *array_set.m_value);
 	if (!value_result.has_value())
 	{
 		return value_result;
@@ -938,7 +1050,10 @@ MidoriResult::TypeResult TypeChecker::operator()(ArraySet& array_set)
 	size_t indices_size = array_set.m_indices.size();
 	for (size_t i = 0u; i < indices_size; i += 1u)
 	{
-		MidoriResult::TypeResult index_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *array_set.m_indices[i]);
+		MidoriResult::TypeResult index_result = std::visit([this](auto&& arg)
+			{
+				return (*this)(arg);
+			}, *array_set.m_indices[i]);
 		if (!index_result.has_value())
 		{
 			return index_result;
@@ -978,7 +1093,10 @@ MidoriResult::TypeResult TypeChecker::operator()(ArraySet& array_set)
 
 MidoriResult::TypeResult TypeChecker::operator()(Ternary& ternary)
 {
-	MidoriResult::TypeResult condition_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *ternary.m_condition);
+	MidoriResult::TypeResult condition_result = std::visit([this](auto&& arg)
+		{
+			return (*this)(arg);
+		}, *ternary.m_condition);
 	if (!condition_result.has_value())
 	{
 		return condition_result;
@@ -990,13 +1108,19 @@ MidoriResult::TypeResult TypeChecker::operator()(Ternary& ternary)
 		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Ternary expression type error", ternary.m_question, expected_types, actual_type));
 	}
 
-	MidoriResult::TypeResult true_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *ternary.m_true_branch);
+	MidoriResult::TypeResult true_result = std::visit([this](auto&& arg)
+		{
+			return (*this)(arg);
+		}, *ternary.m_true_branch);
 	if (!true_result.has_value())
 	{
 		return true_result;
 	}
 
-	MidoriResult::TypeResult else_result = std::visit([this](auto&& arg) { return (*this)(arg); }, *ternary.m_else_branch);
+	MidoriResult::TypeResult else_result = std::visit([this](auto&& arg)
+		{
+			return (*this)(arg);
+		}, *ternary.m_else_branch);
 	if (!else_result.has_value())
 	{
 		return else_result;

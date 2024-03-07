@@ -10,12 +10,25 @@
 
 void GarbageCollector::Mark(MidoriTraceable::GarbageCollectionRoots&& roots)
 {
+#ifdef DEBUG
+	std::ranges::for_each
+	(
+		MidoriTraceable::s_traceables,
+		[](MidoriTraceable* ptr)
+		{
+			Printer::Print<Printer::Color::CYAN>(std::format("Tracked traceable pointer: {:p}, value: {}\n", static_cast<void*>(ptr), ptr->ToString()));
+		}
+	);
+#endif
 	roots.insert(m_constant_roots.begin(), m_constant_roots.end());
-
-	std::ranges::for_each(roots, [](MidoriTraceable* ptr) 
-		{ 
-			ptr->Trace(); 
-		});
+	std::ranges::for_each
+	(
+		roots,
+		[](MidoriTraceable* ptr)
+		{
+			ptr->Trace();
+		}
+	);
 }
 
 void GarbageCollector::Sweep()
@@ -32,7 +45,7 @@ void GarbageCollector::Sweep()
 		else
 		{
 #ifdef DEBUG
-			Printer::Print<Printer::Color::MAGENTA>(std::format("Deleting traceable pointer: {:p}\n", static_cast<void*>(traceable_ptr)));
+			Printer::Print<Printer::Color::RED>(std::format("Deleting traceable pointer: {:p}\n", static_cast<void*>(traceable_ptr)));
 #endif
 
 			it = MidoriTraceable::s_traceables.erase(it);

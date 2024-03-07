@@ -1,4 +1,5 @@
 #include "Common/Value/Value.h"
+#include "Interpreter/VirtualMachine/VirtualMachine.h"
 
 #include <print>
 #include <chrono>

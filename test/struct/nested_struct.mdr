@@ -51,3 +51,8 @@ fixed TestNestedStruct = fn() : Unit
 
 	return ();
 };
+
+fixed main = fn() : Unit
+{
+	return TestNestedStruct();
+};

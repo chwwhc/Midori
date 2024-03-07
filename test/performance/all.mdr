@@ -74,11 +74,47 @@ fixed TestStringManipulation = fn() : Unit
     return ();
 };
 
+fixed TestParenthesisGeneration = fn(fixed max_len : Int) : Unit
+{
+    var output : Array of Text = [];
+    fixed BackTrack = fn(fixed len : Int, fixed left : Int, fixed right : Int, fixed acc : Text) : Unit
+    {   
+        if (left < right)
+        {
+            return ();
+        }
+        if (left > len || right > len)
+        {
+            return ();
+        }
+        if (left == len && right == len)
+        {
+            output = output ++ [acc];
+            return ();
+        }
+
+        BackTrack(len, left + 1, right, acc ++ "(");
+        BackTrack(len, left, right + 1, acc ++ ")");
+        return ();
+    };
+
+    fixed start = GetTime();
+
+    BackTrack(max_len, 0, 0, "");
+
+    fixed end = GetTime();
+
+    PrintLine("Parenthesis generation benchmark took " ++ ((end - start) as Text) ++ " milliseconds");
+
+    return ();
+};
+
 fixed main = fn() : Unit
 {
 	TestFib();
 	TestPrimeNumbers();
 	TestStringManipulation();
+	TestParenthesisGeneration(8);
 
 	return ();
 };

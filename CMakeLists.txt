@@ -7,10 +7,19 @@ project("Midori")
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Test Endianness
+include(TestBigEndian)
+test_big_endian(IS_BIG_ENDIAN)
+if (IS_BIG_ENDIAN)
+	add_definitions(-DMIDORI_BIG_ENDIAN)
+else()
+	add_definitions(-DMIDORI_LITTLE_ENDIAN)
+endif()
+
 # Compiler flags
 if (MSVC)
     add_compile_options(/W4 /permissive- /GS- /EHa-)
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /Zi")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /Zi /F4096000")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG /OPT:REF /OPT:ICF")
 else()
     add_compile_options(-Wall -Wextra -pedantic -Werror -Wconversion -fno-stack-protector -fno-exceptions)

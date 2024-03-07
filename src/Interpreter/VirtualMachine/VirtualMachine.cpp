@@ -29,14 +29,14 @@ void VirtualMachine::TerminateExecution(std::string_view message) noexcept
 {
 	Printer::Print<Printer::Color::RED>(message);
 
-	std::destroy_at(this); 
+	std::destroy_at(this);
 
 	std::exit(EXIT_FAILURE);
 }
 
 int VirtualMachine::GetLine() noexcept
 {
-	for (int i = 0; i < m_executable.GetProcedureCount(); i += 1)
+	for (int i : std::views::iota(0, m_executable.GetProcedureCount()))
 	{
 		if (m_instruction_pointer >= &*m_executable.GetBytecodeStream(i).cbegin() && m_instruction_pointer <= &*std::prev(m_executable.GetBytecodeStream(i).cend()))
 		{
@@ -55,17 +55,41 @@ OpCode VirtualMachine::ReadByte() noexcept
 	return op_code;
 }
 
+#if defined(MIDORI_LITTLE_ENDIAN)
 int VirtualMachine::ReadShort() noexcept
 {
-	return static_cast<int>(ReadByte()) | (static_cast<int>(ReadByte()) << 8);
+	int value = static_cast<int>(*reinterpret_cast<const uint16_t*>(m_instruction_pointer));
+	m_instruction_pointer += 2;
+	return value;
 }
 
 int VirtualMachine::ReadThreeBytes() noexcept
 {
-	return static_cast<int>(ReadByte()) |
-		(static_cast<int>(ReadByte()) << 8) |
-		(static_cast<int>(ReadByte()) << 16);
+	int value = static_cast<int>(*reinterpret_cast<const uint16_t*>(m_instruction_pointer)) |
+		(static_cast<int>(m_instruction_pointer[2]) << 16);
+	m_instruction_pointer += 3;
+	return value;
 }
+#elif defined(MIDORI_BIG_ENDIAN)
+int VirtualMachine::ReadShort() noexcept
+{
+	int value = (static_cast<int>(m_instruction_pointer[0]) << 8) |
+		static_cast<int>(*reinterpret_cast<const uint8_t*>(m_instruction_pointer + 1));
+	m_instruction_pointer += 2;
+	return value;
+}
+
+int VirtualMachine::ReadThreeBytes() noexcept
+{
+	int value = (static_cast<int>(m_instruction_pointer[0]) << 16) |
+		(static_cast<int>(m_instruction_pointer[1]) << 8) |
+		static_cast<int>(*reinterpret_cast<const uint8_t*>(m_instruction_pointer + 2));
+	m_instruction_pointer += 3;
+	return value;
+}
+#else
+#error "Endianness not defined!"
+#endif
 
 const MidoriValue& VirtualMachine::ReadConstant(OpCode operand_length) noexcept
 {
@@ -112,11 +136,11 @@ std::string VirtualMachine::GenerateRuntimeError(std::string_view message, int l
 	return MidoriError::GenerateRuntimeError(message, line);
 }
 
-void VirtualMachine::PushCallFrame(ValueStackPointer m_return_bp, ValueStackPointer m_return_sp, InstructionPointer m_return_ip) noexcept
+void VirtualMachine::PushCallFrame(ValueStackPointer return_bp, ValueStackPointer return_sp, InstructionPointer return_ip, MidoriTraceable* closure_ptr) noexcept
 {
 	if (m_call_stack_pointer <= m_call_stack_end) [[likely]]
 		{
-			*m_call_stack_pointer = { m_return_bp, m_return_sp, m_return_ip };
+			*m_call_stack_pointer = { return_bp, return_sp, return_ip, closure_ptr };
 			++m_call_stack_pointer;
 			return;
 		}
@@ -144,10 +168,13 @@ void VirtualMachine::PromoteCells() noexcept
 		std::execution::par_unseq,
 		m_cells_to_promote.begin(),
 		m_cells_to_promote.end(),
-		[](MidoriTraceable::CellValue* cell) -> void
+		[this](MidoriTraceable::CellValue* cell) -> void
 		{
-			cell->m_heap_value = *cell->m_stack_value_ref;
-			cell->m_is_on_heap = true;
+			if (cell->m_stack_value_ref >= m_value_stack_base_pointer)
+			{
+				cell->m_heap_value = *cell->m_stack_value_ref;
+				cell->m_is_on_heap = true;
+			}
 		}
 	);
 	m_cells_to_promote.clear();
@@ -165,6 +192,7 @@ void VirtualMachine::CheckIndexBounds(const MidoriValue& index, MidoriValue::Mid
 MidoriTraceable::GarbageCollectionRoots VirtualMachine::GetGlobalTableGarbageCollectionRoots() const noexcept
 {
 	MidoriTraceable::GarbageCollectionRoots roots;
+	roots.reserve(m_global_vars.size());
 
 	std::ranges::for_each
 	(
@@ -184,18 +212,30 @@ MidoriTraceable::GarbageCollectionRoots VirtualMachine::GetGlobalTableGarbageCol
 MidoriTraceable::GarbageCollectionRoots VirtualMachine::GetValueStackGarbageCollectionRoots() const noexcept
 {
 	MidoriTraceable::GarbageCollectionRoots roots;
+	roots.reserve((m_value_stack_pointer - m_value_stack_begin) + (m_call_stack_pointer - m_call_stack_begin));
 
 	std::for_each_n
 	(
 		std::execution::seq,
-		m_value_stack->begin(),
-		m_value_stack_pointer - &(*m_value_stack)[0],
-		[&roots](MidoriValue& value) -> void
+		m_value_stack.begin(),
+		m_value_stack_pointer - m_value_stack_begin,
+		[&roots](const MidoriValue& value) -> void
 		{
 			if (value.IsPointer())
 			{
 				roots.emplace(value.GetPointer());
 			}
+		}
+	);
+
+	std::for_each_n
+	(
+		std::execution::seq,
+		m_call_stack_begin,
+		m_call_stack_pointer - m_call_stack_begin,
+		[&roots](CallFrame& call_frame) -> void
+		{
+			roots.emplace(call_frame.m_closure);
 		}
 	);
 
@@ -219,20 +259,22 @@ void VirtualMachine::CollectGarbage() noexcept
 	}
 
 	MidoriTraceable::GarbageCollectionRoots roots = GetGarbageCollectionRoots();
-	if (roots.empty())
+	if (roots.empty()) [[unlikely]]
 	{
 		return;
 	}
-
+	else [[likely]]
+	{
 #ifdef DEBUG
-	Printer::Print<Printer::Color::BLUE>("\nBefore garbage collection:");
-	MidoriTraceable::PrintMemoryTelemetry();
+		Printer::Print<Printer::Color::BLUE>("\nBefore garbage collection:");
+		MidoriTraceable::PrintMemoryTelemetry();
 #endif
-	m_garbage_collector.ReclaimMemory(std::move(roots));
+		m_garbage_collector.ReclaimMemory(std::move(roots));
 #ifdef DEBUG
-	Printer::Print<Printer::Color::BLUE>("\nAfter garbage collection:");
-	MidoriTraceable::PrintMemoryTelemetry();
+		Printer::Print<Printer::Color::BLUE>("\nAfter garbage collection:");
+		MidoriTraceable::PrintMemoryTelemetry();
 #endif
+	}
 }
 
 void VirtualMachine::Execute() noexcept
@@ -260,7 +302,7 @@ void VirtualMachine::Execute() noexcept
 				std::for_each
 				(
 					std::execution::seq,
-					m_base_pointer,
+					m_value_stack_base_pointer,
 					m_value_stack_pointer,
 					[](MidoriValue& value) -> void
 					{
@@ -286,8 +328,8 @@ void VirtualMachine::Execute() noexcept
 
 				switch (instruction)
 				{
-				case OpCode::CONSTANT: 
-				case OpCode::CONSTANT_LONG: 
+				case OpCode::CONSTANT:
+				case OpCode::CONSTANT_LONG:
 				case OpCode::CONSTANT_LONG_LONG:
 				{
 					Push(ReadConstant(instruction));
@@ -324,6 +366,7 @@ void VirtualMachine::Execute() noexcept
 						}
 					);
 					Push(MidoriTraceable::AllocateTraceable(std::move(arr)));
+					CollectGarbage();
 					break;
 				}
 				case OpCode::GET_ARRAY:
@@ -466,15 +509,15 @@ void VirtualMachine::Execute() noexcept
 
 					if (value.IsBool())
 					{
-						Push(CollectGarbageThenAllocateTraceable(value.GetBool() ? MidoriTraceable::MidoriText("true") : MidoriTraceable::MidoriText("false")));
+						Push(MidoriTraceable::AllocateTraceable(value.GetBool() ? MidoriTraceable::MidoriText("true") : MidoriTraceable::MidoriText("false")));
 					}
 					else if (value.IsInteger())
 					{
-						Push(CollectGarbageThenAllocateTraceable(std::to_string(value.GetInteger())));
+						Push(MidoriTraceable::AllocateTraceable(std::to_string(value.GetInteger())));
 					}
 					else if (value.IsFraction())
 					{
-						Push(CollectGarbageThenAllocateTraceable(std::to_string(value.GetFraction())));
+						Push(MidoriTraceable::AllocateTraceable(std::to_string(value.GetFraction())));
 					}
 					else if (value.IsPointer())
 					{
@@ -485,18 +528,18 @@ void VirtualMachine::Execute() noexcept
 						}
 						else
 						{
-							Push(CollectGarbageThenAllocateTraceable(ptr.ToString()));
+							Push(MidoriTraceable::AllocateTraceable(ptr.ToString()));
 						}
 					}
 					else if (value.IsUnit())
 					{
-						Push(CollectGarbageThenAllocateTraceable(MidoriTraceable::MidoriText("()")));
+						Push(MidoriTraceable::AllocateTraceable(MidoriTraceable::MidoriText("()")));
 					}
 					else
 					{
 						TerminateExecution(GenerateRuntimeError("Unable to cast to Text.", GetLine()));
 					}
-
+					CollectGarbage();
 					break;
 				}
 				case OpCode::CAST_TO_BOOL:
@@ -611,12 +654,7 @@ void VirtualMachine::Execute() noexcept
 					const MidoriValue& right = Pop();
 					MidoriValue& left = Peek();
 
-					const MidoriValue::MidoriFraction& right_fraction = right.GetFraction();
-					const MidoriValue::MidoriFraction& left_fraction = left.GetFraction();
-
-					CheckZeroDivision(right_fraction);
-
-					left = left_fraction / right_fraction;
+					left = left.GetFraction() / right.GetFraction();
 
 					break;
 				}
@@ -625,12 +663,7 @@ void VirtualMachine::Execute() noexcept
 					const MidoriValue& right = Pop();
 					MidoriValue& left = Peek();
 
-					const MidoriValue::MidoriFraction& right_fraction = right.GetFraction();
-					const MidoriValue::MidoriFraction& left_fraction = left.GetFraction();
-
-					CheckZeroDivision(right_fraction);
-
-					left = std::fmod(left_fraction, right_fraction);
+					left = std::fmod(left.GetFraction(), right.GetFraction());
 
 					break;
 				}
@@ -666,12 +699,7 @@ void VirtualMachine::Execute() noexcept
 					const MidoriValue& right = Pop();
 					MidoriValue& left = Peek();
 
-					const MidoriValue::MidoriInteger& right_integer = right.GetInteger();
-					const MidoriValue::MidoriInteger& left_integer = left.GetInteger();
-
-					CheckZeroDivision(right_integer);
-
-					left = left_integer / right_integer;
+					left = left.GetInteger() / right.GetInteger();
 
 					break;
 				}
@@ -680,51 +708,42 @@ void VirtualMachine::Execute() noexcept
 					const MidoriValue& right = Pop();
 					MidoriValue& left = Peek();
 
-					const MidoriValue::MidoriInteger& right_integer = right.GetInteger();
-					const MidoriValue::MidoriInteger& left_integer = left.GetInteger();
-
-					CheckZeroDivision(right_integer);
-					
-					left = left_integer % right_integer;
+					left = left.GetInteger() % right.GetInteger();
 
 					break;
 				}
 				case OpCode::CONCAT_ARRAY:
 				{
 					const MidoriValue& right = Pop();
-					const MidoriValue& left = Peek();
+					MidoriValue& left = Peek();
 
 					MidoriTraceable::MidoriArray& left_value_vector_ref = left.GetPointer()->GetArray();
 					MidoriTraceable::MidoriArray& right_value_vector_ref = right.GetPointer()->GetArray();
 
-					left_value_vector_ref.resize(left_value_vector_ref.size() + right_value_vector_ref.size());
-					std::copy
-					(
-						std::execution::par_unseq,
-						right_value_vector_ref.begin(),
-						right_value_vector_ref.end(),
-						left_value_vector_ref.begin() + left_value_vector_ref.size() - right_value_vector_ref.size()
-					);
+					MidoriTraceable::MidoriArray result;
+					result.reserve(left_value_vector_ref.size() + right_value_vector_ref.size());
+					result.insert(result.end(), left_value_vector_ref.begin(), left_value_vector_ref.end());
+					result.insert(result.end(), right_value_vector_ref.begin(), right_value_vector_ref.end());
 
+					left = MidoriTraceable::AllocateTraceable(std::move(result));
+					CollectGarbage();
 					break;
 				}
 				case OpCode::CONCAT_TEXT:
 				{
 					const MidoriValue& right = Pop();
-					const MidoriValue& left = Peek();
+					MidoriValue& left = Peek();
 
 					MidoriTraceable::MidoriText& left_value_string_ref = left.GetPointer()->GetText();
 					MidoriTraceable::MidoriText& right_value_string_ref = right.GetPointer()->GetText();
 
-					left_value_string_ref.resize(left_value_string_ref.size() + right_value_string_ref.size());
-					std::copy
-					(
-						std::execution::par_unseq,
-						right_value_string_ref.begin(),
-						right_value_string_ref.end(),
-						left_value_string_ref.begin() + left_value_string_ref.size() - right_value_string_ref.size()
-					);
+					MidoriTraceable::MidoriText result;
+					result.reserve(left_value_string_ref.size() + right_value_string_ref.size());
+					result.insert(result.end(), left_value_string_ref.begin(), left_value_string_ref.end());
+					result.insert(result.end(), right_value_string_ref.begin(), right_value_string_ref.end());
 
+					left = MidoriTraceable::AllocateTraceable(std::move(result));
+					CollectGarbage();
 					break;
 				}
 				case OpCode::EQUAL_FRACTION:
@@ -942,9 +961,15 @@ void VirtualMachine::Execute() noexcept
 					MidoriValue return_val;
 
 					void(*ffi)(std::span<MidoriValue>, MidoriValue*) = reinterpret_cast<void(*)(std::span<MidoriValue>, MidoriValue*)>(proc);
-					ffi(std::span<MidoriValue>(args), &return_val);
-
-					Push(return_val);
+					if (ffi == nullptr) [[unlikely]]
+					{
+						TerminateExecution(GenerateRuntimeError(std::format("Failed to load foreign function '{}'.", foreign_function_name_ref), GetLine()));
+					}
+					else [[likely]]
+					{
+						ffi(std::span<MidoriValue>(args), &return_val);
+						Push(return_val);
+					}
 
 					break;
 				}
@@ -954,7 +979,7 @@ void VirtualMachine::Execute() noexcept
 					int arity = static_cast<int>(ReadByte());
 
 					// Return address := pop all the arguments and the callee
-					PushCallFrame(m_base_pointer, m_value_stack_pointer - arity, m_instruction_pointer);
+					PushCallFrame(m_value_stack_base_pointer, m_value_stack_pointer - arity, m_instruction_pointer, callable.GetPointer());
 
 					MidoriTraceable::MidoriClosure& closure = callable.GetPointer()->GetClosure();
 
@@ -962,7 +987,7 @@ void VirtualMachine::Execute() noexcept
 					m_env_pointer++;
 
 					m_instruction_pointer = m_executable.GetBytecodeStream(closure.m_proc_index)[0];
-					m_base_pointer = m_value_stack_pointer - arity;
+					m_value_stack_base_pointer = m_value_stack_pointer - arity;
 
 					break;
 				}
@@ -973,7 +998,7 @@ void VirtualMachine::Execute() noexcept
 
 					for (int i = size - 1; i >= 0; i -= 1)
 					{
-						args[i] = Pop();
+						args[static_cast<size_t>(i)] = Pop();
 					}
 
 					MidoriTraceable::MidoriArray& members = Peek().GetPointer()->GetStruct().m_values;
@@ -984,6 +1009,7 @@ void VirtualMachine::Execute() noexcept
 				case OpCode::ALLOCATE_STRUCT:
 				{
 					Push(MidoriTraceable::AllocateTraceable(MidoriTraceable::MidoriStruct()));
+					CollectGarbage();
 					break;
 				}
 				case OpCode::CONSTRUCT_UNION:
@@ -993,7 +1019,7 @@ void VirtualMachine::Execute() noexcept
 
 					for (int i = size - 1; i >= 0; i -= 1)
 					{
-						args[i] = Pop();
+						args[static_cast<size_t>(i)] = Pop();
 					}
 
 					MidoriTraceable::MidoriArray& members = Peek().GetPointer()->GetUnion().m_values;
@@ -1005,15 +1031,15 @@ void VirtualMachine::Execute() noexcept
 				{
 					int tag = static_cast<int>(ReadByte());
 					Push(MidoriTraceable::AllocateTraceable(MidoriTraceable::MidoriUnion()));
-
+					CollectGarbage();
 					Peek().GetPointer()->GetUnion().m_index = tag;
 					break;
 				}
 				case OpCode::ALLOCATE_CLOSURE:
 				{
 					int proc_index = static_cast<int>(ReadByte());
-
 					Push(MidoriTraceable::AllocateTraceable(MidoriTraceable::MidoriClosure{ MidoriTraceable::MidoriClosure::Environment{}, proc_index }));
+					CollectGarbage();
 					break;
 				}
 				case OpCode::CONSTRUCT_CLOSURE:
@@ -1037,17 +1063,17 @@ void VirtualMachine::Execute() noexcept
 					std::for_each_n
 					(
 						std::execution::seq,
-						m_base_pointer,
+						m_value_stack_base_pointer,
 						captured_count,
 						[&captured_variables, this](MidoriValue& value)
 						{
 							MidoriValue* stack_value_ref = &value;
-							MidoriValue cell_value = CollectGarbageThenAllocateTraceable(stack_value_ref);
+							MidoriValue cell_value = MidoriTraceable::AllocateTraceable(stack_value_ref);
 							captured_variables.emplace_back(cell_value);
 							m_cells_to_promote.emplace_back(&cell_value.GetPointer()->GetCellValue());
 						}
 					);
-
+					CollectGarbage();
 					break;
 				}
 				case OpCode::DEFINE_GLOBAL:
@@ -1074,13 +1100,13 @@ void VirtualMachine::Execute() noexcept
 				case OpCode::GET_LOCAL:
 				{
 					int offset = static_cast<int>(ReadByte());
-					Push(*(m_base_pointer + offset));
+					Push(*(m_value_stack_base_pointer + offset));
 					break;
 				}
 				case OpCode::SET_LOCAL:
 				{
 					int offset = static_cast<int>(ReadByte());
-					MidoriValue& var = *(m_base_pointer + offset);
+					MidoriValue& var = *(m_value_stack_base_pointer + offset);
 
 					const MidoriValue& value = Peek();
 					var = value;
@@ -1149,7 +1175,7 @@ void VirtualMachine::Execute() noexcept
 					CallFrame& top_frame = *m_call_stack_pointer;
 					m_env_pointer--;
 
-					m_base_pointer = top_frame.m_return_bp;
+					m_value_stack_base_pointer = top_frame.m_return_bp;
 					m_instruction_pointer = top_frame.m_return_ip;
 					m_value_stack_pointer = top_frame.m_return_sp;
 
@@ -1166,6 +1192,6 @@ void VirtualMachine::Execute() noexcept
 					TerminateExecution(GenerateRuntimeError("Unknown Instruction.", GetLine()));
 					break;
 				}
+				}
 			}
-}
 }

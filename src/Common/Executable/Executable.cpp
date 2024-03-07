@@ -149,9 +149,9 @@ const BytecodeStream& MidoriExecutable::GetBytecodeStream(int proc_index) const
 	return m_procedures[static_cast<size_t>(proc_index)];
 }
 
-MidoriTraceable::GarbageCollectionRoots&& MidoriExecutable::GetConstantRoots()
+const MidoriTraceable::GarbageCollectionRoots& MidoriExecutable::GetConstantRoots()
 {
-	return std::move(m_constant_roots);
+	return m_constant_roots;
 }
 
 OpCode MidoriExecutable::ReadByteCode(int instr_index, int proc_index) const
