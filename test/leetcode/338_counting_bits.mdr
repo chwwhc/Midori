@@ -1,0 +1,23 @@
+#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+
+fixed CountingBits = fn(fixed n : Int) : Array[Int]
+{
+	fixed Count1 = fn(fixed n : Int) : Int
+	{
+		return n == 0 ? 0 : Count1(n & n - 1) + 1;
+	};
+
+	var output : Array[Int] = [];
+	for (var i = 0; i <= n; i = i + 1)
+	{
+		output = output ++ [Count1(i)];
+	}
+
+	return output;
+};
+
+fixed main = fn() : Unit
+{
+	PrintLine(CountingBits(2) as Text);
+	return ();
+};

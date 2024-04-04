@@ -8,19 +8,33 @@ The MVM is written in C++ and is responsible for executing the bytecode. The MVM
 This project is still in early development. The language is not yet *that* usable.
 
 ## Examples
-### Product Type
+### Pow(x, n)
 ```
-struct Vec3
+fixed Pow = fn(fixed x : Frac, fixed n : Int) : Frac
 {
-	x : Frac,
-	y : Frac,
-	z : Frac
-};
-
-struct Complex
-{
-	real : Frac,
-	img : Frac,
+	if (n < 0)
+	{
+		return Pow(1.0 / x, -n);
+	}
+	else
+	{
+		if (n == 0)
+		{
+			return 1.0;
+		}
+		else
+		{
+			if ((n & 1) == 1)
+			{
+				return x * Pow(x, n - 1);
+			}
+			else
+			{
+				fixed sub_result = Pow(x, n / 2);
+				return sub_result * sub_result;
+			}
+		}
+	}
 };
 ```
 ### Church Numeral

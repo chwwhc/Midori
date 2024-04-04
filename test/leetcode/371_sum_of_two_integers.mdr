@@ -1,0 +1,14 @@
+#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+
+fixed GetSum = fn(fixed a : Int, fixed b : Int) : Int
+{
+	return b == 0 
+		? a 
+		: GetSum(a ^ b, (a & b) << 1);
+};
+
+fixed main = fn() : Unit
+{
+	PrintLine(GetSum(20, 22) as Text);
+	return ();
+};

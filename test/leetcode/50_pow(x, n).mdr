@@ -1,0 +1,36 @@
+#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+
+fixed Pow = fn(fixed x : Frac, fixed n : Int) : Frac
+{
+	if (n < 0)
+	{
+		return Pow(1.0 / x, -n);
+	}
+	else
+	{
+		if (n == 0)
+		{
+			return 1.0;
+		}
+		else
+		{
+			if ((n & 1) == 1)
+			{
+				return x * Pow(x, n - 1);
+			}
+			else
+			{
+				fixed sub_result = Pow(x, n / 2);
+				return sub_result * sub_result;
+			}
+		}
+	}
+};
+
+fixed main = fn() : Unit
+{
+	PrintLine(Pow(2.0, 10) as Text);
+	PrintLine(Pow(2.1, 3) as Text);
+	PrintLine(Pow(2.0, -2) as Text);
+	return ();
+};

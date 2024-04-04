@@ -22,7 +22,6 @@ const std::unordered_map<std::string, Token::Name> Lexer::s_keywords =
 	{"fn"s, Token::Name::CLOSURE},
 	{"while"s, Token::Name::WHILE},
 	{"do"s, Token::Name::DO},
-	{"of"s, Token::Name::OF},
 	{"as"s, Token::Name::AS},
 	{"break"s, Token::Name::BREAK},
 	{"continue"s, Token::Name::CONTINUE},

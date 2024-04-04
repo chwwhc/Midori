@@ -2,7 +2,7 @@
 
 fixed foo = fn() : Unit
 {
-	var arr : Array of () -> Int = [];
+	var arr : Array[() -> Int] = [];
 	for (var i : Int = 0; i < 3; i = i + 1)
 	{
 		(fn(fixed i : Int) : Unit

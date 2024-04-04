@@ -2,7 +2,7 @@
 
 fixed TestParenthesisGeneration = fn(fixed max_len : Int) : Unit
 {
-    var output : Array of Text = [];
+    var output : Array[Text] = [];
     fixed BackTrack = fn(fixed len : Int, fixed left : Int, fixed right : Int, fixed acc : Text) : Unit
     {   
         if (left < right)
