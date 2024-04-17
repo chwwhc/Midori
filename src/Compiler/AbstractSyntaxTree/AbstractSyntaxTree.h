@@ -321,15 +321,15 @@ struct Switch
 	std::unique_ptr<MidoriExpression> m_arg_expr;
 	std::vector<Case> m_cases;
 
-	static bool IsMemberCase(const Case& c) { return std::holds_alternative<MemberCase>(c); }
+	static bool IsMemberCase(const Case& c);
 
-	static bool IsDefaultCase(const Case& c) { return std::holds_alternative<DefaultCase>(c); }
+	static bool IsDefaultCase(const Case& c);
 
-	static MemberCase& GetMemberCase(const Case& c) { return const_cast<MemberCase&>(std::get<MemberCase>(c)); }
+	static MemberCase& GetMemberCase(const Case& c);
 
-	static DefaultCase& GetDefaultCase(const Case& c) { return const_cast<DefaultCase&>(std::get<DefaultCase>(c)); }
+	static DefaultCase& GetDefaultCase(const Case& c);
 
-	static const Token& GetKeyword(const Case& c) { return std::visit([](auto&& arg) -> const Token& { return arg.m_keyword; }, c); }
+	static const Token& GetKeyword(const Case& c);
 
-	static const std::unique_ptr<MidoriStatement>& GetCaseStatement(const Case& c) { return std::visit([](auto&& arg) -> const std::unique_ptr<MidoriStatement>&{ return arg.m_stmt; }, c); }
+	static const std::unique_ptr<MidoriStatement>& GetCaseStatement(const Case& c);
 };

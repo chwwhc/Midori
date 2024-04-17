@@ -7,10 +7,14 @@
 #include <filesystem>
 #include <queue>
 
-#define VERIFY_RESULT(result) \
-    if (!(result).has_value()) \
+#define CONCATENATE_DETAIL(x, y) x##y
+#define CONCATENATE(x, y) CONCATENATE_DETAIL(x, y)
+#define MAKE_UNIQUE(x) CONCATENATE(x, __LINE__)
+#define VERIFY_RESULT(result_expr) \
+    auto&& MAKE_UNIQUE(result_) = (result_expr); \
+    if (!(MAKE_UNIQUE(result_)).has_value()) \
     { \
-        return std::unexpected<std::string>(std::move((result).error())); \
+        return std::unexpected<std::string>(std::move((MAKE_UNIQUE(result_)).error())); \
     } \
     else \
     (void)0
@@ -55,12 +59,12 @@ bool Parser::Check(Token::Name type, int offset)
 
 Token& Parser::Peek(int offset)
 {
-	return m_current_token_index + offset < m_tokens.Size() ? m_tokens[m_current_token_index + offset] : m_tokens[m_tokens.Size() - 1];
+	return m_current_token_index + offset < m_tokens.Size() ? m_tokens[static_cast<size_t>(m_current_token_index + offset)] : m_tokens[static_cast<size_t>(m_tokens.Size() - 1)];
 }
 
 Token& Parser::Previous()
 {
-	return m_tokens[m_current_token_index - 1];
+	return m_tokens[static_cast<size_t>(m_current_token_index - 1)];
 }
 
 Token& Parser::Advance()
@@ -314,7 +318,7 @@ MidoriResult::ExpressionResult Parser::ParseArrayAccessHelper(std::unique_ptr<Mi
 		VERIFY_RESULT(binding);
 
 		indices.emplace_back(std::move(binding.value()));
-		Consume(Token::Name::RIGHT_BRACKET, "Expected ']' after index.");
+		VERIFY_RESULT(Consume(Token::Name::RIGHT_BRACKET, "Expected ']' after index."));
 	}
 
 	return std::make_unique<MidoriExpression>(ArrayGet{ std::move(op), std::move(arr_var), std::move(indices) });
@@ -729,7 +733,7 @@ MidoriResult::StatementResult Parser::ParseDefineStatement()
 
 	std::optional<int> local_index = GetLocalVariableIndex(name.m_lexeme, is_fixed);
 
-	Consume(Token::Name::SINGLE_EQUAL, "Expected '=' after defining a name.");
+	VERIFY_RESULT(Consume(Token::Name::SINGLE_EQUAL, "Expected '=' after defining a name."));
 
 	MidoriResult::ExpressionResult expr = ParseExpression();
 	VERIFY_RESULT(expr);
@@ -772,7 +776,7 @@ MidoriResult::StatementResult Parser::ParseStructDeclaration()
 
 		MidoriResult::TypeResult type = ParseType();
 		VERIFY_RESULT(type);
-		
+
 		if (MidoriTypeUtil::IsStructType(type.value()) && (MidoriTypeUtil::GetStructType(type.value()).m_name == name.value().m_lexeme))
 		{
 			return std::unexpected<std::string>(GenerateParserError("Recursive struct is not allowed.", identifier.value()));
@@ -808,7 +812,7 @@ MidoriResult::StatementResult Parser::ParseUnionDeclaration()
 {
 	MidoriResult::TokenResult name = Consume(Token::Name::IDENTIFIER_LITERAL, "Expected union name.");
 	VERIFY_RESULT(name);
-	
+
 	if (name.value().m_lexeme[0] != std::toupper(name.value().m_lexeme[0]))
 	{
 		return std::unexpected<std::string>(GenerateParserError("Union name must start with a capital letter.", name.value()));
@@ -1255,9 +1259,9 @@ MidoriResult::TypeResult Parser::ParseType(bool is_foreign)
 				types.emplace_back(type.value());
 			} while (Match(Token::Name::COMMA));
 
-			Consume(Token::Name::RIGHT_PAREN, "Expected ')' after argument types.");
+			VERIFY_RESULT(Consume(Token::Name::RIGHT_PAREN, "Expected ')' after argument types."));
 		}
-		Consume(Token::Name::THIN_ARROW, "Expected '->' before return type token.");
+		VERIFY_RESULT(Consume(Token::Name::THIN_ARROW, "Expected '->' before return type token."));
 
 		MidoriResult::TypeResult return_type = ParseType();
 		VERIFY_RESULT(return_type);
