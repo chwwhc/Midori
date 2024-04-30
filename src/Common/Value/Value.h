@@ -38,7 +38,7 @@ private:
 
 		MidoriValueUnion(MidoriTraceable* o) noexcept;
 	};
-	enum class MidoriValueTypeTag
+	enum MidoriValueTypeTag : uint8_t
 	{
 		Fraction,
 		Integer,

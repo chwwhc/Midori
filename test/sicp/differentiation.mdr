@@ -123,6 +123,6 @@ fixed main = fn() : Unit
 
 	var var3 : Expr = make_product(var1, var2);
 
-	PrintLine(deriv(var1, "x").num as Text);
+	IO::PrintLine(deriv(var1, "x").num as Text);
 	return ();
 };

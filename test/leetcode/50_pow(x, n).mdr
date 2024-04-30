@@ -29,8 +29,8 @@ fixed Pow = fn(fixed x : Frac, fixed n : Int) : Frac
 
 fixed main = fn() : Unit
 {
-	PrintLine(Pow(2.0, 10) as Text);
-	PrintLine(Pow(2.1, 3) as Text);
-	PrintLine(Pow(2.0, -2) as Text);
+	IO::PrintLine(Pow(2.0, 10) as Text);
+	IO::PrintLine(Pow(2.1, 3) as Text);
+	IO::PrintLine(Pow(2.0, -2) as Text);
 	return ();
 };

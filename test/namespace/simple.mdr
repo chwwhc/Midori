@@ -1,0 +1,37 @@
+
+var x = 3;
+
+namespace TestNamespace
+{
+	var x = 4;
+	var xxx = x;
+	var t = "sss";
+	namespace InnerTestNamespace
+	{
+		var y = 1.1;
+		var ttt = TestNamespace::t;
+		var foo = fn(var x: Frac) : Frac
+		{
+			var oo = InnerTestNamespace::y;
+			return oo;
+		};
+		namespace InnerInnerTestNamespace
+		{
+			var x = InnerTestNamespace::y;
+		}
+	}
+	var z = "asd" ++ t;
+}
+
+var k = 2;
+
+namespace asdawd
+{
+
+}
+
+fixed main = fn() : Unit
+{
+	var x = TestNamespace::InnerTestNamespace::y;
+	return ();
+};

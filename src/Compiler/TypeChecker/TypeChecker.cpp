@@ -473,6 +473,21 @@ void TypeChecker::operator()(Switch& switch_stmt)
 	}
 }
 
+void TypeChecker::operator()(Namespace& namespace_stmt)
+{
+	std::ranges::for_each
+	(
+		namespace_stmt.m_stmts,
+		[this](const std::unique_ptr<MidoriStatement>& stmt)
+		{
+			std::visit([this](auto&& arg)
+				{
+					return (*this)(arg);
+				}, *stmt);
+		}
+	);
+}
+
 MidoriResult::TypeResult TypeChecker::operator()(As& as)
 {
 	MidoriResult::TypeResult expr_result = std::visit([this](auto&& arg)

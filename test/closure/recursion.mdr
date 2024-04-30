@@ -8,6 +8,6 @@ var factorial = fn(var n : Int) : Int
 
 fixed main = fn() : Int
 {
-	PrintLine(factorial(5) as Text);  // Should print 120
+	IO::PrintLine(factorial(5) as Text);  // Should print 120
 	return 0;
 };

@@ -1,0 +1,41 @@
+namespace Test
+{
+	struct StructInTest
+	{
+		x : Int,
+	};
+
+	fixed foo = fn() : Int
+	{
+		return 2;
+	};
+
+	namespace InnerTest
+	{
+		struct A
+		{
+		
+		};
+
+		struct B
+		{
+			x : A,
+		};
+
+		struct C
+		{
+			x : InnerTest::A,
+		};
+
+		struct D
+		{
+			x : Test::InnerTest::C,
+			y : (Int, Frac) -> Frac,
+		};
+	}
+}
+
+fixed main = fn() : Unit
+{
+	return ();
+};

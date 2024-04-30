@@ -7,7 +7,7 @@ fixed main = fn() : Int
 		return fn() : Int { return y; };
 	};
 	var f = x(5);
-	PrintLine(f() as Text); // Should print 5
+	IO::PrintLine(f() as Text); // Should print 5
 
 	return 0;
 };

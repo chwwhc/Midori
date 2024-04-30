@@ -9,6 +9,6 @@ fixed GetSum = fn(fixed a : Int, fixed b : Int) : Int
 
 fixed main = fn() : Unit
 {
-	PrintLine(GetSum(20, 22) as Text);
+	IO::PrintLine(GetSum(20, 22) as Text);
 	return ();
 };

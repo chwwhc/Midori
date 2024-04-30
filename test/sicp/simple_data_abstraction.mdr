@@ -40,7 +40,7 @@ fixed y_point = fn(fixed pt : Point) : Frac
 
 fixed print_point = fn(fixed pt : Point) : Unit
 {
-	return PrintLine("(" ++ (x_point(pt) as Text) ++ ", " ++ (y_point(pt) as Text) ++ ")");
+	return IO::PrintLine("(" ++ (x_point(pt) as Text) ++ ", " ++ (y_point(pt) as Text) ++ ")");
 };
 
 fixed make_segment = fn(fixed start : Point, fixed end : Point) : LineSegment
@@ -111,17 +111,17 @@ fixed main = fn() : Unit
 	fixed line_segment = make_segment(start_pt, end_pt);
 	fixed midpoint = midpoint_segment(line_segment);
 
-	PrintLine("Finding midpoint");
+	IO::PrintLine("Finding midpoint");
 	print_point(midpoint);
 
 	fixed rect = make_rect(make_point(0.0, 0.0), make_point(2.0, -1.0));
-	PrintLine("Finding perimeter");
-	PrintLine(perimeter_rect(rect) as Text);
+	IO::PrintLine("Finding perimeter");
+	IO::PrintLine(perimeter_rect(rect) as Text);
 
-	PrintLine("Constructing church-encoding pair (1, 2)");
+	IO::PrintLine("Constructing church-encoding pair (1, 2)");
 	fixed church_encoding_pair = pair(1, 2);
-	PrintLine("Accessing head: " ++ (head(church_encoding_pair) as Text));
-	PrintLine("Accessing tail: " ++ (tail(church_encoding_pair) as Text));
+	IO::PrintLine("Accessing head: " ++ (head(church_encoding_pair) as Text));
+	IO::PrintLine("Accessing tail: " ++ (tail(church_encoding_pair) as Text));
 
 	return ();
 };

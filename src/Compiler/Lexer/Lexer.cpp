@@ -33,11 +33,12 @@ const std::unordered_map<std::string, Token::Name> Lexer::s_keywords =
 	{"case"s, Token::Name::CASE},
 	{"default"s, Token::Name::DEFAULT},
 	{"switch"s, Token::Name::SWITCH},
+	{"namespace"s, Token::Name::NAMESPACE},
 };
 
 const std::unordered_set<std::string> Lexer::s_directives =
 {
-	"include",
+	"include"s,
 };
 
 bool Lexer::IsAtEnd(int offset) const
@@ -77,12 +78,12 @@ bool Lexer::MatchNext(char expected)
 
 Token Lexer::MakeToken(Token::Name type) const
 {
-	return Token(type, m_source_code.substr(m_begin, m_current - m_begin), m_line);
+	return Token(m_source_code.substr(m_begin, m_current - m_begin), type, m_line);
 }
 
 Token Lexer::MakeToken(Token::Name type, std::string&& lexeme) const
 {
-	return Token(type, std::move(lexeme), m_line);
+	return Token(std::move(lexeme), type, m_line);
 }
 
 std::optional<std::string> Lexer::SkipWhitespaceAndComments()

@@ -366,7 +366,7 @@ void CodeGenerator::operator()(Foreign& foreign)
 		m_global_variables[foreign.m_function_name.m_lexeme] = index.value();
 	}
 
-	EmitConstant(MidoriTraceable::AllocateTraceable(std::move(foreign.m_function_name.m_lexeme)), line);
+	EmitConstant(MidoriTraceable::AllocateTraceable(std::move(foreign.m_foreign_name)), line);
 
 	if (is_global)
 	{
@@ -440,6 +440,18 @@ void CodeGenerator::operator()(Switch& switch_stmt)
 		[this, line](int jump_addr)
 		{
 			PatchJump(jump_addr, line);
+		}
+	);
+}
+
+void CodeGenerator::operator()(Namespace& namespace_stmt)
+{
+	std::ranges::for_each 
+	(
+		namespace_stmt.m_stmts, 
+		[this](std::unique_ptr<MidoriStatement>& stmt) 
+		{
+			std::visit([this](auto&& arg) {(*this)(arg); }, *stmt);
 		}
 	);
 }

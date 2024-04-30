@@ -2,7 +2,7 @@
 
 fixed TestStringManipulation = fn() : Unit
 {
-    fixed start = GetTime();
+    fixed start = DateTime::GetTime();
 
     var testString = "";
     for (var i = 0; i < 10000; i = i + 1)
@@ -10,9 +10,9 @@ fixed TestStringManipulation = fn() : Unit
         testString = testString ++ "a";
     }
 
-    fixed end = GetTime();
+    fixed end = DateTime::GetTime();
 
-    PrintLine("String manipulation benchmark took " ++ ((end - start) as Text) ++ " milliseconds");
+    IO::PrintLine("String manipulation benchmark took " ++ ((end - start) as Text) ++ " milliseconds");
     
     return ();
 };

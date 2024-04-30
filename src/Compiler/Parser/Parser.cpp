@@ -19,6 +19,11 @@
     else \
     (void)0
 
+namespace
+{
+	constexpr std::string_view NameSeparator = "::";
+}
+
 Parser::Parser(TokenStream&& tokens, const std::string& file_name) : m_tokens(std::move(tokens))
 {
 	std::string absolute_file_path = std::filesystem::absolute(file_name).string();
@@ -67,6 +72,76 @@ Token& Parser::Previous()
 	return m_tokens[static_cast<size_t>(m_current_token_index - 1)];
 }
 
+std::vector<Parser::Scope>::const_reverse_iterator Parser::FindTypeScope(std::string& name)
+{
+	for (std::vector<Parser::Scope>::const_reverse_iterator it = m_scopes.crbegin(); it != m_scopes.crend(); ++it)
+	{
+		if (it->m_defined_types.find(name) != it->m_defined_types.end())
+		{
+			return it;
+		}
+	}
+
+	std::string mangled_name;
+	for (size_t end_idx : std::views::iota(0u, m_namespaces.size()))
+	{
+		std::string stacked_namespace;
+		for (size_t idx : std::views::iota(0u, end_idx + 1u))
+		{
+			stacked_namespace.append(m_namespaces[idx]).append(NameSeparator);
+		}
+		mangled_name.append(stacked_namespace).append(name);
+
+		for (std::vector<Parser::Scope>::const_reverse_iterator it = m_scopes.crbegin(); it != m_scopes.crend(); ++it)
+		{
+			if (it->m_defined_types.find(mangled_name) != it->m_defined_types.end())
+			{
+				name = std::move(mangled_name);
+				return it;
+			}
+		}
+
+		mangled_name.clear();
+	}
+
+	return m_scopes.crend();
+}
+
+std::vector<Parser::Scope>::const_reverse_iterator Parser::FindVariableScope(std::string& name)
+{
+	for (std::vector<Parser::Scope>::const_reverse_iterator it = m_scopes.crbegin(); it != m_scopes.crend(); ++it)
+	{
+		if (it->m_variables.find(name) != it->m_variables.end())
+		{
+			return it;
+		}
+	}
+
+	std::string mangled_name;
+	for (auto end_idx : std::views::iota(0u, m_namespaces.size()))
+	{
+		std::string stacked_namespace;
+		for (size_t idx : std::views::iota(0u, end_idx + 1u))
+		{
+			stacked_namespace.append(m_namespaces[idx]).append(NameSeparator);
+		}
+		mangled_name.append(stacked_namespace).append(name);
+
+		for (std::vector<Parser::Scope>::const_reverse_iterator it = m_scopes.crbegin(); it != m_scopes.crend(); ++it)
+		{
+			if (it->m_variables.find(mangled_name) != it->m_variables.end())
+			{
+				name = std::move(mangled_name);
+				return it;
+			}
+		}
+
+		mangled_name.clear();
+	}
+
+	return m_scopes.crend();
+}
+
 Token& Parser::Advance()
 {
 	if (!IsAtEnd())
@@ -94,23 +169,65 @@ void Parser::BeginScope()
 int Parser::EndScope()
 {
 	const Scope& scope = m_scopes.back();
-	int block_local_count = static_cast<int>(scope.m_variables.size() - scope.m_structs.size()); // struct count is subtracted because they do not take up space in the stack
+	int block_local_count = static_cast<int>(scope.m_variables.size()); 
 	m_total_locals_in_curr_scope -= block_local_count;
 	m_total_variables -= block_local_count;
 	m_scopes.pop_back();
 	return block_local_count;
 }
 
-MidoriResult::TokenResult Parser::DefineName(const Token& name, bool is_fixed)
+std::string Parser::Mangle(std::string_view name)
 {
-	if (m_scopes.back().m_variables.contains(name.m_lexeme))
+	size_t sep_idx = name.find(NameSeparator); 
+	std::string_view top_namespace;
+	std::string mangled_name;
+
+	if (sep_idx != std::string::npos)
 	{
-		return std::unexpected<std::string>(GenerateParserError("Variable with this name already exists", name));
+		top_namespace = name.substr(0u, sep_idx);
+		std::vector<std::string>::const_iterator find_result = std::find(m_namespaces.cbegin(), m_namespaces.cend(), top_namespace);
+		if (find_result == m_namespaces.cend())
+		{
+			return std::string(name);
+		}
+		else
+		{
+			for (std::vector<std::string>::const_iterator it = m_namespaces.cbegin(); it != find_result; ++it)
+			{
+				mangled_name.append(*it).append(NameSeparator);
+			}
+			mangled_name.append(name);
+			return mangled_name;
+		}
+	}
+	else
+	{
+		if (!m_namespaces.empty())
+		{
+			for (const std::string& namespace_name : m_namespaces)
+			{
+				mangled_name.append(namespace_name).append(NameSeparator);
+			}
+		}
+
+		mangled_name.append(name);
+		return mangled_name;
+	}
+}
+
+MidoriResult::TokenResult Parser::DefineName(Token& name, bool is_fixed, bool is_variable)
+{
+	name.m_lexeme = Mangle(name.m_lexeme);
+
+	if (m_scopes.back().m_defined_names.contains(name.m_lexeme))
+	{
+		return std::unexpected<std::string>(GenerateParserError("Name already exists in the current scope", name));
 	}
 
+	// m_scopes.size() - 2 because the last scope is the current scope
 	for (int i = static_cast<int>(m_scopes.size()) - 2; i >= 0; --i)
 	{
-		if (m_scopes[i].m_structs.contains(name.m_lexeme))
+		if (m_scopes[i].m_struct_constructors.contains(name.m_lexeme))
 		{
 			// TODO: Warning
 			// Overshadowing a struct
@@ -120,14 +237,23 @@ MidoriResult::TokenResult Parser::DefineName(const Token& name, bool is_fixed)
 			// TODO: Warning
 			// Overshadowing a variable
 		}
+		if (m_scopes[i].m_union_constructors.contains(name.m_lexeme))
+		{
+			// TODO: Warning
+			// Overshadowing a union
+		}
 	}
 
-	m_scopes.back().m_variables.emplace(name.m_lexeme, VariableContext(is_fixed));
+	m_scopes.back().m_defined_names.emplace(name.m_lexeme);
+	if (is_variable)
+	{
+		m_scopes.back().m_variables.emplace(name.m_lexeme, VariableContext(is_fixed));
+	}
 
 	return name;
 }
 
-std::optional<int> Parser::GetLocalVariableIndex(const std::string& name, bool is_fixed)
+std::optional<int> Parser::RegisterOrUpdateLocalVariable(const std::string& name, bool is_fixed)
 {
 	std::optional<int> local_index = std::nullopt;
 
@@ -194,11 +320,7 @@ MidoriResult::ExpressionResult Parser::ParseBind()
 		if (std::holds_alternative<Variable>(*expr.value()))
 		{
 			Variable& variable_expr = std::get<Variable>(*expr.value());
-
-			std::vector<Scope>::const_reverse_iterator found_scope_it = std::find_if(m_scopes.crbegin(), m_scopes.crend(), [&variable_expr](const Scope& scope)
-				{
-					return scope.m_variables.contains(variable_expr.m_name.m_lexeme);
-				});
+			std::vector<Scope>::const_reverse_iterator found_scope_it = FindVariableScope(variable_expr.m_name.m_lexeme);
 
 			if (found_scope_it != m_scopes.crend())
 			{
@@ -209,10 +331,12 @@ MidoriResult::ExpressionResult Parser::ParseBind()
 					return std::unexpected<std::string>(GenerateParserError("Cannot break a fixed name binding.", variable_expr.m_name));
 				}
 
+				// global
 				if (IsGlobalName(found_scope_it))
 				{
 					return std::make_unique<MidoriExpression>(Bind{ std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Global() });
 				}
+				// local
 				else if (IsLocalName(find_result))
 				{
 					return std::make_unique<MidoriExpression>(Bind{ std::move(variable_expr.m_name), std::move(value.value()), VariableSemantic::Local(find_result->second.m_relative_index.value()) });
@@ -369,71 +493,70 @@ MidoriResult::ExpressionResult Parser::ParseConstruct()
 {
 	if (Match(Token::Name::NEW))
 	{
-		MidoriResult::TokenResult data_name_token = Consume(Token::Name::IDENTIFIER_LITERAL, "Expected type name after 'new'.");
-		VERIFY_RESULT(data_name_token);
-
-		Token& data_name_token_value = data_name_token.value();
-		std::optional<const MidoriType*> defined_type = std::nullopt;
-		bool is_struct = false;
-		Scopes::const_reverse_iterator scopes_iter = m_scopes.crbegin();
-		for (; scopes_iter != m_scopes.crend(); ++scopes_iter)
+		if (Match(Token::Name::IDENTIFIER_LITERAL))
 		{
-			const Scope& scope = *scopes_iter;
-			if (scope.m_variables.contains(data_name_token_value.m_lexeme) && !scope.m_structs.contains(data_name_token_value.m_lexeme))
+			MidoriResult::TokenResult data_name_token = MatchNameResolution();
+			Token& data_name_token_value = data_name_token.value();
+
+			data_name_token_value.m_lexeme = Mangle(data_name_token_value.m_lexeme);
+
+			std::optional<const MidoriType*> defined_type = std::nullopt;
+			bool is_struct = false;
+			for (Scopes::const_reverse_iterator scopes_iter = m_scopes.crbegin(); scopes_iter != m_scopes.crend(); ++scopes_iter)
 			{
-				// variable overshadowing struct
-				if (scope.m_unions.contains(data_name_token_value.m_lexeme))
+				const Scope& scope = *scopes_iter;
+				if (scope.m_union_constructors.contains(data_name_token_value.m_lexeme))
 				{
-					defined_type.emplace(scope.m_unions.at(data_name_token_value.m_lexeme));
+					defined_type.emplace(scope.m_union_constructors.at(data_name_token_value.m_lexeme));
 					break;
 				}
-				else
+				else if (scope.m_struct_constructors.contains(data_name_token_value.m_lexeme))
 				{
-					return std::unexpected<std::string>(GenerateParserError("Cannot construct type '" + data_name_token_value.m_lexeme + "' because it is overshadowed by a variable with the same name.", data_name_token_value));
+					is_struct = true;
+					defined_type.emplace(scope.m_struct_constructors.at(data_name_token_value.m_lexeme));
+					break;
 				}
 			}
-			else if (scope.m_structs.contains(data_name_token_value.m_lexeme))
+
+			if (defined_type == std::nullopt)
 			{
-				is_struct = true;
-				defined_type.emplace(scope.m_structs.at(data_name_token_value.m_lexeme));
-				break;
+				return std::unexpected<std::string>(GenerateParserError("Undefined struct.", data_name_token.value()));
 			}
-		}
 
-		if (defined_type == std::nullopt)
-		{
-			return std::unexpected<std::string>(GenerateParserError("Undefined struct.", data_name_token.value()));
-		}
-
-		MidoriResult::TokenResult paren = Consume(Token::Name::LEFT_PAREN, "Expected '(' after type.");
-		if (!paren.has_value())
-		{
-			return std::unexpected<std::string>(std::move(paren.error()));
-		}
-
-		std::vector<std::unique_ptr<MidoriExpression>> arguments;
-		if (!Check(Token::Name::RIGHT_PAREN, 0))
-		{
-			do
+			MidoriResult::TokenResult paren = Consume(Token::Name::LEFT_PAREN, "Expected '(' after type.");
+			if (!paren.has_value())
 			{
-				MidoriResult::ExpressionResult expr = ParseExpression();
-				VERIFY_RESULT(expr);
+				return std::unexpected<std::string>(std::move(paren.error()));
+			}
 
-				arguments.emplace_back(std::move(expr.value()));
-			} while (Match(Token::Name::COMMA));
-		}
+			std::vector<std::unique_ptr<MidoriExpression>> arguments;
+			if (!Check(Token::Name::RIGHT_PAREN, 0))
+			{
+				do
+				{
+					MidoriResult::ExpressionResult expr = ParseExpression();
+					VERIFY_RESULT(expr);
 
-		paren = Consume(Token::Name::RIGHT_PAREN, "Expected ')' after arguments.");
-		VERIFY_RESULT(paren);
+					arguments.emplace_back(std::move(expr.value()));
+				} while (Match(Token::Name::COMMA));
+			}
 
-		if (is_struct)
-		{
-			return std::make_unique<MidoriExpression>(Construct{ std::move(data_name_token_value), std::move(arguments), defined_type.value(), Construct::Struct{} });
+			paren = Consume(Token::Name::RIGHT_PAREN, "Expected ')' after arguments.");
+			VERIFY_RESULT(paren);
+
+			if (is_struct)
+			{
+				return std::make_unique<MidoriExpression>(Construct{ std::move(data_name_token_value), std::move(arguments), defined_type.value(), Construct::Struct{} });
+			}
+			else
+			{
+				const UnionType& union_type = MidoriTypeUtil::GetUnionType(defined_type.value());
+				return std::make_unique<MidoriExpression>(Construct{ data_name_token_value, std::move(arguments), defined_type.value(), Construct::Union{union_type.m_member_info.at(data_name_token_value.m_lexeme).m_tag} });
+			}
 		}
 		else
 		{
-			const UnionType& union_type = MidoriTypeUtil::GetUnionType(defined_type.value());
-			return std::make_unique<MidoriExpression>(Construct{ data_name_token_value, std::move(arguments), defined_type.value(), Construct::Union{union_type.m_member_info.at(data_name_token_value.m_lexeme).m_tag} });
+			return std::unexpected<std::string>(GenerateParserError("Expected struct name after 'new'.", Previous()));
 		}
 	}
 	else
@@ -479,29 +602,32 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 	}
 	else if (Match(Token::Name::IDENTIFIER_LITERAL))
 	{
-		Token& variable = Previous();
+		MidoriResult::TokenResult variable_result = MatchNameResolution();
+		VERIFY_RESULT(variable_result);
+		Token& variable = variable_result.value();
 
-		std::vector<Scope>::const_reverse_iterator found_scope_it = std::find_if(m_scopes.crbegin(), m_scopes.crend(), [&variable](const Scope& scope)
-			{
-				return scope.m_variables.contains(variable.m_lexeme);
-			});
+		std::string mangled_name = Mangle(variable.m_lexeme);
+
+		std::vector<Scope>::const_reverse_iterator found_scope_it = FindVariableScope(variable.m_lexeme);
 
 		if (found_scope_it != m_scopes.rend())
 		{
 			Scope::VariableTable::const_iterator find_result = found_scope_it->m_variables.find(variable.m_lexeme);
 
+			// global
 			if (IsGlobalName(found_scope_it))
 			{
-				return std::make_unique<MidoriExpression>(Variable{ std::move(Previous()), VariableSemantic::Global() });
+				return std::make_unique<MidoriExpression>(Variable{ std::move(variable), VariableSemantic::Global() });
 			}
+			// local
 			else if (IsLocalName(find_result))
 			{
-				return std::make_unique<MidoriExpression>(Variable{ std::move(Previous()), VariableSemantic::Local(find_result->second.m_relative_index.value()) });
+				return std::make_unique<MidoriExpression>(Variable{ std::move(variable), VariableSemantic::Local(find_result->second.m_relative_index.value()) });
 			}
 			// cell
 			else
 			{
-				return std::make_unique<MidoriExpression>(Variable{ std::move(Previous()), VariableSemantic::Cell(find_result->second.m_absolute_index.value()) });
+				return std::make_unique<MidoriExpression>(Variable{ std::move(variable), VariableSemantic::Cell(find_result->second.m_absolute_index.value()) });
 			}
 		}
 
@@ -550,12 +676,13 @@ MidoriResult::ExpressionResult Parser::ParsePrimary()
 				MidoriResult::TypeResult param_type = ParseType();
 				VERIFY_RESULT(param_type);
 
-				MidoriResult::TokenResult param_name = DefineName(name.value(), is_fixed);
+				constexpr bool is_variable = true;
+				MidoriResult::TokenResult param_name = DefineName(name.value(), is_fixed, is_variable);
 				if (param_name.has_value())
 				{
 					params.emplace_back(param_name.value());
 					param_types.emplace_back(std::move(param_type.value()));
-					GetLocalVariableIndex(param_name.value().m_lexeme, is_fixed);
+					RegisterOrUpdateLocalVariable(param_name.value().m_lexeme, is_fixed);
 				}
 				else
 				{
@@ -717,7 +844,8 @@ MidoriResult::StatementResult Parser::ParseDefineStatement()
 	MidoriResult::TokenResult var_name = Consume(Token::Name::IDENTIFIER_LITERAL, "Expected variable name.");
 	VERIFY_RESULT(var_name);
 
-	MidoriResult::TokenResult define_name_result = DefineName(var_name.value(), is_fixed);
+	constexpr bool is_variable = true;
+	MidoriResult::TokenResult define_name_result = DefineName(var_name.value(), is_fixed, is_variable);
 	VERIFY_RESULT(define_name_result);
 
 	std::optional<const MidoriType*> type_annotation = std::nullopt;
@@ -730,8 +858,7 @@ MidoriResult::StatementResult Parser::ParseDefineStatement()
 	}
 
 	Token& name = define_name_result.value();
-
-	std::optional<int> local_index = GetLocalVariableIndex(name.m_lexeme, is_fixed);
+	std::optional<int> local_index = RegisterOrUpdateLocalVariable(name.m_lexeme, is_fixed);
 
 	VERIFY_RESULT(Consume(Token::Name::SINGLE_EQUAL, "Expected '=' after defining a name."));
 
@@ -748,14 +875,17 @@ MidoriResult::StatementResult Parser::ParseStructDeclaration()
 {
 	MidoriResult::TokenResult name = Consume(Token::Name::IDENTIFIER_LITERAL, "Expected struct name.");
 	VERIFY_RESULT(name);
+	Token& struct_name = name.value();
+	struct_name.m_lexeme = Mangle(struct_name.m_lexeme);
 
-	if (name.value().m_lexeme[0] != std::toupper(name.value().m_lexeme[0]))
+	if (struct_name.m_lexeme[0] != std::toupper(struct_name.m_lexeme[0]))
 	{
 		return std::unexpected<std::string>(GenerateParserError("Struct name must start with a capital letter.", name.value()));
 	}
 
 	constexpr bool is_fixed = true;
-	VERIFY_RESULT(DefineName(name.value(), is_fixed));
+	constexpr bool is_variable = false;
+	VERIFY_RESULT(DefineName(struct_name, is_fixed, is_variable));
 
 	VERIFY_RESULT(Consume(Token::Name::LEFT_BRACE, "Expected '{' before struct body."));
 
@@ -799,32 +929,37 @@ MidoriResult::StatementResult Parser::ParseStructDeclaration()
 		}
 	}
 
-	const MidoriType* struct_type = MidoriTypeUtil::InsertStructType(name.value().m_lexeme, std::move(member_types), std::move(member_names));
-	m_scopes.back().m_structs[name.value().m_lexeme] = struct_type;
-	m_scopes.back().m_defined_types[name.value().m_lexeme] = struct_type;
+	const MidoriType* struct_type = MidoriTypeUtil::InsertStructType(struct_name.m_lexeme, std::move(member_types), std::move(member_names));
+	m_scopes.back().m_struct_constructors[struct_name.m_lexeme] = struct_type;
+	m_scopes.back().m_defined_types[struct_name.m_lexeme] = struct_type;
 
 	VERIFY_RESULT(Consume(Token::Name::SINGLE_SEMICOLON, "Expected ';' after struct body."));
 
-	return std::make_unique<MidoriStatement>(Struct{ std::move(name.value()), struct_type });
+	return std::make_unique<MidoriStatement>(Struct{ std::move(struct_name), struct_type });
 }
 
 MidoriResult::StatementResult Parser::ParseUnionDeclaration()
 {
 	MidoriResult::TokenResult name = Consume(Token::Name::IDENTIFIER_LITERAL, "Expected union name.");
 	VERIFY_RESULT(name);
+	Token& union_name = name.value();
+	std::string union_name_before_mangle = union_name.m_lexeme;
+	union_name.m_lexeme = Mangle(union_name.m_lexeme);
 
-	if (name.value().m_lexeme[0] != std::toupper(name.value().m_lexeme[0]))
+	if (union_name.m_lexeme[0u] != std::toupper(union_name.m_lexeme[0u]))
 	{
 		return std::unexpected<std::string>(GenerateParserError("Union name must start with a capital letter.", name.value()));
 	}
 
 	int tag = 0;
 	constexpr bool is_fixed = true;
-	VERIFY_RESULT(DefineName(name.value(), is_fixed));
+	constexpr bool is_variable = false;
+	VERIFY_RESULT(DefineName(union_name, is_fixed, is_variable));
 
-	const MidoriType* union_type = MidoriTypeUtil::InsertUnionType(name.value().m_lexeme);
+	const MidoriType* union_type = MidoriTypeUtil::InsertUnionType(union_name.m_lexeme);
 	UnionType& union_type_ref = const_cast<UnionType&>(MidoriTypeUtil::GetUnionType(union_type));
-	m_scopes.back().m_defined_types[name.value().m_lexeme] = union_type;
+	m_scopes.back().m_defined_types[union_name.m_lexeme] = union_type;
+	m_namespaces.emplace_back(union_name_before_mangle);
 
 	VERIFY_RESULT(Consume(Token::Name::LEFT_BRACE, "Expected '{' before union body."));
 
@@ -837,8 +972,10 @@ MidoriResult::StatementResult Parser::ParseUnionDeclaration()
 
 		MidoriResult::TokenResult member_name = Consume(Token::Name::IDENTIFIER_LITERAL, "Expected union member name.");
 		VERIFY_RESULT(member_name);
+		Token& member_name_ref = member_name.value();
+		member_name_ref.m_lexeme = Mangle(member_name_ref.m_lexeme);
 
-		VERIFY_RESULT(DefineName(member_name.value(), is_fixed));
+		VERIFY_RESULT(DefineName(member_name_ref, is_fixed, is_variable));
 
 		std::vector<const MidoriType*> member_type;
 		if (Match(Token::Name::LEFT_PAREN))
@@ -867,18 +1004,20 @@ MidoriResult::StatementResult Parser::ParseUnionDeclaration()
 		}
 		else
 		{
+			m_namespaces.pop_back();
 			return std::unexpected<std::string>(GenerateParserError("Expected ',' or '}' after union member.", Peek(0)));
 		}
 	}
 
 	std::ranges::for_each(union_type_ref.m_member_info, [union_type, this](const auto& member_info_entry)
 		{
-			m_scopes.back().m_unions[member_info_entry.first] = union_type;
+			m_scopes.back().m_union_constructors[member_info_entry.first] = union_type;
 		});
 
 	VERIFY_RESULT(Consume(Token::Name::SINGLE_SEMICOLON, "Expected ';' after union body."));
 
-	return std::make_unique<MidoriStatement>(Union{ std::move(name.value()), union_type });
+	m_namespaces.pop_back();
+	return std::make_unique<MidoriStatement>(Union{ std::move(union_name), union_type });
 }
 
 MidoriResult::StatementResult Parser::ParseIfStatement()
@@ -1041,16 +1180,22 @@ MidoriResult::StatementResult Parser::ParseReturnStatement()
 
 MidoriResult::StatementResult Parser::ParseForeignStatement()
 {
+	MidoriResult::TokenResult foreign_name = Consume(Token::Name::TEXT_LITERAL, "Expected name used in library.");
+	VERIFY_RESULT(foreign_name);
+
 	MidoriResult::TokenResult name = Consume(Token::Name::IDENTIFIER_LITERAL, "Expected foreign function name.");
 	VERIFY_RESULT(name);
+	Token& name_ref = name.value();
+	name_ref.m_lexeme = Mangle(name_ref.m_lexeme);
 
 	VERIFY_RESULT(Consume(Token::Name::SINGLE_COLON, "Expected ':' before foreign function type."));
 
 	constexpr bool is_fixed = true;
-	name = DefineName(name.value(), is_fixed);
+	constexpr bool is_variable = true;
+	name = DefineName(name.value(), is_fixed, is_variable);
 	VERIFY_RESULT(name);
 
-	std::optional<int> local_index = GetLocalVariableIndex(name.value().m_lexeme, is_fixed);
+	std::optional<int> local_index = RegisterOrUpdateLocalVariable(name.value().m_lexeme, is_fixed);
 
 	constexpr bool is_foreign = true;
 	MidoriResult::TypeResult type = ParseType(is_foreign);
@@ -1063,7 +1208,7 @@ MidoriResult::StatementResult Parser::ParseForeignStatement()
 
 	VERIFY_RESULT(Consume(Token::Name::SINGLE_SEMICOLON, "Expected ';' after foreign function type."));
 
-	return std::make_unique<MidoriStatement>(Foreign{ std::move(name.value()), std::move(type.value()), std::move(local_index) });
+	return std::make_unique<MidoriStatement>(Foreign{ std::move(name.value()), std::move(foreign_name.value().m_lexeme), std::move(type.value()), std::move(local_index) });
 }
 
 MidoriResult::StatementResult Parser::ParseSwitchStatement()
@@ -1089,16 +1234,23 @@ MidoriResult::StatementResult Parser::ParseSwitchStatement()
 		Token& keyword = Previous();
 		if (keyword.m_token_name == Token::Name::CASE)
 		{
-			MidoriResult::TokenResult member_name = Consume(Token::Name::IDENTIFIER_LITERAL, "Expected constructor name.");
-			VERIFY_RESULT(member_name);
+			if (!Match(Token::Name::IDENTIFIER_LITERAL))
+			{
+				return std::unexpected<std::string>(GenerateParserError("Expected constructor name.", keyword));
+			}
 
-			if (visited_members.contains(member_name.value().m_lexeme))
+			MidoriResult::TokenResult member_name = MatchNameResolution();
+			VERIFY_RESULT(member_name);
+			Token& member_name_ref = member_name.value();
+			member_name_ref.m_lexeme = Mangle(member_name_ref.m_lexeme);
+
+			if (visited_members.contains(member_name_ref.m_lexeme))
 			{
 				return std::unexpected<std::string>(GenerateParserError("Duplicate case in match statement.", member_name.value()));
 			}
 			else
 			{
-				visited_members.emplace(member_name.value().m_lexeme);
+				visited_members.emplace(member_name_ref.m_lexeme);
 			}
 
 			BeginScope();
@@ -1125,11 +1277,14 @@ MidoriResult::StatementResult Parser::ParseSwitchStatement()
 
 						MidoriResult::TokenResult field_name = Consume(Token::Name::IDENTIFIER_LITERAL, "Expected field name.");
 						VERIFY_RESULT(field_name);
+						Token& field_name_ref = field_name.value();
+						field_name_ref.m_lexeme = Mangle(field_name_ref.m_lexeme);
 
-						field_name = DefineName(field_name.value(), is_fixed);
+						constexpr bool is_variable = true;
+						field_name = DefineName(field_name_ref, is_fixed, is_variable);
 						VERIFY_RESULT(field_name);
 
-						GetLocalVariableIndex(field_name.value().m_lexeme, is_fixed);
+						RegisterOrUpdateLocalVariable(field_name.value().m_lexeme, is_fixed);
 
 						binding_names.emplace_back(std::move(field_name.value().m_lexeme));
 					} while (Match(Token::Name::COMMA));
@@ -1172,6 +1327,36 @@ MidoriResult::StatementResult Parser::ParseSwitchStatement()
 	return std::make_unique<MidoriStatement>(::Switch{ std::move(switch_keyword), std::move(expr.value()), std::move(cases) });
 }
 
+MidoriResult::StatementResult Parser::ParseNamespaceStatement()
+{
+	if (!IsAtGlobalScope())
+	{
+		return std::unexpected<std::string>(GenerateParserError("Namespaces can only be declared at global scope.", Previous()));
+	}
+
+	MidoriResult::TokenResult name = Consume(Token::Name::IDENTIFIER_LITERAL, "Expected namespace name.");
+	VERIFY_RESULT(name);
+	VERIFY_RESULT(Consume(Token::Name::LEFT_BRACE, "Expected '{' before namespace body."));
+	std::vector<std::unique_ptr<MidoriStatement>> statements;
+	std::string namespace_name = name.value().m_lexeme;
+
+	Token& namespace_name_ref = name.value();
+	namespace_name_ref.m_lexeme = Mangle(namespace_name_ref.m_lexeme);
+	m_namespaces.emplace_back(std::move(namespace_name));
+
+	while (!IsAtEnd() && !Check(Token::Name::RIGHT_BRACE, 0))
+	{
+		MidoriResult::StatementResult decl = ParseGlobalDeclaration();
+		VERIFY_RESULT(decl);
+
+		statements.emplace_back(std::move(decl.value()));
+	}
+
+	VERIFY_RESULT(Consume(Token::Name::RIGHT_BRACE, "Expected '}' after namespace body."));
+
+	m_namespaces.pop_back();
+	return std::make_unique<MidoriStatement>(Namespace{ std::move(name.value()), std::move(statements) });
+}
 
 MidoriResult::StatementResult Parser::ParseStatement()
 {
@@ -1270,12 +1455,12 @@ MidoriResult::TypeResult Parser::ParseType(bool is_foreign)
 	}
 	else if (Match(Token::Name::IDENTIFIER_LITERAL))
 	{
-		Token& type_name = Previous();
+		MidoriResult::TokenResult type_name_result = MatchNameResolution();
+		VERIFY_RESULT(type_name_result);
+		Token& type_name = type_name_result.value();
+		std::string mangled_name = Mangle(type_name.m_lexeme);
 
-		std::vector<Scope>::const_reverse_iterator found_scope_it = std::find_if(m_scopes.crbegin(), m_scopes.crend(), [&type_name](const Scope& scope)
-			{
-				return scope.m_defined_types.contains(type_name.m_lexeme);
-			});
+		std::vector<Scope>::const_reverse_iterator found_scope_it = FindTypeScope(type_name.m_lexeme);
 
 		if (found_scope_it == m_scopes.crend())
 		{
@@ -1443,6 +1628,10 @@ MidoriResult::StatementResult Parser::ParseDeclarationCommon(bool may_throw_erro
 	{
 		return ParseForeignStatement();
 	}
+	else if (Match(Token::Name::NAMESPACE))
+	{
+		return ParseNamespaceStatement();
+	}
 
 	if (may_throw_error)
 	{
@@ -1472,8 +1661,7 @@ MidoriResult::ParserResult Parser::Parse()
 		}
 		else
 		{
-			errors.append(result.error());
-			errors.push_back('\n');
+			errors.append(result.error()).push_back('\n');
 		}
 	}
 	EndScope();
@@ -1486,6 +1674,45 @@ MidoriResult::ParserResult Parser::Parse()
 	{
 		return std::unexpected<std::string>(std::move(errors));
 	}
+}
+
+MidoriResult::TokenResult Parser::MatchNameResolution()
+{
+	Token& resolved_name = Previous();
+	std::string resolved_name_str = std::move(resolved_name.m_lexeme);
+	bool should_match_double_colon = true;
+
+	while (Match(Token::Name::DOUBLE_COLON) || Match(Token::Name::IDENTIFIER_LITERAL))
+	{
+		Token& prev = Previous();
+		if (prev.m_token_name == Token::Name::IDENTIFIER_LITERAL)
+		{
+			resolved_name_str.append(prev.m_lexeme);
+			if (should_match_double_colon)
+			{
+				return std::unexpected<std::string>(GenerateParserError("Expected '::'.", prev));
+			}
+			else
+			{
+				should_match_double_colon = true;
+			}
+		}
+		else
+		{
+			resolved_name_str.append(NameSeparator);
+			if (!should_match_double_colon)
+			{
+				return std::unexpected<std::string>(GenerateParserError("Expected identifier.", prev));
+			}
+			else
+			{
+				should_match_double_colon = false;
+			}
+		}
+	}
+
+	resolved_name.m_lexeme = std::move(resolved_name_str);
+	return resolved_name;
 }
 
 void Parser::Synchronize()

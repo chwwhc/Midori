@@ -75,6 +75,7 @@ struct Token
 		CASE,
 		DEFAULT,
 		SWITCH,
+		NAMESPACE,
 
 		// types
 		FRACTION,
@@ -90,9 +91,11 @@ struct Token
 		END_OF_FILE,
 	};
 
-	Name m_token_name;
 	std::string m_lexeme;
-	int m_line = 0;
+	Name m_token_name;
+	int m_line;
+
+	Token(std::string&& lexeme, Name token_name, int line) noexcept;
 };
 
 class TokenStream

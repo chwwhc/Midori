@@ -134,6 +134,7 @@ void PrintAbstractSyntaxTree::operator()(const Foreign& foreign, int depth) cons
 {
 	PrintWithIndentation(depth, "ForeignFunctionInterface {");
 	PrintWithIndentation(depth + 1, "Name: " + foreign.m_function_name.m_lexeme);
+	PrintWithIndentation(depth + 1, "ForeignName: " + foreign.m_foreign_name);
 	PrintWithIndentation(depth + 1, "Type: " + MidoriTypeUtil::GetTypeName(foreign.m_type));
 	PrintWithIndentation(depth, "}");
 }
@@ -188,6 +189,21 @@ void PrintAbstractSyntaxTree::operator()(const Switch& switch_stmt, int depth) c
 	std::ranges::for_each(switch_stmt.m_cases, [depth, this](const Switch::Case& switch_case)
 		{
 			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *Switch::GetCaseStatement(switch_case));
+		});
+	PrintWithIndentation(depth, "}");
+}
+
+void PrintAbstractSyntaxTree::operator()(const Namespace& namespace_stmt, int depth) const
+{
+	PrintWithIndentation(depth, "Namespace {");
+	PrintWithIndentation(depth + 1, "Name: " + namespace_stmt.m_name.m_lexeme);
+	PrintWithIndentation(depth + 1, "Body: ");
+	std::ranges::for_each(namespace_stmt.m_stmts, [depth, this](const std::unique_ptr<MidoriStatement>& stmt)
+		{
+			std::visit([depth, this](auto&& arg)
+				{
+					(*this)(arg, depth + 1);
+				}, *stmt);
 		});
 	PrintWithIndentation(depth, "}");
 }

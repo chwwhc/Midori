@@ -9,8 +9,8 @@ var f = x(5);
 
 fixed main = fn() : Int
 {
-	PrintLine(f(2) as Text); // Should print 6
-	PrintLine(f(2) as Text); // Should print 5
+	IO::PrintLine(f(2) as Text); // Should print 6
+	IO::PrintLine(f(2) as Text); // Should print 5
 
 	return 0;
 };

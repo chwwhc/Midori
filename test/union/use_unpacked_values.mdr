@@ -15,14 +15,14 @@ union U1
 
 fixed main = fn() : Unit
 {
-	var complex = new C(3.14, 42, "Complex case");
+	var complex = new U1::C(3.14, 42, "Complex case");
 
 	switch(complex)
 	{
-		case C(var frac, var num, var str):
-			PrintLine("Matching complex C with values: " ++ (frac as Text) ++ ", " ++ (num as Text) ++ ", " ++ str);
+		case U1::C(var frac, var num, var str):
+			IO::PrintLine("Matching complex C with values: " ++ (frac as Text) ++ ", " ++ (num as Text) ++ ", " ++ str);
 		default:
-			PrintLine("default case");
+			IO::PrintLine("default case");
 	}
 
 

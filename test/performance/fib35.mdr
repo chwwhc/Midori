@@ -9,13 +9,13 @@ fixed TestFib = fn() : Unit
 		return fib(n - 1) + fib(n - 2);
 	};
 
-	fixed start = GetTime();
+	fixed start = DateTime::GetTime();
 
 	fixed fib_35 = fib(35);
 
-	fixed end = GetTime();
+	fixed end = DateTime::GetTime();
 
-	PrintLine("Fibonacci(35) benchmark took " ++ ((end - start) as Text) ++ " milliseconds");
+	IO::PrintLine("Fibonacci(35) benchmark took " ++ ((end - start) as Text) ++ " milliseconds");
 
 	return ();
 };

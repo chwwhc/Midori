@@ -32,5 +32,5 @@ fixed main = fn() : Unit
 		return sqrt_iter(1.0);
 	};
 
-	return PrintLine(sqrt(2.0) as Text);
+	return IO::PrintLine(sqrt(2.0) as Text);
 };

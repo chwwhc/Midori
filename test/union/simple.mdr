@@ -13,8 +13,8 @@ union U1
 
 fixed main = fn() : Unit
 {
-	var x = new D(new E(new S1()));
-	x = new C(1.2, 2, "sss");
+	var x = new U1::D(new U1::E(new S1()));
+	x = new U1::C(1.2, 2, "sss");
 
 	return ();
 };

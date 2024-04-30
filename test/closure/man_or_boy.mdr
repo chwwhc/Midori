@@ -18,7 +18,7 @@ fixed A = fn(var k : Int, fixed x1 : () -> Int, fixed x2 : () -> Int,
 
 fixed main = fn() : Int
 {
-    PrintLine(A(10, x(1), x(-1), x(-1), x(1), x(0)) as Text);   
+    IO::PrintLine(A(10, x(1), x(-1), x(-1), x(1), x(0)) as Text);   
 
     return 0;
 };

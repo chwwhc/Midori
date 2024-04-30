@@ -19,7 +19,7 @@ fixed TestPrimeNumbers = fn() : Unit
 		return true;
 	};
 
-	fixed start = GetTime();
+	fixed start = DateTime::GetTime();
 
 	var prime_count = 0;
 	for (var i = 0; i < 100000; i = i + 1)
@@ -30,9 +30,9 @@ fixed TestPrimeNumbers = fn() : Unit
 		}
 	}
 
-	fixed end = GetTime();
+	fixed end = DateTime::GetTime();
 
-	PrintLine("Prime(100000) benchmark took " ++ ((end - start) as Text) ++ " milliseconds");
+	IO::PrintLine("Prime(100000) benchmark took " ++ ((end - start) as Text) ++ " milliseconds");
 
 	return ();
 };

@@ -11,9 +11,9 @@ fixed foo = fn() : Unit
 		}];
 	}
 
-	PrintLine(arr[0]() as Text);  // Should print 3
-	PrintLine(arr[1]() as Text);  // Should print 3
-	PrintLine(arr[2]() as Text);  // Should print 3
+	IO::PrintLine(arr[0]() as Text);  // Should print 3
+	IO::PrintLine(arr[1]() as Text);  // Should print 3
+	IO::PrintLine(arr[2]() as Text);  // Should print 3
 	
 	return ();
 };

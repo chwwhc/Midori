@@ -19,7 +19,7 @@ fixed TestPrimeNumbers = fn() : Unit
 		return true;
 	};
 
-	fixed start = GetTime();
+	fixed start = DateTime::GetTime();
 
 	var prime_count = 0;
 	for (var i = 0; i < 100000; i = i + 1)
@@ -30,9 +30,9 @@ fixed TestPrimeNumbers = fn() : Unit
 		}
 	}
 
-	fixed end = GetTime();
+	fixed end = DateTime::GetTime();
 
-	PrintLine("Prime(100000) benchmark took " ++ ((end - start) as Text) ++ " milliseconds");
+	IO::PrintLine("Prime(100000) benchmark took " ++ ((end - start) as Text) ++ " milliseconds");
 
 	return ();
 };
@@ -46,20 +46,20 @@ fixed TestFib = fn() : Unit
 		return fib(n - 1) + fib(n - 2);
 	};
 
-	fixed start = GetTime();
+	fixed start = DateTime::GetTime();
 
 	fixed fib_35 = fib(35);
 
-	fixed end = GetTime();
+	fixed end = DateTime::GetTime();
 
-	PrintLine("Fibonacci(35) benchmark took " ++ ((end - start) as Text) ++ " milliseconds");
+	IO::PrintLine("Fibonacci(35) benchmark took " ++ ((end - start) as Text) ++ " milliseconds");
 
 	return ();
 };
 
 fixed TestStringManipulation = fn() : Unit
 {
-    fixed start = GetTime();
+    fixed start = DateTime::GetTime();
 
     var testString = "";
     for (var i = 0; i < 10000; i = i + 1)
@@ -67,9 +67,9 @@ fixed TestStringManipulation = fn() : Unit
         testString = testString ++ "a";
     }
 
-    fixed end = GetTime();
+    fixed end = DateTime::GetTime();
 
-    PrintLine("String manipulation benchmark took " ++ ((end - start) as Text) ++ " milliseconds");
+    IO::PrintLine("String manipulation benchmark took " ++ ((end - start) as Text) ++ " milliseconds");
     
     return ();
 };
@@ -98,13 +98,13 @@ fixed TestParenthesisGeneration = fn(fixed max_len : Int) : Unit
         return ();
     };
 
-    fixed start = GetTime();
+    fixed start = DateTime::GetTime();
 
     BackTrack(max_len, 0, 0, "");
 
-    fixed end = GetTime();
+    fixed end = DateTime::GetTime();
 
-    PrintLine("Parenthesis generation benchmark took " ++ ((end - start) as Text) ++ " milliseconds");
+    IO::PrintLine("Parenthesis generation benchmark took " ++ ((end - start) as Text) ++ " milliseconds");
 
     return ();
 };

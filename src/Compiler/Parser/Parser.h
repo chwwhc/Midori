@@ -29,14 +29,16 @@ private:
 	struct Scope
 	{
 		using VariableTable = std::unordered_map<std::string, VariableContext>;
-		using StructTable = std::unordered_map<std::string, const MidoriType*>;
-		using UnionTable = std::unordered_map<std::string, const MidoriType*>;
+		using StructConstructorTable = std::unordered_map<std::string, const MidoriType*>;
+		using UnionConstructorTable = std::unordered_map<std::string, const MidoriType*>;
 		using DefinedTypeTable = std::unordered_map<std::string, const MidoriType*>;
+		using DefinedNames = std::unordered_set<std::string>;
 
 		VariableTable m_variables;
-		StructTable m_structs;
-		UnionTable m_unions;
+		StructConstructorTable m_struct_constructors;
+		UnionConstructorTable m_union_constructors;
 		DefinedTypeTable m_defined_types;
+		DefinedNames m_defined_names;
 	};
 
 	using DependencyGraph = std::unordered_map<std::string, std::vector<std::string>>;
@@ -47,6 +49,7 @@ private:
 	std::string m_file_name;
 	Scopes m_scopes;
 	std::stack<int> m_local_count_before_loop;
+	std::vector<std::string> m_namespaces;
 	int m_closure_depth = 0;
 	int m_current_token_index = 0;
 	int m_total_locals_in_curr_scope = 0;
@@ -110,6 +113,10 @@ private:
 
 	bool IsAtGlobalScope() const;
 
+	std::vector<Scope>::const_reverse_iterator FindVariableScope(std::string& name);
+
+	std::vector<Scope>::const_reverse_iterator FindTypeScope(std::string& name);
+
 	Token& Peek(int offset);
 
 	Token& Previous();
@@ -118,13 +125,17 @@ private:
 
 	MidoriResult::TokenResult Consume(Token::Name type, std::string_view message);
 
+	MidoriResult::TokenResult MatchNameResolution();
+
 	void BeginScope();
 
 	int EndScope();
 
-	MidoriResult::TokenResult DefineName(const Token& name, bool is_fixed);
+	std::string Mangle(std::string_view name);
 
-	std::optional<int> GetLocalVariableIndex(const std::string& name, bool is_fixed);
+	MidoriResult::TokenResult DefineName(Token& name, bool is_fixed, bool is_variable);
+
+	std::optional<int> RegisterOrUpdateLocalVariable(const std::string& name, bool is_fixed);
 
 	bool HasReturnStatement(const MidoriStatement& stmt);
 
@@ -206,9 +217,11 @@ private:
 
 	MidoriResult::StatementResult ParseSwitchStatement();
 
+	MidoriResult::StatementResult ParseNamespaceStatement();
+
 	MidoriResult::StatementResult ParseStatement();
 
 	MidoriResult::TokenResult HandleDirective();
 
-	bool HasCircularDependency() const; // topological sort
+	bool HasCircularDependency() const; 
 };

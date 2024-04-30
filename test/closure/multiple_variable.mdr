@@ -9,7 +9,7 @@ var adder = makeAdder(3, 4);
 
 fixed main = fn() : Int
 {
-	PrintLine(adder(5) as Text);  // Should print 12
+	IO::PrintLine(adder(5) as Text);  // Should print 12
 
 	return 0;
 };

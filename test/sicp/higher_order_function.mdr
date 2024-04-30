@@ -60,9 +60,9 @@ fixed simpson = fn(fixed f : (Frac) -> Frac, fixed a : Frac,
 
 fixed main = fn() : Unit
 {
-    PrintLine("integral(cube, 0.0, 1.0, 0.001): " ++ (integral(cube, 0.0, 1.0, 0.002) as Text));
+    IO::PrintLine("integral(cube, 0.0, 1.0, 0.001): " ++ (integral(cube, 0.0, 1.0, 0.002) as Text));
 
-    PrintLine("simpson(cube, 0.0, 1.0, 1000): " ++ (simpson(cube, 0.0, 1.0, 100) as Text));
+    IO::PrintLine("simpson(cube, 0.0, 1.0, 1000): " ++ (simpson(cube, 0.0, 1.0, 100) as Text));
 
     return ();
 };

@@ -72,11 +72,11 @@ fixed church_to_number = fn(fixed c : ((Int, Int) -> Int, Int) -> Int) : Int
 
 fixed main = fn() : Unit
 {
-	PrintLine(church_to_number(add(one, two)) as Text); // prints out "3"
+	IO::PrintLine(church_to_number(add(one, two)) as Text); // prints out "3"
 	return ();
 };
 ```
-### Man or boy test
+### Man or Boy Test
 ```
 fixed x = fn(fixed x : Int) : () -> Int
 {
@@ -96,8 +96,41 @@ fixed A = fn(var k : Int, fixed x1 : () -> Int, fixed x2 : () -> Int,
 
 fixed main = fn() : Int
 {
-    PrintLine(A(10, x(1), x(-1), x(-1), x(1), x(0)) as Text);   
+    IO::PrintLine(A(10, x(1), x(-1), x(-1), x(1), x(0)) as Text);   
 
     return 0;
+};
+```
+### Sum Type and Product Type
+```
+struct S1
+{
+	k : Int,
+	l : Frac,
+};
+
+union U1
+{
+	A(Int),
+	B,
+	C(Frac, Int, Text),
+	D(U1),
+	E(S1),
+};
+
+fixed main = fn() : Unit
+{
+	var complex = new U1::C(3.14, 42, "Complex case");
+
+	switch(complex)
+	{
+		case U1::C(var frac, var num, var str):
+			IO::PrintLine("Matching complex C with values: " ++ (frac as Text) ++ ", " ++ (num as Text) ++ ", " ++ str);
+		default:
+			IO::PrintLine("default case");
+	}
+
+
+	return ();
 };
 ```

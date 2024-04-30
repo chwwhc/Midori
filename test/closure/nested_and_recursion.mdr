@@ -15,7 +15,7 @@ var next = counter(3);
 
 fixed main = fn() : Int
 {
-    PrintLine(next() as Text);  // Should print 8
+    IO::PrintLine(next() as Text);  // Should print 8
 
     return 0;
 };

@@ -39,12 +39,12 @@ fixed TestNestedStruct = fn() : Unit
 
 			var test3 = new Test3(new Vec3(1.2, 2.4, 3.2), new Complex(1.12, 2.22));
 
-			PrintLine(test as Text);
-			return PrintLine(test3 as Text);
+			IO::PrintLine(test as Text);
+			return IO::PrintLine(test3 as Text);
 		}();
 
 		var test2 = new Test2(2);
-		return PrintLine(test2 as Text);
+		return IO::PrintLine(test2 as Text);
 	};
 
 	struct_in_closure();

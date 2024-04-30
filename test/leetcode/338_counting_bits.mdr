@@ -18,6 +18,6 @@ fixed CountingBits = fn(fixed n : Int) : Array[Int]
 
 fixed main = fn() : Unit
 {
-	PrintLine(CountingBits(2) as Text);
+	IO::PrintLine(CountingBits(2) as Text);
 	return ();
 };

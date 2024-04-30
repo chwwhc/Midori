@@ -24,13 +24,13 @@ fixed TestParenthesisGeneration = fn(fixed max_len : Int) : Unit
         return ();
     };
 
-    fixed start = GetTime();
+    fixed start = DateTime::GetTime();
 
     BackTrack(max_len, 0, 0, "");
 
-    fixed end = GetTime();
+    fixed end = DateTime::GetTime();
 
-    PrintLine("Parenthesis generation benchmark took " ++ ((end - start) as Text) ++ " milliseconds");
+    IO::PrintLine("Parenthesis generation benchmark took " ++ ((end - start) as Text) ++ " milliseconds");
 
     return ();
 };

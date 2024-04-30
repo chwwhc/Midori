@@ -16,35 +16,44 @@ union U1
 
 var main = fn() : Unit
 {
-	var z = new D(new D(new E(new S1())));
+	var z = new U1::D(new U1::D(new U1::E(new S1())));
+
+	union Inner
+	{
+		A,
+		B(U1)
+	};
+
+	z = new Inner::A();
+
 	switch(z)
 	{
-		case D(var u):
+		case U1::D(var u):
 		{
-			PrintLine("1 Nested D case");
+			IO::PrintLine("1 Nested D case");
 
 			switch(u)
 			{
-				case D(var uu):
+				case U1::D(var uu):
 				{
-					PrintLine("2 Nested D case");
+					IO::PrintLine("2 Nested D case");
 
 					switch(uu)
 					{
-						case B():
+						case U1::B():
 						{}
 						default:
-							PrintLine("3 Nested default case");
+							IO::PrintLine("3 Nested default case");
 					}
 				}
 				default:
 				{
-					PrintLine("Default case");
+					IO::PrintLine("Default case");
 				}
 			}
 		}
 		default:
-			PrintLine("default case");
+			IO::PrintLine("default case");
 	}
 
 	return ();

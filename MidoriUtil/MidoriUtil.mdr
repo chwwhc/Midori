@@ -1,10 +1,16 @@
-foreign Print : (Text) -> Unit;
-
-foreign GetTime : () -> Frac;
-
-fixed PrintLine = fn(fixed text : Text) : Unit
+namespace IO
 {
-	Print(text);
-	Print("\n");
-	return ();
-};
+	foreign "Print" Print : (Text) -> Unit;
+
+	fixed PrintLine = fn(fixed text : Text) : Unit
+	{
+		Print(text);
+		Print("\n");
+		return ();
+	};
+}
+
+namespace DateTime
+{
+	foreign "GetTime" GetTime : () -> Frac;
+}

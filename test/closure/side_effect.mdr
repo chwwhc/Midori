@@ -8,8 +8,8 @@ fixed main = fn() : Int
 		return fn() : Int { privateCounter = privateCounter + 1; return privateCounter; };
 	})();
 
-	PrintLine(counter() as Text);  // Should print 1
-	PrintLine(counter() as Text);  // Should print 2
+	IO::PrintLine(counter() as Text);  // Should print 1
+	IO::PrintLine(counter() as Text);  // Should print 2
 
 	return 0;
 };

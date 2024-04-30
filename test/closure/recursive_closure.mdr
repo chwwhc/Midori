@@ -11,7 +11,7 @@ var factorial = makeRecursive(5);
 fixed main = fn() : Int
 {
 	factorial = makeRecursive(5);
-	PrintLine(factorial(5) as Text);  // Should print 120
+	IO::PrintLine(factorial(5) as Text);  // Should print 120
 
 	return 0;
 };

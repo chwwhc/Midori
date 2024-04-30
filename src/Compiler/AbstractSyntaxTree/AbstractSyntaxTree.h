@@ -45,8 +45,9 @@ struct Foreign;
 struct Struct;
 struct Union;
 struct Switch;
+struct Namespace;
 
-using MidoriStatement = std::variant<Block, Simple, Define, If, While, For, Break, Continue, Return, Foreign, Struct, Union, Switch>;
+using MidoriStatement = std::variant<Block, Simple, Define, If, While, For, Break, Continue, Return, Foreign, Struct, Union, Switch, Namespace>;
 using MidoriProgramTree = std::vector<std::unique_ptr<MidoriStatement>>;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -282,6 +283,7 @@ struct Return
 struct Foreign
 {
 	Token m_function_name;
+	std::string m_foreign_name;
 	const MidoriType* m_type;
 	std::optional<int> m_local_index;
 };
@@ -332,4 +334,10 @@ struct Switch
 	static const Token& GetKeyword(const Case& c);
 
 	static const std::unique_ptr<MidoriStatement>& GetCaseStatement(const Case& c);
+};
+
+struct Namespace
+{
+	Token m_name;
+	std::vector<std::unique_ptr<MidoriStatement>> m_stmts;
 };

@@ -35,6 +35,8 @@ struct PrintAbstractSyntaxTree
 
 	void operator()(const Switch& switch_stmt, int depth = 0) const;
 
+	void operator()(const Namespace& namespace_stmt, int depth = 0) const;
+
 	void operator()(const As& as, int depth = 0) const;
 
 	void operator()(const Binary& binary, int depth = 0) const;

@@ -21,7 +21,7 @@ fixed fast_expt = fn(fixed x : Int, fixed n : Int) : Int
 
 fixed main = fn() : Unit
 {
-	PrintLine("2^10 using fast exponentiation " ++ (fast_expt(2, 10) as Text));
+	IO::PrintLine("2^10 using fast exponentiation " ++ (fast_expt(2, 10) as Text));
 
 	return ();
 };

@@ -91,6 +91,8 @@ private:
 
 	void operator()(Switch& switch_stmt);
 
+	void operator()(Namespace& namespace_stmt);
+
 	void operator()(As& as);
 
 	void operator()(Binary& binary);

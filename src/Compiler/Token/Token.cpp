@@ -1,5 +1,9 @@
 #include "Token.h"
 
+Token::Token(std::string&& lexeme, Name token_name, int line) noexcept : m_lexeme(std::move(lexeme)), m_token_name(token_name), m_line(line)
+{
+}
+
 TokenStream::iterator TokenStream::begin()
 { 
 	return m_tokens.begin(); 

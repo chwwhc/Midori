@@ -59,6 +59,8 @@ private:
 	void operator()(Union& union_stmt);
 
 	void operator()(Switch& switch_stmt);
+	
+	void operator()(Namespace& namespace_stmt);
 
 	MidoriResult::TypeResult operator()(As& as);
 

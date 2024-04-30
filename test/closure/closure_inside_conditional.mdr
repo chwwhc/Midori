@@ -13,7 +13,7 @@ fixed foo = fn() : Int
 
 fixed main = fn() : Unit
 {
-	PrintLine(foo() as Text);  // Should print 5
+	IO::PrintLine(foo() as Text);  // Should print 5
 
 	return ();
 };

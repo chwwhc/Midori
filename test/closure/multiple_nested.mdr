@@ -15,7 +15,7 @@ var adder : (Int) -> Int = makeAdder(3)(4);
 
 fixed main = fn() : Unit
 {
-    PrintLine(adder(5) as Text);  // Should print 12
+    IO::PrintLine(adder(5) as Text);  // Should print 12
 
     return ();
 };

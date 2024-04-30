@@ -15,92 +15,92 @@ union U1
 
 fixed main = fn() : Unit
 {
-	var x = new D(new E(new S1()));
-	x = new C(1.2, 2, "sss");
+	var x = new U1::D(new U1::E(new S1()));
+	x = new U1::C(1.2, 2, "sss");
 
 	switch(x)
 	{
-		case A(fixed a):
+		case U1::A(fixed a):
 		{
-			PrintLine("case A");
+			IO::PrintLine("case A");
 		}
-		case B():
-			PrintLine("case B");
-		case C(var frac_1, var int_1, var text_1):
+		case U1::B():
+			IO::PrintLine("case B");
+		case U1::C(var frac_1, var int_1, var text_1):
 		{
-			PrintLine("case C");
+			IO::PrintLine("case C");
 		}
-		case D(var u):
+		case U1::D(var u):
 		{
-			PrintLine("case D");
+			IO::PrintLine("case D");
 		}
-		case E(var s):
-			PrintLine("case E");
+		case U1::E(var s):
+			IO::PrintLine("case E");
 	}
 
 
-	x = new D(new B());
+	x = new U1::D(new U1::B());
 
 	switch(x)
 	{
-		case D(var u):
+		case U1::D(var u):
 		{
-			PrintLine("case D");
+			IO::PrintLine("case D");
 			
 			switch(u)
 			{
-				case A(fixed a):
+				case U1::A(fixed a):
 				{
-					PrintLine("case A");
+					IO::PrintLine("case A");
 				}
-				case B():
-					PrintLine("case B");
-				case C(var frac_1, var int_1, var text_1):
+				case U1::B():
+					IO::PrintLine("case B");
+				case U1::C(var frac_1, var int_1, var text_1):
 				{
-					PrintLine("case C");
+					IO::PrintLine("case C");
 				}
-				case D(var u):
+				case U1::D(var u):
 				{
-					PrintLine("case D");
+					IO::PrintLine("case D");
 				}
-				case E(var s):
-					PrintLine("case E");
+				case U1::E(var s):
+					IO::PrintLine("case E");
 			}
 		}
-		case A(fixed a):
+		case U1::A(fixed a):
 		{
-			PrintLine("case A");
+			IO::PrintLine("case A");
 		}
-		case C(var frac_1, var int_1, var text_1):
+		case U1::C(var frac_1, var int_1, var text_1):
 		{
-			PrintLine("case C");
+			IO::PrintLine("case C");
 		}
-		case E(var s):
-			PrintLine("case E");
-		case B():
-			PrintLine("case B");
+		case U1::E(var s):
+			IO::PrintLine("case E");
+		case U1::B():
+			IO::PrintLine("case B");
 	}
 
-	x = new B();
+	x = new U1::B();
 
 	switch(x)
 	{
-		case D(var u):
+		case U1::D(var u):
 		{
-			PrintLine("case D");
+			IO::PrintLine("case D");
 		}
-		case A(fixed a):
+		case U1::A(fixed a):
 		{
-			PrintLine("case A");
+			IO::PrintLine("case A");
 		}
-		case C(var frac_1, var int_1, var text_1):
+		case U1::C(var frac_1, var int_1, var text_1):
 		{
-			PrintLine("case C");
+			IO::PrintLine("case C");
 		}
-		case E(var s):
-			PrintLine("case E");
-		case B():
-			PrintLine("case B");
+		case U1::E(var s):
+			IO::PrintLine("case E");
+		case U1::B():
+			IO::PrintLine("case B");
 	}
 
 	return ();

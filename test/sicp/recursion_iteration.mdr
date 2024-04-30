@@ -59,19 +59,19 @@ fixed pascal_triangle_elem = fn(fixed row : Int, fixed col : Int) : Int
 
 fixed main = fn() : Unit
 {
-	PrintLine("fact(6) using linear recursion: " ++ (factorial_linear_recursion(6) as Text));
+	IO::PrintLine("fact(6) using linear recursion: " ++ (factorial_linear_recursion(6) as Text));
 
-	PrintLine("fact(6) using iteration: " ++ (factorial_iteration(6) as Text));
+	IO::PrintLine("fact(6) using iteration: " ++ (factorial_iteration(6) as Text));
 
-	PrintLine("fib(10) using tree recursion: " ++ (fib_tree_recursion(10) as Text));
+	IO::PrintLine("fib(10) using tree recursion: " ++ (fib_tree_recursion(10) as Text));
 
-	PrintLine("fib(10) using iteration: " ++ (fib_iteration(10) as Text));
+	IO::PrintLine("fib(10) using iteration: " ++ (fib_iteration(10) as Text));
 
-	PrintLine("exercise_111_tree_recursion(10) using tree recursion: " ++ (exercise_111_tree_recursion(10) as Text));
+	IO::PrintLine("exercise_111_tree_recursion(10) using tree recursion: " ++ (exercise_111_tree_recursion(10) as Text));
 
-	PrintLine("exercise_111_iteration(10) using iteration: " ++ (exercise_111_iteration(10) as Text));
+	IO::PrintLine("exercise_111_iteration(10) using iteration: " ++ (exercise_111_iteration(10) as Text));
 
-	PrintLine("exercise_112_pascal_triangle_4_3: " ++ (pascal_triangle_elem(4, 3) as Text));
+	IO::PrintLine("exercise_112_pascal_triangle_4_3: " ++ (pascal_triangle_elem(4, 3) as Text));
 
 	return ();
 };
