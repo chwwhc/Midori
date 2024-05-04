@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <ranges>
 
 using namespace std::string_literals;
 
@@ -80,7 +81,7 @@ inline bool operator==(const FunctionType& lhs, const FunctionType& rhs)
 	{
 		return false;
 	}
-	for (size_t i = 0u; i < lhs.m_param_types.size(); i += 1u)
+	for (size_t i : std::views::iota(0u, lhs.m_param_types.size()))
 	{
 		if (*lhs.m_param_types[i] != *rhs.m_param_types[i])
 		{
@@ -125,15 +126,13 @@ class MidoriTypeUtil
 {
 private:
 
-	static std::unordered_map<std::string, const MidoriType*> s_types_by_name;
+	static std::unordered_map<std::string, MidoriType> s_types_by_name;
 
 	static std::unordered_map<const MidoriType*, std::string> s_names_by_type;
 
-	static const MidoriType* InsertType(const std::string& name, const MidoriType* type);
+	static const MidoriType* InsertType(const std::string& name, MidoriType&& type);
 
 public:
-
-	static void MidoriTypeUtilCleanUp();
 
 	static const MidoriType* InsertUnionType(const std::string& name);
 

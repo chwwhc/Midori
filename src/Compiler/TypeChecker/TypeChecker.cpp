@@ -877,7 +877,7 @@ MidoriResult::TypeResult TypeChecker::operator()(Closure& closure)
 	m_curr_closure_return_type = closure.m_return_type;
 
 	BeginScope();
-	for (size_t i = 0u; i < closure.m_param_types.size(); i += 1u)
+	for (size_t i : std::views::iota(0u, closure.m_param_types.size()))
 	{
 		m_name_type_table.back().emplace(closure.m_params[i].m_lexeme, closure.m_param_types[i]);
 	}

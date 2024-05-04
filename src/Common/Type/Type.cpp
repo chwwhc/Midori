@@ -2,52 +2,42 @@
 
 #include <algorithm>
 
-std::unordered_map<std::string, const MidoriType*> MidoriTypeUtil::s_types_by_name =
+std::unordered_map<std::string, MidoriType> MidoriTypeUtil::s_types_by_name =
 {
 	// built-in types
-	{"Int"s, new MidoriType(IntegerType())},
-	{"Frac"s, new MidoriType(FractionType())},
-	{"Text"s, new MidoriType(TextType())},
-	{"Bool"s, new MidoriType(BoolType())},
-	{"Unit"s, new MidoriType(UnitType())},
+	{"Int"s, MidoriType(IntegerType())},
+	{"Frac"s, MidoriType(FractionType())},
+	{"Text"s, MidoriType(TextType())},
+	{"Bool"s, MidoriType(BoolType())},
+	{"Unit"s, MidoriType(UnitType())},
 };
 
 std::unordered_map<const MidoriType*, std::string> MidoriTypeUtil::s_names_by_type =
 {
 	// built-in types 
-	{s_types_by_name["Int"s], "Int"s},
-	{s_types_by_name["Frac"s], "Frac"s},
-	{s_types_by_name["Text"s], "Text"s},
-	{s_types_by_name["Bool"s], "Bool"s},
-	{s_types_by_name["Unit"s], "Unit"s},
+	{&s_types_by_name["Int"s], "Int"s},
+	{&s_types_by_name["Frac"s], "Frac"s},
+	{&s_types_by_name["Text"s], "Text"s},
+	{&s_types_by_name["Bool"s], "Bool"s},
+	{&s_types_by_name["Unit"s], "Unit"s},
 };
 
-void MidoriTypeUtil::MidoriTypeUtilCleanUp()
-{
-	std::for_each(s_types_by_name.begin(), s_types_by_name.end(), [](const std::pair<std::string, const MidoriType*>& pair) -> void
-		{
-			delete pair.second;
-		});
-}
-
-const MidoriType* MidoriTypeUtil::InsertType(const std::string& name, const MidoriType* type)
+const MidoriType* MidoriTypeUtil::InsertType(const std::string& name, MidoriType&& type)
 {
 	s_types_by_name.emplace(name, std::move(type));
-	s_names_by_type.emplace(type, name);
+	s_names_by_type.emplace(&s_types_by_name[name], name);
 
-	return s_types_by_name[name];
+	return &s_types_by_name[name];
 }
 
 const MidoriType* MidoriTypeUtil::InsertUnionType(const std::string& name)
 {
-	const MidoriType* type = new MidoriType(UnionType{ {}, name });
-	return InsertType(name, type);
+	return InsertType(name, MidoriType(UnionType{ {}, name }));
 }
 
 const MidoriType* MidoriTypeUtil::InsertStructType(const std::string& name, std::vector<const MidoriType*>&& member_types, std::vector<std::string>&& member_names)
 {
-	const MidoriType* type = new MidoriType(StructType{ std::move(member_types), std::move(member_names), name });
-	return InsertType(name, type);
+	return InsertType(name, MidoriType(StructType{ std::move(member_types), std::move(member_names), name }));
 }
 
 const MidoriType* MidoriTypeUtil::InsertArrayType(const MidoriType* element_type)
@@ -56,11 +46,11 @@ const MidoriType* MidoriTypeUtil::InsertArrayType(const MidoriType* element_type
 
 	if (s_types_by_name.contains(array_type_name))
 	{
-		return s_types_by_name[array_type_name];
+		return &s_types_by_name[array_type_name];
 	}
 	else
 	{
-		return InsertType(array_type_name, new MidoriType(ArrayType{ element_type }));
+		return InsertType(array_type_name, MidoriType(ArrayType{ element_type }));
 	}
 }
 
@@ -86,17 +76,17 @@ const MidoriType* MidoriTypeUtil::InsertFunctionType(const std::vector<const Mid
 
 	if (s_types_by_name.contains(function_type_name))
 	{
-		return s_types_by_name[function_type_name];
+		return &s_types_by_name[function_type_name];
 	}
 	else
 	{
-		return InsertType(function_type_name, new MidoriType(FunctionType{ param_types, return_type, is_foreign }));
+		return InsertType(function_type_name, MidoriType(FunctionType{ param_types, return_type, is_foreign }));
 	}
 }
 
 const MidoriType* MidoriTypeUtil::GetType(const std::string& name)
 {
-	return s_types_by_name[name];
+	return &s_types_by_name[name];
 }
 
 const std::string& MidoriTypeUtil::GetTypeName(const MidoriType* type)

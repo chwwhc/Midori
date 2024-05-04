@@ -160,7 +160,6 @@ MidoriResult::CodeGeneratorResult CodeGenerator::GenerateCode(MidoriProgramTree&
 #endif
 	m_executable.AttachProcedures(std::move(m_procedures));
 
-	MidoriTypeUtil::MidoriTypeUtilCleanUp();
 	return m_executable;
 }
 
@@ -758,7 +757,7 @@ void CodeGenerator::operator()(Closure& closure)
 
 	int prev_index = m_current_procedure_index;
 	m_current_procedure_index = static_cast<int>(m_procedures.size());
-	m_procedures.emplace_back(BytecodeStream());
+	m_procedures.emplace_back();
 	std::visit([this](auto&& arg) {(*this)(arg); }, *closure.m_body);
 
 	int closure_proc_index = m_current_procedure_index;
