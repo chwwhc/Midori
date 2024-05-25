@@ -24,7 +24,7 @@ var main = fn() : Unit
 		B(U1)
 	};
 
-	z = new Inner::A();
+	fixed zz = new Inner::A();
 
 	switch(z)
 	{

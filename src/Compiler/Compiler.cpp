@@ -57,8 +57,8 @@ namespace Compiler
 					const MidoriExecutable& executable = compilation_result.value();
 					for (size_t i : std::views::iota(0u, executable.m_procedure_names.size()))
 					{
-						std::string variable_name = executable.m_procedure_names[i];
-						Disassembler::DisassembleBytecodeStream(executable, static_cast<int>(i), variable_name);
+						MidoriText variable_name = executable.m_procedure_names[i];
+						Disassembler::DisassembleBytecodeStream(executable, static_cast<int>(i), variable_name.GetCString());
 					}
 #endif
 					return compilation_result.value();

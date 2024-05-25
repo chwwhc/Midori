@@ -16,7 +16,7 @@ void GarbageCollector::Mark(MidoriTraceable::GarbageCollectionRoots&& roots)
 		MidoriTraceable::s_traceables,
 		[](MidoriTraceable* ptr)
 		{
-			Printer::Print<Printer::Color::CYAN>(std::format("Tracked traceable pointer: {:p}, value: {}\n", static_cast<void*>(ptr), ptr->ToString()));
+			Printer::Print<Printer::Color::CYAN>(std::format("Tracked traceable pointer: {:p}, value: {}\n", static_cast<void*>(ptr), ptr->ToText().GetCString()));
 		}
 	);
 #endif

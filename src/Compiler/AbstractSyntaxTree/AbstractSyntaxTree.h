@@ -15,7 +15,7 @@ struct BoolLiteral;
 struct FractionLiteral;
 struct IntegerLiteral;
 struct UnitLiteral;
-struct Unary;
+struct UnaryPrefix;
 struct Bind;
 struct Variable;
 struct Call;
@@ -28,7 +28,7 @@ struct Array;
 struct ArrayGet;
 struct ArraySet;
 
-using MidoriExpression = std::variant < As, Binary, Group, TextLiteral, BoolLiteral, FractionLiteral, IntegerLiteral, UnitLiteral, Unary, Bind, Variable, Call, Closure, Construct, Ternary, Get, Set, Array, ArrayGet, ArraySet>;
+using MidoriExpression = std::variant < As, Binary, Group, TextLiteral, BoolLiteral, FractionLiteral, IntegerLiteral, UnitLiteral, UnaryPrefix, Bind, Variable, Call, Closure, Construct, Ternary, Get, Set, Array, ArrayGet, ArraySet>;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -114,7 +114,7 @@ struct UnitLiteral
 	Token m_token;
 };
 
-struct Unary
+struct UnaryPrefix
 {
 	Token m_op;
 	std::unique_ptr<MidoriExpression> m_right;

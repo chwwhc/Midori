@@ -111,13 +111,13 @@ int MidoriExecutable::AddConstant(MidoriValue&& value)
 	return static_cast<int>(m_constants.size()) - 1;
 }
 
-int MidoriExecutable::AddGlobalVariable(std::string&& name)
+int MidoriExecutable::AddGlobalVariable(MidoriText&& name)
 {
 	m_globals.emplace_back(std::move(name));
 	return static_cast<int>(m_globals.size()) - 1;
 }
 
-const std::string& MidoriExecutable::GetGlobalVariable(int index) const
+const MidoriText& MidoriExecutable::GetGlobalVariable(int index) const
 {
 	return m_globals[static_cast<size_t>(index)];
 }
@@ -133,7 +133,7 @@ void MidoriExecutable::AttachProcedures(Procedures&& bytecode)
 }
 
 #ifdef DEBUG
-void MidoriExecutable::AttachProcedureNames(std::vector<std::string>&& procedure_names)
+void MidoriExecutable::AttachProcedureNames(std::vector<MidoriText>&& procedure_names)
 {
 		m_procedure_names = std::move(procedure_names);
 }
@@ -167,4 +167,9 @@ int MidoriExecutable::GetByteCodeSize(int proc_index) const
 int MidoriExecutable::GetProcedureCount() const
 {
 	return static_cast<int>(m_procedures.size());
+}
+
+int MidoriExecutable::GetGlobalVariableCount() const
+{
+	return static_cast<int>(m_globals.size());
 }

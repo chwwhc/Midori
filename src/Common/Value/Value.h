@@ -2,23 +2,20 @@
 
 #include <functional>
 #include <list>
-#include <string>
 #include <variant>
 #include <vector>
 #include <unordered_set>
-#include <memory>
 
 class MidoriTraceable;
+class MidoriText;
+
+using MidoriInteger = int64_t;
+using MidoriFraction = double;
+using MidoriUnit = std::monostate;
+using MidoriBool = bool;
 
 class MidoriValue
 {
-
-public:
-	using MidoriInteger = int64_t;
-	using MidoriFraction = double;
-	using MidoriUnit = std::monostate;
-	using MidoriBool = bool;
-
 private:
 	union MidoriValueUnion
 	{
@@ -90,7 +87,7 @@ public:
 
 	bool IsPointer() const;
 
-	std::string ToString() const;
+	MidoriText ToText() const;
 };
 
 template<typename... Args>
@@ -100,7 +97,125 @@ template<typename T>
 concept MidoriTraceableConstructible = std::constructible_from<MidoriTraceable, T>;
 
 template <typename T>
-concept MidoriNumeric = std::same_as<T, MidoriValue::MidoriFraction> || std::same_as<T, MidoriValue::MidoriInteger>;
+concept MidoriNumeric = std::same_as<T, MidoriFraction> || std::same_as<T, MidoriInteger>;
+
+class MidoriText
+{
+private:
+	char* m_data{ nullptr };
+	int m_size{ 0 };
+	int m_capacity{ 0 };
+
+public:
+	MidoriText() = default;
+
+	MidoriText(const char* str);
+
+	MidoriText(const MidoriText& other);
+
+	MidoriText(MidoriText&& other) noexcept;
+
+	MidoriText& operator=(const MidoriText& other);
+
+	MidoriText& operator=(MidoriText&& other) noexcept;
+
+	~MidoriText();
+
+	int GetLength() const noexcept;
+
+	const char* GetCString() const noexcept;
+
+	MidoriText& Pop();
+
+	MidoriText& Append(const char* str);
+
+	MidoriText& Append(char c);
+
+	MidoriText& Append(const MidoriText& other);
+
+	char operator[](int index) const;
+
+	bool operator==(const MidoriText& other) const;
+
+	bool operator!=(const MidoriText& other) const;
+
+	MidoriInteger ToInteger() const;
+
+	MidoriFraction ToFraction() const;
+
+	static MidoriText FromInteger(MidoriInteger value);
+
+	static MidoriText FromFraction(MidoriFraction value);
+
+	static MidoriText Concatenate(const MidoriText& a, const MidoriText& b);
+
+private:
+	MidoriText(int size);
+
+	void Expand(int new_size);
+};
+
+class MidoriArray
+{
+private:
+	MidoriValue* m_data{ nullptr };
+	int m_size{ 0 };
+	int m_end{ 0 };
+
+public:
+	MidoriArray() = default;
+
+	MidoriArray(int size);
+
+	MidoriArray(const MidoriArray& other);
+
+	MidoriArray(MidoriArray&& other) noexcept;
+
+	MidoriArray& operator=(const MidoriArray& other);
+
+	MidoriArray& operator=(MidoriArray&& other) noexcept;
+
+	~MidoriArray();
+
+	MidoriValue& operator[](int index);
+
+	void Add(const MidoriValue& value);
+
+	int GetLength() const;
+
+	static MidoriArray Concatenate(const MidoriArray& a, const MidoriArray& b);
+
+private:
+	void Expand();
+};
+
+struct MidoriCellValue
+{
+	MidoriValue m_heap_value;
+	MidoriValue* m_stack_value_ref;
+	bool m_is_on_heap = false;
+
+	MidoriValue& GetValue();
+};
+
+struct MidoriClosure
+{
+	using Environment = std::vector<MidoriValue>;
+
+	Environment m_cell_values;
+	int m_proc_index;
+};
+
+struct MidoriStruct
+{
+	MidoriArray m_values{};
+};
+
+struct MidoriUnion
+{
+	MidoriArray m_values{};
+	int m_index{ 0 };
+};
 
 class MidoriTraceable
 {
@@ -111,39 +226,8 @@ public:
 	static inline size_t s_static_bytes_allocated;
 	static inline std::list<MidoriTraceable*> s_traceables;
 
-	using MidoriText = std::string;
-	using MidoriArray = std::vector<MidoriValue>;
-
-	struct CellValue
-	{
-		MidoriValue m_heap_value;
-		MidoriValue* m_stack_value_ref;
-		bool m_is_on_heap = false;
-
-		MidoriValue& GetValue();
-	};
-
-	struct MidoriClosure
-	{
-		using Environment = std::vector<MidoriValue>;
-
-		Environment m_cell_values;
-		int m_proc_index;
-	};
-
-	struct MidoriStruct
-	{
-		std::vector<MidoriValue> m_values;
-	};
-
-	struct MidoriUnion
-	{
-		std::vector<MidoriValue> m_values;
-		int m_index;
-	};
-
 private:
-	std::variant<MidoriText, MidoriArray, MidoriStruct, MidoriUnion, CellValue, MidoriClosure> m_value;
+	std::variant<MidoriText, MidoriArray, MidoriStruct, MidoriUnion, MidoriCellValue, MidoriClosure> m_value;
 	size_t m_size;
 	bool m_is_marked = false;
 
@@ -161,7 +245,7 @@ public:
 
 	bool IsCellValue() const;
 
-	CellValue& GetCellValue();
+	MidoriCellValue& GetCellValue();
 
 	bool IsClosure() const;
 
@@ -187,7 +271,7 @@ public:
 
 	static void operator delete(void* object, size_t size) noexcept;
 
-	std::string ToString() const;
+	MidoriText ToText();
 
 	void Trace();
 
@@ -216,7 +300,7 @@ private:
 
 	MidoriTraceable(MidoriArray&& array) noexcept;
 
-	MidoriTraceable(MidoriValue* stack_value_ref) noexcept;
+	MidoriTraceable(MidoriCellValue&& cell_value) noexcept;
 
 	MidoriTraceable(MidoriClosure&& closure) noexcept;
 

@@ -4,53 +4,51 @@
 #include <algorithm>
 #include <execution>
 #include <ranges>
-#include <format>
-
-using namespace std::string_literals;
 
 namespace
 {
-	std::string ConvertToQuotedString(std::string_view input)
+	MidoriText ConvertToQuotedText(const MidoriText& input)
 	{
-		std::string result = "\"";
+		MidoriText result("\"");
 
-		for (char c : input)
+		for (int i = 0; i < input.GetLength(); i += 1)
 		{
+			char c = input[i];
 			switch (c)
 			{
 			case '\n':
 			{
-				result.append("\\n");
+				result.Append("\\n");
 				break;
 			}
 			case '\t':
 			{
-				result.append("\\t");
+				result.Append("\\t");
 				break;
 			}
 			case '\r':
 			{
-				result.append("\\r");
+				result.Append("\\r");
 				break;
 			}
 			case '\\':
 			{
-				result.append("\\\\");
+				result.Append("\\\\");
 				break;
 			}
 			case '\"':
 			{
-				result.append("\\\"");
+				result.Append("\\\"");
 				break;
 			}
 			default:
 			{
-				result.push_back(c);
+				result.Append(c);
 			}
 			}
 		}
 
-		result.append("\"");
+		result.Append('"');
 
 		return result;
 	}
@@ -83,7 +81,7 @@ MidoriValue::MidoriValue(MidoriBool b) noexcept : m_value(b), m_type_tag(MidoriV
 MidoriValue::MidoriValue(MidoriTraceable* o) noexcept : m_value(o), m_type_tag(MidoriValueTypeTag::Pointer)
 {}
 
-MidoriValue::MidoriFraction MidoriValue::GetFraction() const
+MidoriFraction MidoriValue::GetFraction() const
 {
 	return m_value.m_fraction;
 }
@@ -93,7 +91,7 @@ bool MidoriValue::IsFraction() const
 	return m_type_tag == MidoriValueTypeTag::Fraction;
 }
 
-MidoriValue::MidoriInteger MidoriValue::GetInteger() const
+MidoriInteger MidoriValue::GetInteger() const
 {
 	return m_value.m_integer;
 }
@@ -103,7 +101,7 @@ bool MidoriValue::IsInteger() const
 	return m_type_tag == MidoriValueTypeTag::Integer;
 }
 
-MidoriValue::MidoriUnit MidoriValue::GetUnit() const
+MidoriUnit MidoriValue::GetUnit() const
 {
 	return m_value.m_unit;
 }
@@ -113,7 +111,7 @@ bool MidoriValue::IsUnit() const
 	return m_type_tag == MidoriValueTypeTag::Unit;
 }
 
-MidoriValue::MidoriBool MidoriValue::GetBool() const
+MidoriBool MidoriValue::GetBool() const
 {
 	return m_value.m_bool;
 }
@@ -133,22 +131,22 @@ bool MidoriValue::IsPointer() const
 	return m_type_tag == MidoriValueTypeTag::Pointer;
 }
 
-std::string MidoriValue::ToString() const
+MidoriText MidoriValue::ToText() const
 {
 	switch (m_type_tag)
 	{
 	case MidoriValue::MidoriValueTypeTag::Fraction:
-		return std::to_string(GetFraction());
+		return MidoriText::FromFraction(GetFraction());
 	case MidoriValue::MidoriValueTypeTag::Integer:
-		return std::to_string(GetInteger());
+		return MidoriText::FromInteger(GetInteger());
 	case MidoriValue::MidoriValueTypeTag::Unit:
-		return "()"s;
+		return MidoriText("()");
 	case MidoriValue::MidoriValueTypeTag::Bool:
-		return GetBool() ? "true"s : "false"s;
+		return GetBool() ? MidoriText("true") : MidoriText("false");
 	case MidoriValue::MidoriValueTypeTag::Pointer:
-		return GetPointer()->ToString();
+		return GetPointer()->ToText();
 	default:
-		return "Unknown MidoriValue"s; // Unreachable
+		return MidoriText("Unknown MidoriValue"); // Unreachable
 	}
 }
 
@@ -158,7 +156,7 @@ MidoriTraceable::MidoriTraceable(MidoriText&& str) noexcept : m_value(std::move(
 MidoriTraceable::MidoriTraceable(MidoriArray&& array) noexcept : m_value(std::move(array))
 {}
 
-MidoriTraceable::MidoriTraceable(MidoriValue* stack_value_ref) noexcept : m_value(CellValue{ MidoriValue(), stack_value_ref, false })
+MidoriTraceable::MidoriTraceable(MidoriCellValue&& cell_value) noexcept : m_value(std::move(cell_value))
 {}
 
 MidoriTraceable::MidoriTraceable(MidoriClosure&& closure) noexcept : m_value(std::move(closure))
@@ -170,93 +168,87 @@ MidoriTraceable::MidoriTraceable(MidoriStruct&& midori_struct)noexcept : m_value
 MidoriTraceable::MidoriTraceable(MidoriUnion&& midori_union) noexcept : m_value(std::move(midori_union))
 {}
 
-std::string MidoriTraceable::ToString() const
+MidoriText MidoriTraceable::ToText()
 {
-	return std::visit([](auto&& arg) -> std::string
+	return std::visit([](auto&& arg) -> MidoriText
 		{
 			using T = std::decay_t<decltype(arg)>;
 			if constexpr (std::is_same_v<T, MidoriText>)
 			{
-				return ConvertToQuotedString(arg);
+				return ConvertToQuotedText(arg);
 			}
 			else if constexpr (std::is_same_v<T, MidoriArray>)
 			{
-				if (arg.empty())
+				if (arg.GetLength() == 0)
 				{
-					return "[]"s;
+					return MidoriText("[]");
 				}
 
-				std::string result = "["s;
-				std::ranges::for_each(arg, [&result](const MidoriValue& value) -> void
-					{
-						result.append(value.ToString());
-						result.append(","s);
-					});
-				result.pop_back();
-				result.append("]"s);
+				MidoriText result("[");
+				for (int idx : std::views::iota(0, arg.GetLength()))
+				{
+					result.Append(arg[idx].ToText()).Append(", ");
+				}
+				result.Pop().Append("]");
 				return result;
 			}
-			else if constexpr (std::is_same_v<T, CellValue>)
+			else if constexpr (std::is_same_v<T, MidoriCellValue>)
 			{
 				if (arg.m_is_on_heap)
 				{
-					return "Cell("s + arg.m_heap_value.ToString() + ")"s;
+					return MidoriText("Cell(").Append(arg.m_heap_value.ToText()).Append(")");
 				}
 				else
 				{
-					return "Cell("s + arg.m_stack_value_ref->ToString() + ")"s;
+					return MidoriText("Cell(").Append(arg.m_stack_value_ref->ToText()).Append(")");
 				}
 			}
 			else if constexpr (std::is_same_v<T, MidoriClosure>)
 			{
-				return std::format("<closure at: {:p}>", (void*)std::addressof(arg));
+				char buffer[64];
+				std::snprintf(buffer, sizeof(buffer), "<closure at: %p>", (void*)std::addressof(arg));
+
+				return MidoriText(buffer);
 			}
 			else if constexpr (std::is_same_v<T, MidoriUnion>)
 			{
-				if (arg.m_values.empty())
+				if (arg.m_values.GetLength() == 0)
 				{
-					return "Union{}"s;
+					return MidoriText("Union{}");
 				}
 
-				std::string union_val = "Union"s;
-				union_val.append("{"s);
-				std::ranges::for_each(arg.m_values, [&union_val](const MidoriValue& value) -> void
-					{
-						union_val.append(value.ToString());
-						union_val.append(", "s);
-					});
-				union_val.pop_back();
-				union_val.pop_back();
-				union_val.append("}"s);
-				return union_val;
+				MidoriText union_val("Union{");
+				union_val.Append("{");
+
+				for (int idx : std::views::iota(0, arg.m_values.GetLength()))
+				{
+					union_val.Append(arg.m_values[idx].ToText()).Append(", ");
+				}
+				return union_val.Pop().Pop().Append("}");
 			}
 			else if constexpr (std::is_same_v<T, MidoriStruct>)
 			{
-				if (arg.m_values.empty())
+				if (arg.m_values.GetLength() == 0)
 				{
-					return "Struct{}"s;
+					return MidoriText("Struct{}");
 				}
 
-				std::string struct_val = "Struct"s;
-				struct_val.append("{"s);
-				std::ranges::for_each(arg.m_values, [&struct_val](const MidoriValue& value) -> void
-					{
-						struct_val.append(value.ToString());
-						struct_val.append(", "s);
-					});
-				struct_val.pop_back();
-				struct_val.pop_back();
-				struct_val.append("}"s);
-				return struct_val;
+				MidoriText struct_val("Struct{");
+				struct_val.Append("{");
+				for (int idx : std::views::iota(0, arg.m_values.GetLength()))
+				{
+					struct_val.Append(arg.m_values[idx].ToText()).Append(", ");
+				}
+				return struct_val.Pop().Pop().Append("}");
 			}
 			else
 			{
-				return "Unknown MidoriTraceable"s;
+				return MidoriText("Unknown MidoriTraceable");
 			}
 		}, m_value);
 }
 
-MidoriValue& MidoriTraceable::CellValue::GetValue()
+MidoriValue& MidoriCellValue::GetValue()
 {
 	return m_is_on_heap ? m_heap_value : *m_stack_value_ref;
 }
@@ -266,7 +258,7 @@ bool MidoriTraceable::IsText() const
 	return std::holds_alternative<MidoriText>(m_value);
 }
 
-MidoriTraceable::MidoriText& MidoriTraceable::GetText()
+MidoriText& MidoriTraceable::GetText()
 {
 	return std::get<MidoriText>(m_value);
 }
@@ -276,19 +268,19 @@ bool MidoriTraceable::IsArray() const
 	return std::holds_alternative<MidoriArray>(m_value);
 }
 
-MidoriTraceable::MidoriArray& MidoriTraceable::GetArray()
+MidoriArray& MidoriTraceable::GetArray()
 {
 	return std::get<MidoriArray>(m_value);
 }
 
 bool MidoriTraceable::IsCellValue() const
 {
-	return std::holds_alternative<CellValue>(m_value);
+	return std::holds_alternative<MidoriCellValue>(m_value);
 }
 
-MidoriTraceable::CellValue& MidoriTraceable::GetCellValue()
+MidoriCellValue& MidoriTraceable::GetCellValue()
 {
-	return std::get<CellValue>(m_value);
+	return std::get<MidoriCellValue>(m_value);
 }
 
 bool MidoriTraceable::IsClosure() const
@@ -296,7 +288,7 @@ bool MidoriTraceable::IsClosure() const
 	return std::holds_alternative<MidoriClosure>(m_value);
 }
 
-MidoriTraceable::MidoriClosure& MidoriTraceable::GetClosure()
+MidoriClosure& MidoriTraceable::GetClosure()
 {
 	return std::get<MidoriClosure>(m_value);
 }
@@ -306,7 +298,7 @@ bool MidoriTraceable::IsStruct() const
 	return std::holds_alternative<MidoriStruct>(m_value);
 }
 
-MidoriTraceable::MidoriStruct& MidoriTraceable::GetStruct()
+MidoriStruct& MidoriTraceable::GetStruct()
 {
 	return std::get<MidoriStruct>(m_value);
 }
@@ -316,7 +308,7 @@ bool MidoriTraceable::IsUnion() const
 	return std::holds_alternative<MidoriUnion>(m_value);
 }
 
-MidoriTraceable::MidoriUnion& MidoriTraceable::GetUnion()
+MidoriUnion& MidoriTraceable::GetUnion()
 {
 	return std::get<MidoriUnion>(m_value);
 }
@@ -423,23 +415,25 @@ void MidoriTraceable::Trace()
 		return;
 	}
 #ifdef DEBUG
-	Printer::Print<Printer::Color::GREEN>(std::format("Marking traceable pointer: {:p}, value: {}\n", static_cast<void*>(this), ToString()));
+	Printer::Print<Printer::Color::GREEN>(std::format("Marking traceable pointer: {:p}, value: {}\n", static_cast<void*>(this), ToText().GetCString()));
 #endif
 	Mark();
 
 	if (IsArray())
 	{
-		for (auto& pointer : GetArray() | std::views::filter([](const auto& val)
-			{
-				return val.IsPointer();
-			}))
+		MidoriArray& arr = GetArray();
+		for (int idx : std::views::iota(0, arr.GetLength()))
 		{
-			pointer.GetPointer()->Trace();
+			MidoriValue& value = arr[idx];
+			if (value.IsPointer())
+			{
+				value.GetPointer()->Trace();
+			}
 		}
 	}
 	else if (IsClosure())
 	{
-		for (auto& pointer : GetClosure().m_cell_values | std::views::filter([](const auto& val)
+		for (MidoriValue& pointer : GetClosure().m_cell_values | std::views::filter([](const MidoriValue& val)
 			{
 				return val.IsPointer();
 			}))
@@ -457,22 +451,342 @@ void MidoriTraceable::Trace()
 	}
 	else if (IsStruct())
 	{
-		for (auto& pointer : GetStruct().m_values | std::views::filter([](const auto& val)
-			{
-				return val.IsPointer();
-			}))
+		MidoriArray& arr = GetStruct().m_values;
+		for (int idx : std::views::iota(0, arr.GetLength()))
 		{
-			pointer.GetPointer()->Trace();
+			MidoriValue& value = arr[idx];
+			if (value.IsPointer())
+			{
+				value.GetPointer()->Trace();
+			}
 		}
 	}
 	else if (IsUnion())
 	{
-		for (auto& pointer : GetUnion().m_values | std::views::filter([](const auto& val)
-			{
-				return val.IsPointer();
-			}))
+		MidoriArray& arr = GetUnion().m_values;
+
+		for (int idx : std::views::iota(0, arr.GetLength()))
 		{
-			pointer.GetPointer()->Trace();
+			MidoriValue& value = arr[idx];
+			if (value.IsPointer())
+			{
+				value.GetPointer()->Trace();
+			}
 		}
 	}
+}
+
+MidoriArray::MidoriArray(int size) : m_size(size), m_end(size)
+{
+	m_data = static_cast<MidoriValue*>(std::malloc(static_cast<size_t>(size) * sizeof(MidoriValue)));
+	if (!m_data)
+	{
+		throw std::bad_alloc();
+	}
+}
+
+MidoriArray::MidoriArray(const MidoriArray& other) : m_size(other.m_size), m_end(other.m_end)
+{
+	m_data = static_cast<MidoriValue*>(std::malloc(static_cast<size_t>(other.m_size) * sizeof(MidoriValue)));
+	if (!m_data)
+	{
+		throw std::bad_alloc();
+	}
+	std::memcpy(m_data, other.m_data, static_cast<size_t>(other.m_size) * sizeof(MidoriValue));
+}
+
+MidoriArray::MidoriArray(MidoriArray&& other) noexcept : m_data(other.m_data), m_size(other.m_size), m_end(other.m_end)
+{
+	other.m_data = nullptr;
+	other.m_size = 0;
+	other.m_end = 0;
+}
+
+MidoriArray& MidoriArray::operator=(const MidoriArray& other)
+{
+	if (this != &other)
+	{
+		MidoriValue* new_data = static_cast<MidoriValue*>(std::malloc(static_cast<size_t>(other.m_size) * sizeof(MidoriValue)));
+		if (!new_data)
+		{
+			throw std::bad_alloc();
+		}
+		std::memcpy(new_data, other.m_data, static_cast<size_t>(other.m_size) * sizeof(MidoriValue));
+
+		std::free(m_data);
+		m_data = new_data;
+		m_size = other.m_size;
+		m_end = other.m_end;
+	}
+	return *this;
+}
+
+MidoriArray& MidoriArray::operator=(MidoriArray&& other) noexcept
+{
+	if (this != &other)
+	{
+		std::free(m_data);
+		m_data = other.m_data;
+		m_size = other.m_size;
+		m_end = other.m_end;
+
+		other.m_data = nullptr;
+		other.m_size = 0;
+		other.m_end = 0;
+	}
+	return *this;
+}
+
+MidoriArray::~MidoriArray()
+{
+	std::free(m_data);
+}
+
+MidoriValue& MidoriArray::operator[](int index)
+{
+	return m_data[static_cast<size_t>(index)];
+}
+
+void MidoriArray::Expand()
+{
+	size_t new_size = static_cast<size_t>(m_size) * 2;
+	MidoriValue* new_data = static_cast<MidoriValue*>(std::realloc(m_data, new_size * sizeof(MidoriValue)));
+	if (!new_data)
+	{
+		throw std::bad_alloc();
+	}
+	m_data = new_data;
+	m_size = static_cast<int>(new_size);
+}
+
+void MidoriArray::Add(const MidoriValue& value)
+{
+	if (m_end >= m_size)
+	{
+		Expand();
+	}
+
+	m_data[m_end] = value;
+	m_end += 1;
+}
+
+int MidoriArray::GetLength() const
+{
+	return m_end;
+}
+
+MidoriArray MidoriArray::Concatenate(const MidoriArray& a, const MidoriArray& b)
+{
+	MidoriArray result(a.GetLength() + b.GetLength());
+	std::memcpy(result.m_data, a.m_data, static_cast<size_t>(a.GetLength()) * sizeof(MidoriValue));
+	std::memcpy(result.m_data + a.GetLength(), b.m_data, static_cast<size_t>(b.GetLength()) * sizeof(MidoriValue));
+	result.m_end = a.GetLength() + b.GetLength();
+	return result;
+}
+
+MidoriText::MidoriText(const char* str) : m_size(static_cast<int>(std::strlen(str))), m_capacity(m_size + 1)
+{
+	m_data = static_cast<char*>(std::malloc(static_cast<size_t>(m_capacity)));
+	if (!m_data)
+	{
+		throw std::bad_alloc();
+	}
+	std::memcpy(m_data, str, static_cast<size_t>(m_size + 1));
+}
+
+MidoriText::MidoriText(const MidoriText& other) : m_size(other.m_size), m_capacity(other.m_capacity)
+{
+	m_data = static_cast<char*>(std::malloc(m_capacity));
+	if (!m_data)
+	{
+		throw std::bad_alloc();
+	}
+	std::memcpy(m_data, other.m_data, static_cast<size_t>(m_size + 1));
+}
+
+MidoriText::MidoriText(MidoriText&& other) noexcept : m_data(other.m_data), m_size(other.m_size), m_capacity(other.m_capacity)
+{
+	other.m_data = nullptr;
+	other.m_size = 0;
+	other.m_capacity = 0;
+}
+
+MidoriText::MidoriText(int size) : m_size(size), m_capacity(size + 1)
+{
+	m_data = static_cast<char*>(std::malloc(m_capacity));
+	if (!m_data)
+	{
+		throw std::bad_alloc();
+	}
+	m_data[size] = '\0';
+}
+
+MidoriText& MidoriText::operator=(const MidoriText& other)
+{
+	if (this != &other)
+	{
+		char* new_data = static_cast<char*>(std::malloc(other.m_capacity));
+		if (!new_data)
+		{
+			throw std::bad_alloc();
+		}
+		std::memcpy(new_data, other.m_data, static_cast<size_t>(other.m_size + 1));
+
+		std::free(m_data);
+		m_data = new_data;
+		m_size = other.m_size;
+		m_capacity = other.m_capacity;
+	}
+	return *this;
+}
+
+MidoriText& MidoriText::operator=(MidoriText&& other) noexcept
+{
+	if (this != &other)
+	{
+		std::free(m_data);
+		m_data = other.m_data;
+		m_size = other.m_size;
+		m_capacity = other.m_capacity;
+
+		other.m_data = nullptr;
+		other.m_size = 0;
+		other.m_capacity = 0;
+	}
+	return *this;
+}
+
+MidoriText::~MidoriText()
+{
+	std::free(m_data);
+}
+
+int MidoriText::GetLength() const noexcept
+{
+	return m_size;
+}
+
+const char* MidoriText::GetCString() const noexcept
+{
+	return m_data;
+}
+
+MidoriText& MidoriText::Pop()
+{
+	if (m_size > 0)
+	{
+		m_data[m_size - 1] = '\0';
+		m_size -= 1;
+	}
+	return *this;
+}
+
+MidoriText& MidoriText::Append(const char* str)
+{
+	int str_len = static_cast<int>(std::strlen(str));
+	if (m_size + str_len + 1 > m_capacity)
+	{
+		Expand(m_size + str_len + 1);
+	}
+	std::memcpy(m_data + m_size, str, static_cast<size_t>(str_len + 1));
+	m_size += str_len;
+	return *this;
+}
+
+MidoriText& MidoriText::Append(char c)
+{
+	if (m_size + 2 > m_capacity)
+	{
+		Expand(m_size + 2);
+	}
+	m_data[m_size] = c;
+	m_data[m_size + 1] = '\0';
+	m_size += 1;
+	return *this;
+}
+
+MidoriText& MidoriText::Append(const MidoriText& other)
+{
+	if (m_size + other.m_size + 1 > m_capacity)
+	{
+		Expand(m_size + other.m_size + 1);
+	}
+	std::memcpy(m_data + m_size, other.m_data, static_cast<size_t>(other.m_size + 1));
+	m_size += other.m_size;
+	return *this;
+}
+
+char MidoriText::operator[](int index) const
+{
+	return m_data[static_cast<size_t>(index)];
+}
+
+bool MidoriText::operator==(const MidoriText& other) const
+{
+	if (m_size != other.m_size)
+	{
+		return false;
+	}
+	else
+	{
+		for (int i = 0; i < m_size; i++)
+		{
+			if ((*this)[i] != other[i])
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+}
+
+bool MidoriText::operator!=(const MidoriText& other) const
+{
+	return !(*this == other);
+}
+
+MidoriInteger MidoriText::ToInteger() const
+{
+	return std::atoll(m_data);
+}
+
+MidoriFraction MidoriText::ToFraction() const
+{
+	return std::atof(m_data);
+}
+
+MidoriText MidoriText::FromInteger(MidoriInteger value)
+{
+	// 21 characters is the maximum length of a 64-bit integer
+	char buffer[21];
+	std::snprintf(buffer, 21, "%lld", value);
+	return MidoriText(buffer);
+}
+
+MidoriText MidoriText::FromFraction(MidoriFraction value)
+{
+	// 32 characters is the maximum length of a 64-bit floating point number
+	char buffer[32];
+	std::snprintf(buffer, 32, "%f", value);
+	return MidoriText(buffer);
+}
+
+MidoriText MidoriText::Concatenate(const MidoriText& a, const MidoriText& b)
+{
+	MidoriText output(a.m_size + b.m_size + 1);
+	std::memcpy(output.m_data, a.m_data, static_cast<size_t>(a.m_size));
+	std::memcpy(output.m_data + a.m_size, b.m_data, static_cast<size_t>(b.m_size + 1));
+	output.m_size = a.m_size + b.m_size;
+	return output;
+}
+
+void MidoriText::Expand(int new_size)
+{
+	char* new_data = static_cast<char*>(std::realloc(m_data, static_cast<size_t>(new_size)));
+	if (!new_data)
+	{
+		throw std::bad_alloc();
+	}
+	m_data = new_data;
+	m_capacity = static_cast<int>(new_size);
 }

@@ -20,7 +20,7 @@ std::optional<std::string> ReadFile(const char* filename) noexcept
 	return std::optional(buffer.str());
 }
 
-int main() noexcept
+int main(int argc, char* argv[]) noexcept
 {
 	std::string file_name = "E:\\Projects\\Midori\\test\\test.mdr"s;
 

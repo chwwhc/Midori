@@ -1,4 +1,7 @@
+#include <format>
+
 #include "CodeGenerator.h"
+#include "Common/Constant/Constant.h"
 
 void CodeGenerator::EmitByte(OpCode byte, int line)
 { 
@@ -35,18 +38,18 @@ void CodeGenerator::EmitConstant(MidoriValue&& value, int line)
 
 	int index = m_executable.AddConstant(std::move(value));
 
-	if (index <= UINT8_MAX) // 1 byte
+	if (index <= MAX_SIZE_OP_CONSTANT) // 1 byte
 	{
 		EmitByte(OpCode::CONSTANT, line);
 		EmitByte(static_cast<OpCode>(index), line);
 	}
-	else if (index <= UINT16_MAX) // 2 bytes
+	else if (index <= MAX_SIZE_OP_CONSTANT_LONG) // 2 bytes
 	{
 		EmitByte(OpCode::CONSTANT_LONG, line);
 		EmitByte(static_cast<OpCode>(index & 0xff), line);
 		EmitByte(static_cast<OpCode>((index >> 8) & 0xff), line);
 	}
-	else if (index <= ((UINT16_MAX << 8) | 0xffff)) // 3 bytes
+	else if (index <= MAX_SIZE_OP_CONSTANT_LONG_LONG) // 3 bytes
 	{
 		EmitByte(OpCode::CONSTANT_LONG_LONG, line);
 		EmitByte(static_cast<OpCode>(index & 0xff), line);
@@ -55,20 +58,20 @@ void CodeGenerator::EmitConstant(MidoriValue&& value, int line)
 	}
 	else
 	{
-		AddError(MidoriError::GenerateCodeGeneratorError("Too many constants (max 16777215).", line));
+		AddError(MidoriError::GenerateCodeGeneratorError(std::format("Too many constants (max {}).", MAX_SIZE_OP_CONSTANT_LONG_LONG + 1), line));
 	}
 }
 
 void CodeGenerator::EmitVariable(int variable_index, OpCode op, int line)
 {
-	if (variable_index <= UINT8_MAX)
+	if (variable_index <= MAX_LOCAL_VARIABLES)
 	{
 		EmitByte(op, line);
 		EmitByte(static_cast<OpCode>(variable_index), line);
 		return;
 	}
 
-	AddError(MidoriError::GenerateCodeGeneratorError("Too many variables (max 255).", line));
+	AddError(MidoriError::GenerateCodeGeneratorError(std::format("Too many variables (max {}).", MAX_LOCAL_VARIABLES + 1), line));
 }
 
 int CodeGenerator::EmitJump(OpCode op, int line)
@@ -82,9 +85,9 @@ int CodeGenerator::EmitJump(OpCode op, int line)
 void CodeGenerator::PatchJump(int offset, int line)
 {
 	int jump = m_procedures[m_current_procedure_index].GetByteCodeSize() - offset - 2;
-	if (jump > UINT16_MAX)
+	if (jump > MAX_JUMP_SIZE)
 	{
-		AddError(MidoriError::GenerateCodeGeneratorError("Too much code to jump over (max 65535).", line));
+		AddError(MidoriError::GenerateCodeGeneratorError(std::format("Too much code to jump over (max {}).", MAX_JUMP_SIZE + 1), line));
 		return;
 	}
 
@@ -97,9 +100,9 @@ void CodeGenerator::EmitLoop(int loop_start, int line)
 	EmitByte(OpCode::JUMP_BACK, line);
 
 	int offset = m_procedures[m_current_procedure_index].GetByteCodeSize() - loop_start + 2;
-	if (offset > UINT16_MAX)
+	if (offset > MAX_JUMP_SIZE)
 	{
-		AddError(MidoriError::GenerateCodeGeneratorError("Loop body too large (max 65535).", line));
+		AddError(MidoriError::GenerateCodeGeneratorError(std::format("Loop body too large (max {}).", MAX_JUMP_SIZE + 1), line));
 		return;
 	}
 
@@ -200,7 +203,7 @@ void CodeGenerator::operator()(Define& def)
 	std::optional<int> index = std::nullopt;
 	if (is_global)
 	{
-		std::string variable_name = def.m_name.m_lexeme;
+		MidoriText variable_name(def.m_name.m_lexeme.c_str());
 		index.emplace(m_executable.AddGlobalVariable(std::move(variable_name)));
 		m_global_variables[def.m_name.m_lexeme] = index.value();
 	}
@@ -210,7 +213,7 @@ void CodeGenerator::operator()(Define& def)
 	if (is_global)
 	{
 		EmitVariable(index.value(), OpCode::DEFINE_GLOBAL, line);
-		if (def.m_name.m_lexeme == "main")
+		if (def.m_name.m_lexeme == "main"s)
 		{
 			if (m_main_function_ctx.has_value())
 			{
@@ -360,12 +363,12 @@ void CodeGenerator::operator()(Foreign& foreign)
 	std::optional<int> index = std::nullopt;
 	if (is_global)
 	{
-		std::string foreign_function_name = foreign.m_function_name.m_lexeme;
+		MidoriText foreign_function_name(foreign.m_function_name.m_lexeme.c_str());
 		index.emplace(m_executable.AddGlobalVariable(std::move(foreign_function_name)));
 		m_global_variables[foreign.m_function_name.m_lexeme] = index.value();
 	}
 
-	EmitConstant(MidoriTraceable::AllocateTraceable(std::move(foreign.m_foreign_name)), line);
+	EmitConstant(MidoriTraceable::AllocateTraceable(foreign.m_foreign_name.c_str()), line);
 
 	if (is_global)
 	{
@@ -399,7 +402,7 @@ void CodeGenerator::operator()(Switch& switch_stmt)
 			const Switch::MemberCase& member_case = Switch::GetMemberCase(switch_case);
 
 			EmitByte(OpCode::DUP, line);
-			MidoriValue::MidoriInteger member_tag = static_cast<MidoriValue::MidoriInteger>(member_case.m_tag);
+			MidoriInteger member_tag = static_cast<MidoriInteger>(member_case.m_tag);
 			EmitConstant(member_tag, line);
 			EmitByte(OpCode::EQUAL_INTEGER, line);
 			int jump_if_false = EmitJump(OpCode::JUMP_IF_FALSE, line);
@@ -483,9 +486,10 @@ void CodeGenerator::operator()(As& as)
 	{
 		EmitByte(OpCode::CAST_TO_TEXT, line);
 	}
-	else  if (MidoriTypeUtil::IsStructType(target_type), line)
+	else if (MidoriTypeUtil::IsStructType(target_type), line)
 	{
 		// TODO: implement
+		AddError(MidoriError::GenerateCodeGeneratorError("Unsupported type casting instruction.", line));
 	}
 	else
 	{
@@ -508,7 +512,7 @@ void CodeGenerator::operator()(Binary& binary)
 	case Token::Name::DOUBLE_PLUS:
 		MidoriTypeUtil::IsTextType(expr_type) ? EmitByte(OpCode::CONCAT_TEXT, line) : EmitByte(OpCode::CONCAT_ARRAY, line);
 		break;
-	case Token::Name::MINUS:
+	case Token::Name::SINGLE_MINUS:
 		MidoriTypeUtil::IsFractionType(expr_type) ? EmitByte(OpCode::SUBTRACT_FRACTION, line) : EmitByte(OpCode::SUBTRACT_INTEGER, line);
 		break;
 	case Token::Name::STAR:
@@ -587,14 +591,16 @@ void CodeGenerator::operator()(Group& group)
 	std::visit([this](auto&& arg) {(*this)(arg); }, *group.m_expr_in);
 }
 
-void CodeGenerator::operator()(Unary& unary)
+void CodeGenerator::operator()(UnaryPrefix& unary)
 {
 	std::visit([this](auto&& arg) {(*this)(arg); }, *unary.m_right);
 
 	switch (unary.m_op.m_token_name)
 	{
-	case Token::Name::MINUS:
+	case Token::Name::SINGLE_MINUS:
 		MidoriTypeUtil::IsFractionType(unary.m_type) ? EmitByte(OpCode::NEGATE_FRACTION, unary.m_op.m_line) : EmitByte(OpCode::NEGATE_INTEGER, unary.m_op.m_line);
+		break;
+	case Token::Name::SINGLE_PLUS:
 		break;
 	case Token::Name::BANG:
 		EmitByte(OpCode::NOT, unary.m_op.m_line);
@@ -613,9 +619,9 @@ void CodeGenerator::operator()(Call& call)
 {
 	int line = call.m_paren.m_line;
 	int arity = static_cast<int>(call.m_arguments.size());
-	if (arity > UINT8_MAX)
+	if (arity > MAX_FUNCTION_ARITY)
 	{
-		AddError(MidoriError::GenerateCodeGeneratorError("Too many arguments (max 255).", call.m_paren.m_line));
+		AddError(MidoriError::GenerateCodeGeneratorError(std::format("Too many arguments (max {}).", MAX_FUNCTION_ARITY + 1), call.m_paren.m_line));
 		return;
 	}
 
@@ -716,12 +722,12 @@ void CodeGenerator::operator()(Bind& bind)
 
 void CodeGenerator::operator()(TextLiteral& text)
 {
-	EmitConstant(MidoriTraceable::AllocateTraceable(std::move(text.m_token.m_lexeme)), text.m_token.m_line);
+	EmitConstant(MidoriTraceable::AllocateTraceable(text.m_token.m_lexeme.c_str()), text.m_token.m_line);
 }
 
 void CodeGenerator::operator()(BoolLiteral& bool_expr)
 {
-	EmitByte(bool_expr.m_token.m_lexeme == "true" ? OpCode::OP_TRUE : OpCode::OP_FALSE, bool_expr.m_token.m_line);
+	EmitByte(bool_expr.m_token.m_lexeme == "true"s ? OpCode::OP_TRUE : OpCode::OP_FALSE, bool_expr.m_token.m_line);
 }
 
 void CodeGenerator::operator()(FractionLiteral& fraction)
@@ -744,14 +750,14 @@ void CodeGenerator::operator()(Closure& closure)
 	int line = closure.m_closure_keyword.m_line;
 	int arity = static_cast<int>(closure.m_params.size());
 	int captured_count = static_cast<int>(closure.m_captured_count);
-	if (arity > UINT8_MAX)
+	if (arity > MAX_FUNCTION_ARITY)
 	{
-		AddError(MidoriError::GenerateCodeGeneratorError("Too many arguments (max 255).", line));
+		AddError(MidoriError::GenerateCodeGeneratorError(std::format("Too many arguments (max {}).", MAX_FUNCTION_ARITY + 1), line));
 		return;
 	}
-	if (captured_count > UINT8_MAX)
+	if (captured_count > MAX_CAPTURED_COUNT)
 	{
-		AddError(MidoriError::GenerateCodeGeneratorError("Too many captured variables (max 255).", line));
+		AddError(MidoriError::GenerateCodeGeneratorError(std::format("Too many captured variables (max {}).", MAX_CAPTURED_COUNT + 1), line));
 		return;
 	}
 
@@ -763,14 +769,14 @@ void CodeGenerator::operator()(Closure& closure)
 	int closure_proc_index = m_current_procedure_index;
 #ifdef DEBUG
 	std::string closure_line = "Closure at line: " + std::to_string(line) + "(index: " + std::to_string(closure_proc_index) + ")";
-	m_procedure_names.emplace_back(std::move(closure_line));
+	m_procedure_names.emplace_back(closure_line.c_str());
 #endif
 
 	m_current_procedure_index = prev_index;
 
-	if (m_current_procedure_index > UINT8_MAX)
+	if (m_current_procedure_index > MAX_FUNCTION_COUNT)
 	{
-		AddError(MidoriError::GenerateCodeGeneratorError("Too many functions (max 255).", line));
+		AddError(MidoriError::GenerateCodeGeneratorError(std::format("Too many functions (max {}).", MAX_FUNCTION_COUNT + 1), line));
 		return;
 	}
 
@@ -795,9 +801,9 @@ void CodeGenerator::operator()(Construct& construct)
 	{
 		int tag = std::get<Construct::Union>(construct.m_construct_ctx).m_index;
 
-		if (tag > UINT8_MAX)
+		if (tag > MAX_UNION_TAG)
 		{
-			AddError(MidoriError::GenerateCodeGeneratorError("Union tag too large (max 255).", line));
+			AddError(MidoriError::GenerateCodeGeneratorError(std::format("Union tag too large (max {}).", MAX_UNION_TAG + 1), line));
 			return;
 		}
 
@@ -831,11 +837,9 @@ void CodeGenerator::operator()(Array& array)
 	int line = array.m_op.m_line;
 
 	int length = static_cast<int>(array.m_elems.size());
-	constexpr int three_byte_max = 16777215;
-
-	if (length > three_byte_max)
+	if (length > MAX_ARRAY_SIZE)
 	{
-		AddError(MidoriError::GenerateCodeGeneratorError("Too many array elements (max 16777215).", line));
+		AddError(MidoriError::GenerateCodeGeneratorError(std::format("Too many array elements (max {}).", MAX_ARRAY_SIZE + 1), line));
 		return;
 	}
 
@@ -855,9 +859,9 @@ void CodeGenerator::operator()(ArrayGet& array_get)
 {
 	int line = array_get.m_op.m_line;
 
-	if (array_get.m_indices.size() > UINT8_MAX)
+	if (array_get.m_indices.size() > MAX_NESTED_ARRAY_INDEX)
 	{
-		AddError(MidoriError::GenerateCodeGeneratorError("Too many array indices (max 255).", line));
+		AddError(MidoriError::GenerateCodeGeneratorError(std::format("Too many array indices (max {}).", MAX_NESTED_ARRAY_INDEX + 1), line));
 		return;
 	}
 
@@ -880,9 +884,9 @@ void CodeGenerator::operator()(ArraySet& array_set)
 {
 	int line = array_set.m_op.m_line;
 
-	if (array_set.m_indices.size() > UINT8_MAX)
+	if (array_set.m_indices.size() > MAX_NESTED_ARRAY_INDEX)
 	{
-		AddError(MidoriError::GenerateCodeGeneratorError("Too many array indices (max 255).", line));
+		AddError(MidoriError::GenerateCodeGeneratorError(std::format("Too many array indices (max {}).", MAX_NESTED_ARRAY_INDEX + 1), line));
 		return;
 	}
 

@@ -620,7 +620,7 @@ MidoriResult::TypeResult TypeChecker::operator()(Group& group)
 		}, *group.m_expr_in);
 }
 
-MidoriResult::TypeResult TypeChecker::operator()(Unary& unary)
+MidoriResult::TypeResult TypeChecker::operator()(UnaryPrefix& unary)
 {
 	MidoriResult::TypeResult right_result = std::visit([this](auto&& arg)
 		{
@@ -634,12 +634,12 @@ MidoriResult::TypeResult TypeChecker::operator()(Unary& unary)
 
 	const MidoriType* actual_type = right_result.value();
 
-	if (unary.m_op.m_token_name == Token::Name::MINUS)
+	if (unary.m_op.m_token_name == Token::Name::SINGLE_MINUS || unary.m_op.m_token_name == Token::Name::SINGLE_PLUS)
 	{
 		if (!MidoriTypeUtil::IsNumericType(right_result.value()))
 		{
 			std::array<const MidoriType*, 2> expected_types = { MidoriTypeUtil::GetType("Int"s), MidoriTypeUtil::GetType("Frac"s) };
-			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Unary expression type error", unary.m_op, expected_types, actual_type));
+			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("UnaryPrefix expression type error", unary.m_op, expected_types, actual_type));
 		}
 	}
 	else if (unary.m_op.m_token_name == Token::Name::BANG)
@@ -647,7 +647,7 @@ MidoriResult::TypeResult TypeChecker::operator()(Unary& unary)
 		if (!MidoriTypeUtil::IsBoolType(right_result.value()))
 		{
 			std::array<const MidoriType*, 1> expected_types = { MidoriTypeUtil::GetType("Bool"s) };
-			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Unary expression type error", unary.m_op, expected_types, actual_type));
+			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("UnaryPrefix expression type error", unary.m_op, expected_types, actual_type));
 		}
 	}
 	else if (unary.m_op.m_token_name == Token::Name::TILDE)
@@ -655,7 +655,7 @@ MidoriResult::TypeResult TypeChecker::operator()(Unary& unary)
 		if (!MidoriTypeUtil::IsIntegerType(right_result.value()))
 		{
 			std::array<const MidoriType*, 1> expected_types = { MidoriTypeUtil::GetType("Int"s) };
-			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Unary expression type error", unary.m_op, expected_types, actual_type));
+			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("UnaryPrefix expression type error", unary.m_op, expected_types, actual_type));
 		}
 	}
 

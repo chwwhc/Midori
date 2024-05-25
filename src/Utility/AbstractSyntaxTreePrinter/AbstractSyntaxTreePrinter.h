@@ -43,7 +43,7 @@ struct PrintAbstractSyntaxTree
 
 	void operator()(const Group& group, int depth = 0) const;
 
-	void operator()(const Unary& unary, int depth = 0) const;
+	void operator()(const UnaryPrefix& unary, int depth = 0) const;
 
 	void operator()(const Call& call, int depth = 0) const;
 

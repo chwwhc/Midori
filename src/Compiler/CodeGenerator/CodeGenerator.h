@@ -25,9 +25,9 @@ private:
 		int m_loop_start = 0;
 	};
 
-	MidoriExecutable::Procedures m_procedures = { BytecodeStream() };
+	MidoriExecutable::Procedures m_procedures{ BytecodeStream() };
 #ifdef DEBUG
-	std::vector<std::string> m_procedure_names = { "runtime startup" };
+	std::vector<MidoriText> m_procedure_names{ MidoriText("runtime startup") };
 #endif
 	std::string m_errors;
 	std::stack<LoopContext> m_loop_contexts;
@@ -99,7 +99,7 @@ private:
 
 	void operator()(Group& group);
 
-	void operator()(Unary& unary);
+	void operator()(UnaryPrefix& unary);
 
 	void operator()(Call& call);
 

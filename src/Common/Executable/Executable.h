@@ -68,7 +68,7 @@ enum class OpCode : uint8_t
 	// Logical Operations
 	NOT,
 
-	// Unary Operations
+	// UnaryPrefix Operations
 	NEGATE_FRACTION,
 	NEGATE_INTEGER,
 
@@ -159,11 +159,11 @@ class MidoriExecutable
 {
 public:
 	using StaticData = std::vector<MidoriValue>;
-	using GlobalNames = std::vector<std::string>;
+	using GlobalNames = std::vector<MidoriText>;
 	using Procedures = std::vector<BytecodeStream>;
 
 #ifdef DEBUG
-	std::vector<std::string> m_procedure_names;
+	std::vector<MidoriText> m_procedure_names;
 #endif
 
 private:
@@ -172,23 +172,21 @@ private:
 	GlobalNames m_globals;
 	Procedures m_procedures;
 
-
 public:
-
 	const MidoriValue& GetConstant(int index) const;
 
 	int AddConstant(MidoriValue&& value);
 
-	int AddGlobalVariable(std::string&& name);
+	int AddGlobalVariable(MidoriText&& name);
 
-	const std::string& GetGlobalVariable(int index) const;
+	const MidoriText& GetGlobalVariable(int index) const;
 
 	void AddConstantRoot(MidoriTraceable* root);
 
 	void AttachProcedures(Procedures&& bytecode);
 
 #ifdef DEBUG
-	void AttachProcedureNames(std::vector<std::string>&& procedure_names);
+	void AttachProcedureNames(std::vector<MidoriText>&& procedure_names);
 #endif
 
 	int GetLine(int instr_index, int proc_index) const;
@@ -202,4 +200,6 @@ public:
 	int GetByteCodeSize(int proc_index) const;
 
 	int GetProcedureCount() const;
+
+	int GetGlobalVariableCount() const;
 };

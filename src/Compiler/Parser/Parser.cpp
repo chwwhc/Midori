@@ -157,8 +157,10 @@ MidoriResult::TokenResult Parser::Consume(Token::Name type, std::string_view mes
 	{
 		return Advance();
 	}
-
-	return std::unexpected<std::string>(MidoriError::GenerateParserError(message, Previous()));
+	else
+	{
+		return std::unexpected<std::string>(MidoriError::GenerateParserError(message, Peek(0)));
+	}
 }
 
 void Parser::BeginScope()
@@ -268,7 +270,7 @@ std::optional<int> Parser::RegisterOrUpdateLocalVariable(const std::string& name
 
 MidoriResult::ExpressionResult Parser::ParseFactor()
 {
-	return ParseBinary(&Parser::ParseUnary, Token::Name::STAR, Token::Name::SLASH, Token::Name::PERCENT);
+	return ParseBinary(&Parser::ParseUnaryLogicalBitwise, Token::Name::STAR, Token::Name::SLASH, Token::Name::PERCENT);
 }
 
 MidoriResult::ExpressionResult Parser::ParseShift()
@@ -278,7 +280,7 @@ MidoriResult::ExpressionResult Parser::ParseShift()
 
 MidoriResult::ExpressionResult Parser::ParseTerm()
 {
-	return ParseBinary(&Parser::ParseFactor, Token::Name::SINGLE_PLUS, Token::Name::DOUBLE_PLUS, Token::Name::MINUS);
+	return ParseBinary(&Parser::ParseFactor, Token::Name::SINGLE_PLUS, Token::Name::DOUBLE_PLUS, Token::Name::SINGLE_MINUS);
 }
 
 MidoriResult::ExpressionResult Parser::ParseComparison()
@@ -367,15 +369,29 @@ MidoriResult::ExpressionResult Parser::ParseBind()
 	return expr;
 }
 
-MidoriResult::ExpressionResult Parser::ParseUnary()
+MidoriResult::ExpressionResult Parser::ParseUnaryLogicalBitwise()
 {
-	if (Match(Token::Name::BANG, Token::Name::MINUS, Token::Name::TILDE))
+	if (Match(Token::Name::BANG, Token::Name::TILDE))
 	{
 		Token& op = Previous();
-		MidoriResult::ExpressionResult right = ParseUnary();
+		MidoriResult::ExpressionResult right = ParseUnaryLogicalBitwise();
 		VERIFY_RESULT(right);
 
-		return std::make_unique<MidoriExpression>(Unary{ std::move(op), std::move(right.value()) });
+		return std::make_unique<MidoriExpression>(UnaryPrefix{ std::move(op), std::move(right.value()) });
+	}
+
+	return ParseUnaryArithmetic();
+}
+
+MidoriResult::ExpressionResult Parser::ParseUnaryArithmetic()
+{
+	if (Match(Token::Name::SINGLE_MINUS, Token::Name::SINGLE_PLUS))
+	{
+		Token& op = Previous();
+		MidoriResult::ExpressionResult right = ParseUnaryArithmetic();
+		VERIFY_RESULT(right);
+
+		return std::make_unique<MidoriExpression>(UnaryPrefix{ std::move(op), std::move(right.value()) });
 	}
 
 	return ParseConstruct();

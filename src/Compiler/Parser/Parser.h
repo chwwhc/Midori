@@ -161,7 +161,9 @@ private:
 
 	MidoriResult::ExpressionResult ParseBind();
 
-	MidoriResult::ExpressionResult ParseUnary();
+	MidoriResult::ExpressionResult ParseUnaryLogicalBitwise();
+
+	MidoriResult::ExpressionResult ParseUnaryArithmetic();
 
 	MidoriResult::ExpressionResult ParseArrayAccessHelper(std::unique_ptr<MidoriExpression>&& arr_var);
 

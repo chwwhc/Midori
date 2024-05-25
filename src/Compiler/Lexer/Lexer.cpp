@@ -331,9 +331,13 @@ MidoriResult::TokenResult Lexer::LexOneToken()
 		{
 			return MakeToken(Token::Name::THIN_ARROW);
 		}
+		else if (MatchNext('-'))
+		{
+			return MakeToken(Token::Name::DOUBLE_MINUS);
+		}
 		else
 		{
-			return MakeToken(Token::Name::MINUS);
+			return MakeToken(Token::Name::SINGLE_MINUS);
 		}
 	case '?':
 		return MakeToken(Token::Name::QUESTION);

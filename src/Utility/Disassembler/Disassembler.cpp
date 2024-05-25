@@ -59,7 +59,7 @@ namespace
 
 		formated_str << std::left << std::setw(instr_width) << name;
 		formated_str << ' ' << std::dec << operand;
-		formated_str << two_tabs << std::setw(comment_width) << " // static value: " << executable.GetConstant(operand).ToString() << std::setfill(' ') << '\n';
+		formated_str << two_tabs << std::setw(comment_width) << " // static value: " << executable.GetConstant(operand).ToText().GetCString() << std::setfill(' ') << '\n';
 		Printer::Print(formated_str.str());
 	}
 
@@ -84,7 +84,7 @@ namespace
 
 		formated_str << std::left << std::setw(instr_width) << name;
 		formated_str << ' ' << std::dec << operand;
-		formated_str << two_tabs << std::setw(comment_width) << " // global variable: " << executable.GetGlobalVariable(operand) << std::setfill(' ') << '\n';
+		formated_str << two_tabs << std::setw(comment_width) << " // global variable: " << executable.GetGlobalVariable(operand).GetCString() << std::setfill(' ') << '\n';
 		Printer::Print(formated_str.str());
 	}
 

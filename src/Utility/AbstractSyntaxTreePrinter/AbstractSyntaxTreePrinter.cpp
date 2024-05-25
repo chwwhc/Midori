@@ -236,9 +236,9 @@ void PrintAbstractSyntaxTree::operator()(const Group& group, int depth) const
 	PrintWithIndentation(depth, "}");
 }
 
-void PrintAbstractSyntaxTree::operator()(const Unary& unary, int depth) const
+void PrintAbstractSyntaxTree::operator()(const UnaryPrefix& unary, int depth) const
 {
-	PrintWithIndentation(depth, "Unary {");
+	PrintWithIndentation(depth, "UnaryPrefix {");
 	PrintWithIndentation(depth + 1, "Operator: " + unary.m_op.m_lexeme);
 	PrintWithIndentation(depth + 1, "Right: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *unary.m_right);

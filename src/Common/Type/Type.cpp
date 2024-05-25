@@ -42,7 +42,7 @@ const MidoriType* MidoriTypeUtil::InsertStructType(const std::string& name, std:
 
 const MidoriType* MidoriTypeUtil::InsertArrayType(const MidoriType* element_type)
 {
-	std::string array_type_name = "Array<"s + GetTypeName(element_type) + ">"s;
+	std::string array_type_name = "Array["s + GetTypeName(element_type) + "]"s;
 
 	if (s_types_by_name.contains(array_type_name))
 	{

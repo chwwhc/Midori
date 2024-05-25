@@ -13,7 +13,7 @@ private:
 	using TypeEnvironmentStack = std::vector<TypeEnvironment>;
 
 	std::string m_errors;
-	const std::array<Token::Name, 5> m_binary_arithmetic_operators = { Token::Name::SINGLE_PLUS, Token::Name::MINUS, Token::Name::STAR, Token::Name::SLASH, Token::Name::PERCENT };
+	const std::array<Token::Name, 5> m_binary_arithmetic_operators = { Token::Name::SINGLE_PLUS, Token::Name::SINGLE_MINUS, Token::Name::STAR, Token::Name::SLASH, Token::Name::PERCENT };
 	const std::array<Token::Name, 1> m_binary_concatenation_operators = { Token::Name::DOUBLE_PLUS };
 	const std::array<Token::Name, 4> m_binary_partial_order_comparison_operators = { Token::Name::LEFT_ANGLE, Token::Name::LESS_EQUAL, Token::Name::RIGHT_ANGLE, Token::Name::GREATER_EQUAL };
 	const std::array<Token::Name, 2> m_binary_equality_operators = { Token::Name::DOUBLE_EQUAL, Token::Name::BANG_EQUAL };
@@ -68,7 +68,7 @@ private:
 
 	MidoriResult::TypeResult operator()(Group& group);
 
-	MidoriResult::TypeResult operator()(Unary& unary);
+	MidoriResult::TypeResult operator()(UnaryPrefix& unary);
 
 	MidoriResult::TypeResult operator()(Call& call);
 

@@ -29,12 +29,12 @@ public:
 private:
 
 	static constexpr int s_value_stack_max = 30000;
-	static constexpr int s_call_stack_max = 10000;
+	static constexpr int s_call_stack_max = 10001; // sentinel closure
 	static constexpr int s_garbage_collection_threshold = 1024;
 
 	using ValueStackPointer = MidoriValue*;
 	using InstructionPointer = const OpCode*;
-	using GlobalVariables = std::unordered_map<std::string, MidoriValue>;
+	using GlobalVariables = std::vector<MidoriValue>;
 
 	struct CallFrame
 	{
@@ -49,20 +49,18 @@ private:
 	MidoriExecutable m_executable;
 	GlobalVariables m_global_vars;
 	GarbageCollector m_garbage_collector;
-	std::vector<MidoriTraceable::CellValue*> m_cells_to_promote;
-	std::array<MidoriTraceable::MidoriClosure::Environment*, s_call_stack_max> m_closure_stack{};
-	std::array<MidoriValue, s_value_stack_max> m_value_stack{};
-	std::array<CallFrame, s_call_stack_max> m_call_stack{};
-	ValueStackPointer m_value_stack_base_pointer = &m_value_stack[0u];
-	ValueStackPointer m_value_stack_pointer = &m_value_stack[0u];
-	ValueStackPointer m_value_stack_begin = &m_value_stack[0u];
-	ValueStackPointer m_value_stack_end = &m_value_stack[static_cast<size_t>(s_value_stack_max) - 1u];
-	CallStackPointer m_call_stack_pointer = &m_call_stack[0u];
-	CallStackPointer m_call_stack_begin = &m_call_stack[0u];
-	CallStackPointer m_call_stack_end = &m_call_stack[static_cast<size_t>(s_call_stack_max) - 1u];
-	MidoriTraceable::MidoriClosure::Environment** m_env_pointer = &m_closure_stack[0u];
-	MidoriTraceable::MidoriClosure::Environment** m_env_pointer_begin = &m_closure_stack[0u];
-	InstructionPointer m_instruction_pointer;
+	std::vector<MidoriCellValue*> m_cells_to_promote;
+	std::unique_ptr<std::array<MidoriValue, s_value_stack_max>> m_value_stack{ std::make_unique<std::array<MidoriValue, s_value_stack_max>>() };
+	std::unique_ptr<std::array<CallFrame, s_call_stack_max>> m_call_stack{ std::make_unique<std::array<CallFrame, s_call_stack_max>>() };
+	MidoriClosure::Environment* m_curr_environment{ nullptr };
+	InstructionPointer m_instruction_pointer{ nullptr };
+	ValueStackPointer m_value_stack_base_pointer = &(*m_value_stack)[0u];
+	ValueStackPointer m_value_stack_pointer = &(*m_value_stack)[0u];
+	ValueStackPointer m_value_stack_begin = &(*m_value_stack)[0u];
+	ValueStackPointer m_value_stack_end = &(*m_value_stack)[static_cast<size_t>(s_value_stack_max) - 1u];
+	CallStackPointer m_call_stack_pointer = &(*m_call_stack)[1u];
+	CallStackPointer m_call_stack_begin = &(*m_call_stack)[1u];
+	CallStackPointer m_call_stack_end = &(*m_call_stack)[static_cast<size_t>(s_call_stack_max) - 1u];
 
 #ifdef _WIN32
 	HMODULE m_library_handle = nullptr;
@@ -89,7 +87,7 @@ private:
 
 	const MidoriValue& ReadConstant(OpCode operand_length) noexcept;
 
-	const std::string& ReadGlobalVariable() noexcept;
+	int ReadGlobalVariable() noexcept;
 
 	std::string GenerateRuntimeError(std::string_view message, int line) noexcept;
 
@@ -101,7 +99,7 @@ private:
 
 	void PromoteCells() noexcept;
 
-	void CheckIndexBounds(const MidoriValue& index, MidoriValue::MidoriInteger size) noexcept;
+	void CheckIndexBounds(const MidoriValue& index, MidoriInteger size) noexcept;
 
 	MidoriTraceable::GarbageCollectionRoots GetValueStackGarbageCollectionRoots() const noexcept;
 
