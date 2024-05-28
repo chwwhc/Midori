@@ -10,14 +10,13 @@ private:
 public:
 	explicit GarbageCollector(const MidoriTraceable::GarbageCollectionRoots& roots) : m_constant_roots(roots) {}
 
-	void ReclaimMemory(MidoriTraceable::GarbageCollectionRoots&& roots)
-	{
-		Mark(std::move(roots));
-		Sweep();
-	}
+	void ReclaimMemory(MidoriTraceable::GarbageCollectionRoots&& roots);
+
+	void CleanUp();
+
+	void PrintMemoryTelemetry();
 
 private:
-
 	void Mark(MidoriTraceable::GarbageCollectionRoots&& roots);
 
 	void Sweep();

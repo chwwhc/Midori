@@ -21,7 +21,7 @@ VirtualMachine::VirtualMachine(MidoriExecutable&& executable) noexcept : m_execu
 
 VirtualMachine::~VirtualMachine()
 {
-	MidoriTraceable::CleanUp();
+	m_garbage_collector.CleanUp();
 #ifdef _WIN32
 	FreeLibrary(m_library_handle);
 #else
@@ -136,7 +136,7 @@ int VirtualMachine::ReadGlobalVariable() noexcept
 
 std::string VirtualMachine::GenerateRuntimeError(std::string_view message, int line) noexcept
 {
-	MidoriTraceable::CleanUp();
+	m_garbage_collector.CleanUp();
 	return MidoriError::GenerateRuntimeError(message, line);
 }
 
@@ -272,12 +272,12 @@ void VirtualMachine::CollectGarbage() noexcept
 		{
 #ifdef DEBUG
 			Printer::Print<Printer::Color::BLUE>("\nBefore garbage collection:");
-			MidoriTraceable::PrintMemoryTelemetry();
+			m_garbage_collector.PrintMemoryTelemetry();
 #endif
 			m_garbage_collector.ReclaimMemory(std::move(roots));
 #ifdef DEBUG
 			Printer::Print<Printer::Color::BLUE>("\nAfter garbage collection:");
-			MidoriTraceable::PrintMemoryTelemetry();
+			m_garbage_collector.PrintMemoryTelemetry();
 #endif
 		}
 }
@@ -1019,7 +1019,7 @@ void VirtualMachine::Execute() noexcept
 
 					const MidoriClosure::Environment& parent_closure = (m_call_stack_pointer - 1)->m_closure->GetClosure().m_cell_values;
 					captured_variables = parent_closure;
-					captured_count -= static_cast<int>(parent_closure.size());
+					captured_count -= parent_closure.GetLength();
 
 					std::for_each_n
 					(
@@ -1030,7 +1030,7 @@ void VirtualMachine::Execute() noexcept
 						{
 							MidoriValue* stack_value_ref = &value;
 							MidoriValue cell_value = MidoriTraceable::AllocateTraceable(MidoriCellValue{ MidoriValue(), stack_value_ref, false });
-							captured_variables.emplace_back(cell_value);
+							captured_variables.Add(cell_value);
 							m_cells_to_promote.emplace_back(&cell_value.GetPointer()->GetCellValue());
 						}
 					);

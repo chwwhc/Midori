@@ -3,7 +3,6 @@
 #include <functional>
 #include <list>
 #include <variant>
-#include <vector>
 #include <unordered_set>
 
 class MidoriTraceable;
@@ -158,6 +157,7 @@ private:
 class MidoriArray
 {
 private:
+	inline static constexpr int s_initial_capacity = 8;
 	MidoriValue* m_data{ nullptr };
 	int m_size{ 0 };
 	int m_end{ 0 };
@@ -200,7 +200,7 @@ struct MidoriCellValue
 
 struct MidoriClosure
 {
-	using Environment = std::vector<MidoriValue>;
+	using Environment = MidoriArray;
 
 	Environment m_cell_values;
 	int m_proc_index;
@@ -220,8 +220,8 @@ struct MidoriUnion
 class MidoriTraceable
 {
 public:
+	// Garbage collection utilities
 	using GarbageCollectionRoots = std::unordered_set<MidoriTraceable*>;
-
 	static inline size_t s_total_bytes_allocated;
 	static inline size_t s_static_bytes_allocated;
 	static inline std::list<MidoriTraceable*> s_traceables;
@@ -274,10 +274,6 @@ public:
 	MidoriText ToText();
 
 	void Trace();
-
-	static void CleanUp();
-
-	static void PrintMemoryTelemetry();
 
 	template<typename T>
 	static MidoriTraceable* AllocateTraceable(T&& arg)

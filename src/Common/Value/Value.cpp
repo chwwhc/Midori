@@ -353,61 +353,6 @@ void MidoriTraceable::operator delete(void* object, size_t size) noexcept
 	::operator delete(object, size);
 }
 
-void MidoriTraceable::CleanUp()
-{
-#ifdef DEBUG
-	Printer::Print<Printer::Color::BLUE>("\nBefore the final clean-up:\n");
-	PrintMemoryTelemetry();
-	std::ranges::for_each
-	(
-		s_traceables,
-		[](MidoriTraceable* traceable_ptr)
-		{
-			Printer::Print<Printer::Color::MAGENTA>(std::format("Deleting traceable pointer: {:p}\n", static_cast<void*>(traceable_ptr)));
-			delete traceable_ptr;
-		}
-	);
-#else
-	std::for_each
-	(
-		std::execution::par_unseq,
-		s_traceables.begin(),
-		s_traceables.end(),
-		[](MidoriTraceable* traceable_ptr)
-		{
-			delete traceable_ptr;
-		}
-	);
-#endif
-	s_traceables.clear();
-	s_static_bytes_allocated = 0u;
-#ifdef DEBUG
-	Printer::Print<Printer::Color::BLUE>("\nAfter the final clean-up:\n");
-	PrintMemoryTelemetry();
-#endif
-}
-
-void MidoriTraceable::PrintMemoryTelemetry()
-{
-	Printer::Print<Printer::Color::BLUE>
-		(
-			std::format
-			(
-				"\n\t------------------------------\n"
-				"\tMemory telemetry:\n"
-				"\tHeap pointers allocated: {}\n"
-				"\tTotal Bytes allocated: {}\n"
-				"\tStatic Bytes allocated: {}\n"
-				"\tDynamic Bytes allocated: {}\n"
-				"\t------------------------------\n\n",
-				s_traceables.size(),
-				s_total_bytes_allocated,
-				s_static_bytes_allocated,
-				s_total_bytes_allocated - s_static_bytes_allocated
-			)
-		);
-}
-
 void MidoriTraceable::Trace()
 {
 	if (Marked())
@@ -433,12 +378,14 @@ void MidoriTraceable::Trace()
 	}
 	else if (IsClosure())
 	{
-		for (MidoriValue& pointer : GetClosure().m_cell_values | std::views::filter([](const MidoriValue& val)
-			{
-				return val.IsPointer();
-			}))
+		MidoriArray& cell_values = GetClosure().m_cell_values;
+		for (int i = 0; i < cell_values.GetLength(); i += 1)
 		{
-			pointer.GetPointer()->Trace();
+			MidoriValue& val = cell_values[i];
+			if (val.IsPointer())
+			{
+				val.GetPointer()->Trace();
+			}
 		}
 	}
 	else if (IsCellValue())
@@ -476,8 +423,10 @@ void MidoriTraceable::Trace()
 	}
 }
 
-MidoriArray::MidoriArray(int size) : m_size(size), m_end(size)
+MidoriArray::MidoriArray(int size)
 {
+	m_size = size <= 0 ? s_initial_capacity : size;
+
 	m_data = static_cast<MidoriValue*>(std::malloc(static_cast<size_t>(size) * sizeof(MidoriValue)));
 	if (!m_data)
 	{
@@ -549,7 +498,9 @@ MidoriValue& MidoriArray::operator[](int index)
 
 void MidoriArray::Expand()
 {
-	size_t new_size = static_cast<size_t>(m_size) * 2;
+	size_t new_size = m_size == 0u
+		? s_initial_capacity
+		: static_cast<size_t>(m_size) * 2;
 	MidoriValue* new_data = static_cast<MidoriValue*>(std::realloc(m_data, new_size * sizeof(MidoriValue)));
 	if (!new_data)
 	{
