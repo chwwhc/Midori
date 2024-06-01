@@ -64,6 +64,25 @@ void BytecodeStream::AddByteCode(OpCode byte, int line)
 	}
 }
 
+void BytecodeStream::PopByteCode(int line)
+{
+	if (m_bytecode.empty())
+	{
+		return;
+	}
+	m_bytecode.pop_back();
+
+	if (m_line_info.empty() || m_line_info.back().first != line)
+	{
+		return;
+	}
+	m_line_info.back().second -= 1;
+	if (m_line_info.back().second == 0)
+	{
+		m_line_info.pop_back();
+	}
+}
+
 int BytecodeStream::GetByteCodeSize() const
 {
 	return static_cast<int>(m_bytecode.size());

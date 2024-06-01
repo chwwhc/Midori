@@ -101,18 +101,18 @@ const MidoriValue& VirtualMachine::ReadConstant(OpCode operand_length) noexcept
 
 	switch (operand_length)
 	{
-	case OpCode::CONSTANT:
+	case OpCode::LOAD_CONSTANT:
 	{
 		index = static_cast<int>(ReadByte());
 		break;
 	}
-	case OpCode::CONSTANT_LONG:
+	case OpCode::LOAD_CONSTANT_LONG:
 	{
 		index = static_cast<int>(ReadByte()) |
 			(static_cast<int>(ReadByte()) << 8);
 		break;
 	}
-	case OpCode::CONSTANT_LONG_LONG:
+	case OpCode::LOAD_CONSTANT_LONG_LONG:
 	{
 		index = static_cast<int>(ReadByte()) |
 			(static_cast<int>(ReadByte()) << 8) |
@@ -333,11 +333,16 @@ void VirtualMachine::Execute() noexcept
 
 				switch (instruction)
 				{
-				case OpCode::CONSTANT:
-				case OpCode::CONSTANT_LONG:
-				case OpCode::CONSTANT_LONG_LONG:
+				case OpCode::LOAD_CONSTANT:
+				case OpCode::LOAD_CONSTANT_LONG:
+				case OpCode::LOAD_CONSTANT_LONG_LONG:
 				{
 					Push(ReadConstant(instruction));
+					break;
+				}
+				case OpCode::SMALL_INTEGER_CONSTANT:
+				{
+					Push(static_cast<MidoriInteger>(ReadThreeBytes()));
 					break;
 				}
 				case OpCode::OP_UNIT:
@@ -888,6 +893,150 @@ void VirtualMachine::Execute() noexcept
 					m_instruction_pointer -= offset;
 					break;
 				}
+				case OpCode::IF_INTEGER_LESS:
+				{
+					int offset = ReadShort();
+					MidoriInteger right = Pop().GetInteger();
+					MidoriInteger left = Pop().GetInteger();
+
+					if (!(left < right))
+					{
+						m_instruction_pointer += offset;
+					}
+					break;
+				}
+				case OpCode::IF_INTEGER_LESS_EQUAL:
+				{
+					int offset = ReadShort();
+					MidoriInteger right = Pop().GetInteger();
+					MidoriInteger left = Pop().GetInteger();
+
+					if (!(left <= right))
+					{
+						m_instruction_pointer += offset;
+					}
+					break;
+				}
+				case OpCode::IF_INTEGER_GREATER:
+				{
+					int offset = ReadShort();
+					MidoriInteger right = Pop().GetInteger();
+					MidoriInteger left = Pop().GetInteger();
+
+					if (!(left > right))
+					{
+						m_instruction_pointer += offset;
+					}
+					break;
+				}
+				case OpCode::IF_INTEGER_GREATER_EQUAL:
+				{
+					int offset = ReadShort();
+					MidoriInteger right = Pop().GetInteger();
+					MidoriInteger left = Pop().GetInteger();
+
+					if (!(left >= right))
+					{
+						m_instruction_pointer += offset;
+					}
+					break;
+				}
+				case OpCode::IF_INTEGER_EQUAL:
+				{
+					int offset = ReadShort();
+					MidoriInteger right = Pop().GetInteger();
+					MidoriInteger left = Pop().GetInteger();
+
+					if (!(left == right))
+					{
+						m_instruction_pointer += offset;
+					}
+					break;
+				}
+				case OpCode::IF_INTEGER_NOT_EQUAL:
+				{
+					int offset = ReadShort();
+					MidoriInteger right = Pop().GetInteger();
+					MidoriInteger left = Pop().GetInteger();
+
+					if (!(left != right))
+					{
+						m_instruction_pointer += offset;
+					}
+					break;
+				}
+				case OpCode::IF_FRACTION_LESS:
+				{
+					int offset = ReadShort();
+					MidoriFraction right = Pop().GetFraction();
+					MidoriFraction left = Pop().GetFraction();
+
+					if (!(left < right))
+					{
+						m_instruction_pointer += offset;
+					}
+					break;
+				}
+				case OpCode::IF_FRACTION_LESS_EQUAL:
+				{
+					int offset = ReadShort();
+					MidoriFraction right = Pop().GetFraction();
+					MidoriFraction left = Pop().GetFraction();
+
+					if (!(left <= right))
+					{
+						m_instruction_pointer += offset;
+					}
+					break;
+				}
+				case OpCode::IF_FRACTION_GREATER:
+				{
+					int offset = ReadShort();
+					MidoriFraction right = Pop().GetFraction();
+					MidoriFraction left = Pop().GetFraction();
+
+					if (!(left > right))
+					{
+						m_instruction_pointer += offset;
+					}
+					break;
+				}
+				case OpCode::IF_FRACTION_GREATER_EQUAL:
+				{
+					int offset = ReadShort();
+					MidoriFraction right = Pop().GetFraction();
+					MidoriFraction left = Pop().GetFraction();
+
+					if (!(left >= right))
+					{
+						m_instruction_pointer += offset;
+					}
+					break;
+				}
+				case OpCode::IF_FRACTION_EQUAL:
+				{
+					int offset = ReadShort();
+					MidoriFraction right = Pop().GetFraction();
+					MidoriFraction left = Pop().GetFraction();
+
+					if (!(left == right))
+					{
+						m_instruction_pointer += offset;
+					}
+					break;
+				}
+				case OpCode::IF_FRACTION_NOT_EQUAL:
+				{
+					int offset = ReadShort();
+					MidoriFraction right = Pop().GetFraction();
+					MidoriFraction left = Pop().GetFraction();
+
+					if (!(left != right))
+					{
+						m_instruction_pointer += offset;
+					}
+					break;
+				}
 				case OpCode::LOAD_TAG:
 				{
 					MidoriValue& union_val = Pop();
@@ -899,6 +1048,13 @@ void VirtualMachine::Execute() noexcept
 					}
 
 					Push(static_cast<MidoriInteger>(union_ref.m_index));
+					break;
+				}
+				case OpCode::SET_TAG:
+				{ 
+					int tag = static_cast<int>(ReadByte());
+					MidoriUnion& union_ref = Peek().GetPointer()->GetUnion();
+					union_ref.m_index = tag;
 					break;
 				}
 				case OpCode::CALL_FOREIGN:
@@ -957,6 +1113,7 @@ void VirtualMachine::Execute() noexcept
 				}
 				case OpCode::CONSTRUCT_STRUCT:
 				{
+					MidoriTraceable* new_struct = MidoriTraceable::AllocateTraceable(MidoriStruct());
 					int size = static_cast<int>(ReadByte());
 					MidoriArray args(size);
 
@@ -965,19 +1122,17 @@ void VirtualMachine::Execute() noexcept
 						args[i] = Pop();
 					}
 
-					MidoriArray& members = Peek().GetPointer()->GetStruct().m_values;
+					MidoriArray& members = new_struct->GetStruct().m_values;
 					members = std::move(args);
 
-					break;
-				}
-				case OpCode::ALLOCATE_STRUCT:
-				{
-					Push(MidoriTraceable::AllocateTraceable(MidoriStruct()));
+					Push(new_struct);
 					CollectGarbage();
 					break;
 				}
 				case OpCode::CONSTRUCT_UNION:
 				{
+					MidoriTraceable* new_union = MidoriTraceable::AllocateTraceable(MidoriUnion());
+
 					int size = static_cast<int>(ReadByte());
 					MidoriArray args(size);
 
@@ -986,17 +1141,11 @@ void VirtualMachine::Execute() noexcept
 						args[i] = Pop();
 					}
 
-					MidoriArray& members = Peek().GetPointer()->GetUnion().m_values;
+					MidoriArray& members = new_union->GetUnion().m_values;
 					members = std::move(args);
 
-					break;
-				}
-				case OpCode::ALLOCATE_UNION:
-				{
-					int tag = static_cast<int>(ReadByte());
-					Push(MidoriTraceable::AllocateTraceable(MidoriUnion()));
+					Push(new_union);
 					CollectGarbage();
-					Peek().GetPointer()->GetUnion().m_index = tag;
 					break;
 				}
 				case OpCode::ALLOCATE_CLOSURE:

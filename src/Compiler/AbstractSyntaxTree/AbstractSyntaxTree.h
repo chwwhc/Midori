@@ -67,6 +67,13 @@ namespace VariableSemantic
 	using Tag = std::variant<Local, Cell, Global>;
 }
 
+enum class ConditionOperandType
+{
+	INTEGER,
+	FRACTION,
+	OTHER
+};
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct As
@@ -174,6 +181,7 @@ struct Ternary
 	std::unique_ptr<MidoriExpression> m_condition;
 	std::unique_ptr<MidoriExpression> m_true_branch;
 	std::unique_ptr<MidoriExpression> m_else_branch;
+	ConditionOperandType m_condition_operand_type;
 };
 
 struct Get
@@ -243,6 +251,7 @@ struct If
 	std::optional<std::unique_ptr<MidoriStatement>> m_else_branch;
 	std::unique_ptr<MidoriExpression> m_condition;
 	std::unique_ptr<MidoriStatement> m_true_branch;
+	ConditionOperandType m_condition_operand_type;
 };
 
 struct While

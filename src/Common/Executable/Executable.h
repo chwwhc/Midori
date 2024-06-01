@@ -7,9 +7,10 @@
 enum class OpCode : uint8_t
 {
 	// Constants and Literals
-	CONSTANT,
-	CONSTANT_LONG,
-	CONSTANT_LONG_LONG,
+	LOAD_CONSTANT,
+	LOAD_CONSTANT_LONG,
+	LOAD_CONSTANT_LONG_LONG,
+	SMALL_INTEGER_CONSTANT,
 	OP_UNIT,
 	OP_TRUE,
 	OP_FALSE,
@@ -77,17 +78,28 @@ enum class OpCode : uint8_t
 	JUMP_IF_TRUE,
 	JUMP,
 	JUMP_BACK,
+	IF_INTEGER_LESS,
+	IF_INTEGER_LESS_EQUAL,
+	IF_INTEGER_GREATER,
+	IF_INTEGER_GREATER_EQUAL,
+	IF_INTEGER_EQUAL,	
+	IF_INTEGER_NOT_EQUAL,
+	IF_FRACTION_LESS,
+	IF_FRACTION_LESS_EQUAL,
+	IF_FRACTION_GREATER,
+	IF_FRACTION_GREATER_EQUAL,
+	IF_FRACTION_EQUAL,
+	IF_FRACTION_NOT_EQUAL,
 
 	// Switch
 	LOAD_TAG,
+	SET_TAG,
 
 	// Callable
 	CALL_FOREIGN,
 	CALL_DEFINED,
 	CONSTRUCT_STRUCT,
-	ALLOCATE_STRUCT,
 	CONSTRUCT_UNION,
-	ALLOCATE_UNION,
 
 	// Variable Operations
 	ALLOCATE_CLOSURE,
@@ -143,6 +155,8 @@ public:
 	void SetByteCode(int index, OpCode byte);
 
 	void AddByteCode(OpCode byte, int line);
+
+	void PopByteCode(int line);
 
 	int GetByteCodeSize() const;
 

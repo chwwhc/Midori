@@ -11,7 +11,9 @@ class TypeChecker
 private:
 	using TypeEnvironment = std::unordered_map<std::string, const MidoriType*>;
 	using TypeEnvironmentStack = std::vector<TypeEnvironment>;
+	using ExpressionTypeInfo = std::unordered_map<const MidoriExpression*, const MidoriType*>;
 
+	ExpressionTypeInfo m_expression_type_info;
 	std::string m_errors;
 	const std::array<Token::Name, 5> m_binary_arithmetic_operators = { Token::Name::SINGLE_PLUS, Token::Name::SINGLE_MINUS, Token::Name::STAR, Token::Name::SLASH, Token::Name::PERCENT };
 	const std::array<Token::Name, 1> m_binary_concatenation_operators = { Token::Name::DOUBLE_PLUS };
@@ -33,6 +35,8 @@ private:
 	void BeginScope();
 
 	void EndScope();
+
+	void UpdateConditionOperandType(ConditionOperandType& op_type, const std::unique_ptr<MidoriExpression>& expr);
 
 	void operator()(Block& block);
 

@@ -34,17 +34,32 @@ namespace
 		Printer::Print(formated_str.str());
 	}
 
+	void SmallIntConstantInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
+	{
+		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index)) |
+			(static_cast<int>(executable.ReadByteCode(offset + 2, proc_index)) << 8) |
+			(static_cast<int>(executable.ReadByteCode(offset + 3, proc_index)) << 16);
+		offset += 4;
+
+		std::ostringstream formated_str;
+
+		formated_str << std::left << std::setw(instr_width) << name;
+		formated_str << ' ' << std::dec << operand;
+		formated_str << two_tabs << std::setw(comment_width) << " // small int value: " << std::to_string(operand) << std::setfill(' ') << '\n';
+		Printer::Print(formated_str.str());
+	}
+
 	void ConstantInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
 		int operand;
-		if (name == "CONSTANT_LONG_LONG")
+		if (name == "LOAD_CONSTANT_LONG_LONG")
 		{
 			operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index)) |
 				(static_cast<int>(executable.ReadByteCode(offset + 2, proc_index)) << 8) |
 				(static_cast<int>(executable.ReadByteCode(offset + 3, proc_index)) << 16);
 			offset += 4;
 		}
-		else if (name == "CONSTANT_LONG")
+		else if (name == "LOAD_CONSTANT_LONG")
 		{
 			operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index)) |
 				(static_cast<int>(executable.ReadByteCode(offset + 2, proc_index)) << 8);
@@ -186,7 +201,7 @@ namespace
 		Printer::Print(formated_str.str());
 	}
 
-	void AllocateUnionInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
+	void SetTagInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
 		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index));
 		offset += 2;
@@ -246,14 +261,17 @@ namespace Disassembler
 
 		OpCode instruction = executable.ReadByteCode(offset, proc_index);
 		switch (instruction) {
-		case OpCode::CONSTANT:
-			ConstantInstruction("CONSTANT", executable, proc_index, offset);
+		case OpCode::LOAD_CONSTANT:
+			ConstantInstruction("LOAD_CONSTANT", executable, proc_index, offset);
 			break;
-		case OpCode::CONSTANT_LONG:
-			ConstantInstruction("CONSTANT_LONG", executable, proc_index, offset);
+		case OpCode::LOAD_CONSTANT_LONG:
+			ConstantInstruction("LOAD_CONSTANT_LONG", executable, proc_index, offset);
 			break;
-		case OpCode::CONSTANT_LONG_LONG:
-			ConstantInstruction("CONSTANT_LONG_LONG", executable, proc_index, offset);
+		case OpCode::LOAD_CONSTANT_LONG_LONG:
+			ConstantInstruction("LOAD_CONSTANT_LONG_LONG", executable, proc_index, offset);
+			break;
+		case OpCode::SMALL_INTEGER_CONSTANT:
+			SmallIntConstantInstruction("SMALL_INTEGER_CONSTANT", executable, proc_index, offset);
 			break;
 		case OpCode::OP_UNIT:
 			SimpleInstruction("OP_UNIT", offset);
@@ -402,8 +420,47 @@ namespace Disassembler
 		case OpCode::JUMP_BACK:
 			JumpInstruction("JUMP_BACK", -1, executable, proc_index, offset);
 			break;
+		case OpCode::IF_INTEGER_LESS:
+			JumpInstruction("IF_INTEGER_LESS", 1, executable, proc_index, offset);
+			break;
+		case OpCode::IF_INTEGER_LESS_EQUAL:
+			JumpInstruction("IF_INTEGER_LESS_EQUAL", 1, executable, proc_index, offset);
+				break;
+		case OpCode::IF_INTEGER_GREATER:
+			JumpInstruction("IF_INTEGER_GREATER", 1, executable, proc_index, offset);
+			break;
+		case OpCode::IF_INTEGER_GREATER_EQUAL:
+			JumpInstruction("IF_INTEGER_GREATER_EQUAL", 1, executable, proc_index, offset);
+			break;
+		case OpCode::IF_INTEGER_EQUAL:
+			JumpInstruction("IF_INTEGER_EQUAL", 1, executable, proc_index, offset);
+			break;
+		case OpCode::IF_INTEGER_NOT_EQUAL:
+			JumpInstruction("IF_INTEGER_NOT_EQUAL", 1, executable, proc_index, offset);
+			break;
+		case OpCode::IF_FRACTION_LESS:
+			JumpInstruction("IF_FRACTION_LESS", 1, executable, proc_index, offset);
+			break;
+		case OpCode::IF_FRACTION_LESS_EQUAL:
+			JumpInstruction("IF_FRACTION_LESS_EQUAL", 1, executable, proc_index, offset);
+			break;
+		case OpCode::IF_FRACTION_GREATER:
+			JumpInstruction("IF_FRACTION_GREATER", 1, executable, proc_index, offset);
+			break;
+		case OpCode::IF_FRACTION_GREATER_EQUAL:
+			JumpInstruction("IF_FRACTION_GREATER_EQUAL", 1, executable, proc_index, offset);
+			break;
+		case OpCode::IF_FRACTION_EQUAL:
+			JumpInstruction("IF_FRACTION_EQUAL", 1, executable, proc_index, offset);
+			break;
+		case OpCode::IF_FRACTION_NOT_EQUAL:
+			JumpInstruction("IF_FRACTION_NOT_EQUAL", 1, executable, proc_index, offset);
+			break;
 		case OpCode::LOAD_TAG:
 			SimpleInstruction("LOAD_TAG", offset);
+			break;
+		case OpCode::SET_TAG:
+			SetTagInstruction("SET_TAG", executable, proc_index, offset);
 			break;
 		case OpCode::CALL_FOREIGN:
 			CallInstruction("CALL_FOREIGN", executable, proc_index, offset);
@@ -414,14 +471,8 @@ namespace Disassembler
 		case OpCode::CONSTRUCT_STRUCT:
 			DataInstruction("CONSTRUCT_STRUCT", executable, proc_index, offset);
 			break;
-		case OpCode::ALLOCATE_STRUCT:
-			SimpleInstruction("ALLOCATE_STRUCT", offset);
-			break;
 		case OpCode::CONSTRUCT_UNION:
 			DataInstruction("CONSTRUCT_UNION", executable, proc_index, offset);
-			break;
-		case OpCode::ALLOCATE_UNION:
-			AllocateUnionInstruction("ALLOCATE_UNION", executable, proc_index, offset);
 			break;
 		case OpCode::ALLOCATE_CLOSURE:
 			AllocateClosureInstruction("ALLOCATE_CLOSURE", executable, proc_index, offset);

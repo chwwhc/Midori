@@ -4,8 +4,9 @@
 #include "Common/Constant/Constant.h"
 
 void CodeGenerator::EmitByte(OpCode byte, int line)
-{ 
-	m_procedures[m_current_procedure_index].AddByteCode(byte, line); 
+{
+	m_last_opcode = byte;
+	m_procedures[m_current_procedure_index].AddByteCode(byte, line);
 }
 
 void CodeGenerator::AddError(std::string&& error)
@@ -14,21 +15,39 @@ void CodeGenerator::AddError(std::string&& error)
 	m_errors.push_back('\n');
 }
 
+void CodeGenerator::PopByte(int line)
+{
+	m_procedures[m_current_procedure_index].PopByteCode(line);
+}
+
 void CodeGenerator::EmitTwoBytes(int byte1, int byte2, int line)
 {
-	EmitByte(static_cast<OpCode>(byte1), line);
-	EmitByte(static_cast<OpCode>(byte2), line);
+	EmitByte(static_cast<OpCode>(byte1 & 0xff), line);
+	EmitByte(static_cast<OpCode>(byte2 & 0xff), line);
 }
 
 void CodeGenerator::EmitThreeBytes(int byte1, int byte2, int byte3, int line)
 {
-	EmitByte(static_cast<OpCode>(byte1), line);
-	EmitByte(static_cast<OpCode>(byte2), line);
-	EmitByte(static_cast<OpCode>(byte3), line);
+	EmitByte(static_cast<OpCode>(byte1 & 0xff), line);
+	EmitByte(static_cast<OpCode>(byte2 & 0xff), line);
+	EmitByte(static_cast<OpCode>(byte3 & 0xff), line);
 }
 
 void CodeGenerator::EmitConstant(MidoriValue&& value, int line)
 {
+	if (value.IsInteger())
+	{
+		MidoriInteger integer_val = value.GetInteger();
+
+		if (integer_val <= THREE_BYTES_INT_MAX && integer_val >= THREE_BYTES_INT_MIN)
+		{
+			int i32_val = static_cast<int>(integer_val);
+			EmitByte(OpCode::SMALL_INTEGER_CONSTANT, line);
+			EmitThreeBytes(i32_val, i32_val >> 8, i32_val >> 16, line);
+			return;
+		}
+	}
+
 	if (value.IsPointer())
 	{
 		MidoriTraceable* traceable = static_cast<MidoriTraceable*>(value.GetPointer());
@@ -40,21 +59,18 @@ void CodeGenerator::EmitConstant(MidoriValue&& value, int line)
 
 	if (index <= MAX_SIZE_OP_CONSTANT) // 1 byte
 	{
-		EmitByte(OpCode::CONSTANT, line);
+		EmitByte(OpCode::LOAD_CONSTANT, line);
 		EmitByte(static_cast<OpCode>(index), line);
 	}
 	else if (index <= MAX_SIZE_OP_CONSTANT_LONG) // 2 bytes
 	{
-		EmitByte(OpCode::CONSTANT_LONG, line);
-		EmitByte(static_cast<OpCode>(index & 0xff), line);
-		EmitByte(static_cast<OpCode>((index >> 8) & 0xff), line);
+		EmitByte(OpCode::LOAD_CONSTANT_LONG, line);
+		EmitTwoBytes(index, index >> 8, line);
 	}
 	else if (index <= MAX_SIZE_OP_CONSTANT_LONG_LONG) // 3 bytes
 	{
-		EmitByte(OpCode::CONSTANT_LONG_LONG, line);
-		EmitByte(static_cast<OpCode>(index & 0xff), line);
-		EmitByte(static_cast<OpCode>((index >> 8) & 0xff), line);
-		EmitByte(static_cast<OpCode>((index >> 16) & 0xff), line);
+		EmitByte(OpCode::LOAD_CONSTANT_LONG_LONG, line);
+		EmitThreeBytes(index, index >> 8, index >> 16, line);
 	}
 	else
 	{
@@ -110,9 +126,9 @@ void CodeGenerator::EmitLoop(int loop_start, int line)
 	EmitByte(static_cast<OpCode>((offset >> 8) & 0xff), line);
 }
 
-void CodeGenerator::BeginLoop(int loop_start) 
-{ 
-	m_loop_contexts.emplace(std::vector<int>(), loop_start); 
+void CodeGenerator::BeginLoop(int loop_start)
+{
+	m_loop_contexts.emplace(std::vector<int>(), loop_start);
 }
 
 void CodeGenerator::EndLoop(int line)
@@ -121,8 +137,8 @@ void CodeGenerator::EndLoop(int line)
 	m_loop_contexts.pop();
 	std::ranges::for_each
 	(
-		loop.m_break_positions, 
-		[line, this](int break_position) 
+		loop.m_break_positions,
+		[line, this](int break_position)
 		{
 			PatchJump(break_position, line);
 		}
@@ -133,10 +149,13 @@ MidoriResult::CodeGeneratorResult CodeGenerator::GenerateCode(MidoriProgramTree&
 {
 	std::ranges::for_each
 	(
-		program_tree, 
+		program_tree,
 		[this](std::unique_ptr<MidoriStatement>& statement)
 		{
-			std::visit([this](auto&& arg) { (*this)(arg); }, *statement);
+			std::visit([this](auto&& arg)
+				{
+					(*this)(arg);
+				}, *statement);
 		}
 	);
 
@@ -173,7 +192,10 @@ void CodeGenerator::operator()(Block& block)
 		block.m_stmts,
 		[this](std::unique_ptr<MidoriStatement>& statement)
 		{
-			std::visit([this](auto&& arg) { (*this)(arg); }, *statement);
+			std::visit([this](auto&& arg)
+				{
+					(*this)(arg);
+				}, *statement);
 		}
 	);
 	if (m_procedures[m_current_procedure_index].ReadByteCode(m_procedures[m_current_procedure_index].GetByteCodeSize() - 1) == OpCode::RETURN)
@@ -192,7 +214,10 @@ void CodeGenerator::operator()(Block& block)
 
 void CodeGenerator::operator()(Simple& simple)
 {
-	std::visit([this](auto&& arg) { (*this)(arg); }, *simple.m_expr);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *simple.m_expr);
 	EmitByte(OpCode::POP, simple.m_semicolon.m_line);
 }
 
@@ -208,7 +233,10 @@ void CodeGenerator::operator()(Define& def)
 		m_global_variables[def.m_name.m_lexeme] = index.value();
 	}
 
-	std::visit([this](auto&& arg) { (*this)(arg); }, *def.m_value);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *def.m_value);
 
 	if (is_global)
 	{
@@ -232,21 +260,46 @@ void CodeGenerator::operator()(Define& def)
 void CodeGenerator::operator()(If& if_stmt)
 {
 	int line = if_stmt.m_if_keyword.m_line;
-	std::visit([this](auto&& arg) {(*this)(arg); }, *if_stmt.m_condition);
-	int true_jump = EmitJump(OpCode::JUMP_IF_FALSE, line);
-	EmitByte(OpCode::POP, line);
-	std::visit([this](auto&& arg) {(*this)(arg); }, *if_stmt.m_true_branch);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *if_stmt.m_condition);
 
-	int else_jump = EmitJump(OpCode::JUMP, line);
-	PatchJump(true_jump, line);
-	EmitByte(OpCode::POP, line);
-
-	if (if_stmt.m_else_branch.has_value())
+	if (if_stmt.m_condition_operand_type == ConditionOperandType::INTEGER || if_stmt.m_condition_operand_type == ConditionOperandType::FRACTION)
 	{
-		std::visit([this](auto&& arg) {(*this)(arg); }, *if_stmt.m_else_branch.value());
+		if (if_stmt.m_else_branch.has_value())
+		{
+			EmitNumericConditionalJump<std::unique_ptr<MidoriStatement>&>(if_stmt.m_condition_operand_type, if_stmt.m_true_branch, if_stmt.m_else_branch.value(), line);
+		}
+		else
+		{
+			std::unique_ptr<MidoriStatement> null_else_branch = nullptr;
+			EmitNumericConditionalJump<std::unique_ptr<MidoriStatement>&>(if_stmt.m_condition_operand_type, if_stmt.m_true_branch, null_else_branch, line);
+		}
 	}
+	else
+	{
+		int true_jump = EmitJump(OpCode::JUMP_IF_FALSE, line);
+		EmitByte(OpCode::POP, line);
+		std::visit([this](auto&& arg)
+			{
+				(*this)(arg);
+			}, *if_stmt.m_true_branch);
 
-	PatchJump(else_jump, line);
+		int else_jump = EmitJump(OpCode::JUMP, line);
+		PatchJump(true_jump, line);
+		EmitByte(OpCode::POP, line);
+
+		if (if_stmt.m_else_branch.has_value())
+		{
+			std::visit([this](auto&& arg)
+				{
+					(*this)(arg);
+				}, *if_stmt.m_else_branch.value());
+		}
+
+		PatchJump(else_jump, line);
+	}
 }
 
 void CodeGenerator::operator()(While& while_stmt)
@@ -254,13 +307,19 @@ void CodeGenerator::operator()(While& while_stmt)
 	int loop_start = m_procedures[m_current_procedure_index].GetByteCodeSize();
 	BeginLoop(loop_start);
 
-	std::visit([this](auto&& arg) {(*this)(arg); }, *while_stmt.m_condition);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *while_stmt.m_condition);
 
 	int line = while_stmt.m_while_keyword.m_line;
 	int jump_if_false = EmitJump(OpCode::JUMP_IF_FALSE, line);
 	EmitByte(OpCode::POP, line);
 
-	std::visit([this](auto&& arg) {(*this)(arg); }, *while_stmt.m_body);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *while_stmt.m_body);
 
 	EmitLoop(loop_start, line);
 	PatchJump(jump_if_false, line);
@@ -273,7 +332,10 @@ void CodeGenerator::operator()(For& for_stmt)
 {
 	if (for_stmt.m_condition_intializer.has_value())
 	{
-		std::visit([this](auto&& arg) {(*this)(arg); }, *for_stmt.m_condition_intializer.value());
+		std::visit([this](auto&& arg)
+			{
+				(*this)(arg);
+			}, *for_stmt.m_condition_intializer.value());
 	}
 
 	int loop_start = m_procedures[m_current_procedure_index].GetByteCodeSize();
@@ -282,7 +344,10 @@ void CodeGenerator::operator()(For& for_stmt)
 	int exit_jump = -1;
 	if (for_stmt.m_condition.has_value())
 	{
-		std::visit([this](auto&& arg) {(*this)(arg); }, *for_stmt.m_condition.value());
+		std::visit([this](auto&& arg)
+			{
+				(*this)(arg);
+			}, *for_stmt.m_condition.value());
 		exit_jump = EmitJump(OpCode::JUMP_IF_FALSE, line);
 		EmitByte(OpCode::POP, line);
 	}
@@ -290,7 +355,10 @@ void CodeGenerator::operator()(For& for_stmt)
 	{
 		int body_jump = EmitJump(OpCode::JUMP, line);
 		int incrementer_start = m_procedures[m_current_procedure_index].GetByteCodeSize();
-		std::visit([this](auto&& arg) {(*this)(arg); }, *for_stmt.m_condition_incrementer.value());
+		std::visit([this](auto&& arg)
+			{
+				(*this)(arg);
+			}, *for_stmt.m_condition_incrementer.value());
 
 		EmitLoop(loop_start, line);
 		loop_start = incrementer_start;
@@ -298,7 +366,10 @@ void CodeGenerator::operator()(For& for_stmt)
 	}
 
 	BeginLoop(loop_start);
-	std::visit([this](auto&& arg) {(*this)(arg); }, *for_stmt.m_body);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *for_stmt.m_body);
 
 	EmitLoop(loop_start, line);
 	if (exit_jump != -1)
@@ -351,7 +422,10 @@ void CodeGenerator::operator()(Return& return_stmt)
 {
 	int line = return_stmt.m_keyword.m_line;
 
-	std::visit([this](auto&& arg) {(*this)(arg); }, *return_stmt.m_value);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *return_stmt.m_value);
 
 	EmitByte(OpCode::RETURN, line);
 }
@@ -389,7 +463,10 @@ void CodeGenerator::operator()(Union&)
 void CodeGenerator::operator()(Switch& switch_stmt)
 {
 	int line = switch_stmt.m_switch_keyword.m_line;
-	std::visit([this](auto&& arg) {(*this)(arg); }, *switch_stmt.m_arg_expr);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *switch_stmt.m_arg_expr);
 	EmitByte(OpCode::LOAD_TAG, line);
 
 	// for each case
@@ -409,7 +486,10 @@ void CodeGenerator::operator()(Switch& switch_stmt)
 			EmitByte(OpCode::POP, line); // pop tag
 			EmitByte(OpCode::POP, line); // pop comp result
 
-			std::visit([this](auto&& arg) {(*this)(arg); }, *member_case.m_stmt);
+			std::visit([this](auto&& arg)
+				{
+					(*this)(arg);
+				}, *member_case.m_stmt);
 
 			int num_to_pop = static_cast<int>(member_case.m_binding_names.size());
 			while (num_to_pop > 0)
@@ -428,7 +508,10 @@ void CodeGenerator::operator()(Switch& switch_stmt)
 		{
 			const Switch::DefaultCase& default_case = Switch::GetDefaultCase(switch_case);
 
-			std::visit([this](auto&& arg) {(*this)(arg); }, *default_case.m_stmt);
+			std::visit([this](auto&& arg)
+				{
+					(*this)(arg);
+				}, *default_case.m_stmt);
 
 			EmitByte(OpCode::POP, line);
 			jumps.emplace_back(EmitJump(OpCode::JUMP, line));
@@ -438,7 +521,7 @@ void CodeGenerator::operator()(Switch& switch_stmt)
 
 	std::ranges::for_each
 	(
-		jumps, 
+		jumps,
 		[this, line](int jump_addr)
 		{
 			PatchJump(jump_addr, line);
@@ -448,12 +531,15 @@ void CodeGenerator::operator()(Switch& switch_stmt)
 
 void CodeGenerator::operator()(Namespace& namespace_stmt)
 {
-	std::ranges::for_each 
+	std::ranges::for_each
 	(
-		namespace_stmt.m_stmts, 
-		[this](std::unique_ptr<MidoriStatement>& stmt) 
+		namespace_stmt.m_stmts,
+		[this](std::unique_ptr<MidoriStatement>& stmt)
 		{
-			std::visit([this](auto&& arg) {(*this)(arg); }, *stmt);
+			std::visit([this](auto&& arg)
+				{
+					(*this)(arg);
+				}, *stmt);
 		}
 	);
 }
@@ -462,7 +548,10 @@ void CodeGenerator::operator()(As& as)
 {
 	int line = as.m_as_keyword.m_line;
 
-	std::visit([this](auto&& arg) {(*this)(arg); }, *as.m_expr);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *as.m_expr);
 
 	const MidoriType* target_type = as.m_target_type;
 
@@ -501,8 +590,14 @@ void CodeGenerator::operator()(Binary& binary)
 {
 	int line = binary.m_op.m_line;
 	const MidoriType* expr_type = binary.m_type;
-	std::visit([this](auto&& arg) { (*this)(arg); }, *binary.m_left);
-	std::visit([this](auto&& arg) { (*this)(arg); }, *binary.m_right);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *binary.m_left);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *binary.m_right);
 
 	switch (binary.m_op.m_token_name)
 	{
@@ -546,8 +641,8 @@ void CodeGenerator::operator()(Binary& binary)
 		MidoriTypeUtil::IsFractionType(expr_type) ? EmitByte(OpCode::NOT_EQUAL_FRACTION, line) : EmitByte(OpCode::NOT_EQUAL_INTEGER, line);
 		break;
 	case Token::Name::DOUBLE_EQUAL:
-		MidoriTypeUtil::IsFractionType(expr_type) 
-			? EmitByte(OpCode::EQUAL_FRACTION, line) 
+		MidoriTypeUtil::IsFractionType(expr_type)
+			? EmitByte(OpCode::EQUAL_FRACTION, line)
 			: MidoriTypeUtil::IsIntegerType(expr_type)
 			? EmitByte(OpCode::EQUAL_INTEGER, line)
 			: EmitByte(OpCode::EQUAL_TEXT, line);
@@ -563,19 +658,31 @@ void CodeGenerator::operator()(Binary& binary)
 		break;
 	case Token::Name::DOUBLE_BAR:
 	{
-		std::visit([this](auto&& arg) {(*this)(arg); }, *binary.m_left);
+		std::visit([this](auto&& arg)
+			{
+				(*this)(arg);
+			}, *binary.m_left);
 		int jump_if_true = EmitJump(OpCode::JUMP_IF_TRUE, line);
 		EmitByte(OpCode::POP, line);
-		std::visit([this](auto&& arg) {(*this)(arg); }, *binary.m_right);
+		std::visit([this](auto&& arg)
+			{
+				(*this)(arg);
+			}, *binary.m_right);
 		PatchJump(jump_if_true, line);
 		break;
 	}
 	case Token::Name::DOUBLE_AMPERSAND:
 	{
-		std::visit([this](auto&& arg) {(*this)(arg); }, *binary.m_left);
+		std::visit([this](auto&& arg)
+			{
+				(*this)(arg);
+			}, *binary.m_left);
 		int jump_if_false = EmitJump(OpCode::JUMP_IF_FALSE, line);
 		EmitByte(OpCode::POP, line);
-		std::visit([this](auto&& arg) {(*this)(arg); }, *binary.m_right);
+		std::visit([this](auto&& arg)
+			{
+				(*this)(arg);
+			}, *binary.m_right);
 		PatchJump(jump_if_false, line);
 		break;
 	}
@@ -588,12 +695,18 @@ void CodeGenerator::operator()(Binary& binary)
 
 void CodeGenerator::operator()(Group& group)
 {
-	std::visit([this](auto&& arg) {(*this)(arg); }, *group.m_expr_in);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *group.m_expr_in);
 }
 
 void CodeGenerator::operator()(UnaryPrefix& unary)
 {
-	std::visit([this](auto&& arg) {(*this)(arg); }, *unary.m_right);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *unary.m_right);
 
 	switch (unary.m_op.m_token_name)
 	{
@@ -627,13 +740,19 @@ void CodeGenerator::operator()(Call& call)
 
 	std::ranges::for_each
 	(
-		call.m_arguments, 
-		[this](std::unique_ptr<MidoriExpression>& arg) 
+		call.m_arguments,
+		[this](std::unique_ptr<MidoriExpression>& arg)
 		{
-			std::visit([this](auto&& arg) {(*this)(arg); }, *arg); 
+			std::visit([this](auto&& arg)
+				{
+					(*this)(arg);
+				}, *arg);
 		}
 	);
-	std::visit([this](auto&& arg) {(*this)(arg); }, *call.m_callee);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *call.m_callee);
 
 	if (call.m_is_foreign)
 	{
@@ -651,7 +770,10 @@ void CodeGenerator::operator()(Get& get)
 {
 	int line = get.m_member_name.m_line;
 
-	std::visit([this](auto&& arg) {(*this)(arg); }, *get.m_struct);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *get.m_struct);
 	EmitByte(OpCode::GET_MEMBER, line);
 	EmitByte(static_cast<OpCode>(get.m_index), line);
 }
@@ -660,8 +782,14 @@ void CodeGenerator::operator()(Set& set)
 {
 	int line = set.m_member_name.m_line;
 
-	std::visit([this](auto&& arg) {(*this)(arg); }, *set.m_struct);
-	std::visit([this](auto&& arg) {(*this)(arg); }, *set.m_value);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *set.m_struct);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *set.m_value);
 	EmitByte(OpCode::SET_MEMBER, line);
 	EmitByte(static_cast<OpCode>(set.m_index), line);
 }
@@ -694,7 +822,10 @@ void CodeGenerator::operator()(Variable& variable)
 
 void CodeGenerator::operator()(Bind& bind)
 {
-	std::visit([this](auto&& arg) { (*this)(arg); }, *bind.m_value);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *bind.m_value);
 
 	std::visit([&bind, this](auto&& arg)
 		{
@@ -764,7 +895,10 @@ void CodeGenerator::operator()(Closure& closure)
 	int prev_index = m_current_procedure_index;
 	m_current_procedure_index = static_cast<int>(m_procedures.size());
 	m_procedures.emplace_back();
-	std::visit([this](auto&& arg) {(*this)(arg); }, *closure.m_body);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *closure.m_body);
 
 	int closure_proc_index = m_current_procedure_index;
 #ifdef DEBUG
@@ -793,30 +927,15 @@ void CodeGenerator::operator()(Construct& construct)
 	OpCode size = static_cast<OpCode>(construct.m_params.size());
 	bool is_struct = std::holds_alternative<Construct::Struct>(construct.m_construct_ctx);
 
-	if (is_struct)
-	{
-		EmitByte(OpCode::ALLOCATE_STRUCT, line);
-	}
-	else
-	{
-		int tag = std::get<Construct::Union>(construct.m_construct_ctx).m_index;
-
-		if (tag > MAX_UNION_TAG)
-		{
-			AddError(MidoriError::GenerateCodeGeneratorError(std::format("Union tag too large (max {}).", MAX_UNION_TAG + 1), line));
-			return;
-		}
-
-		EmitByte(OpCode::ALLOCATE_UNION, line);
-		EmitByte(static_cast<OpCode>(tag), line);
-	}
-
 	std::ranges::for_each
 	(
-		construct.m_params, 
+		construct.m_params,
 		[this](std::unique_ptr<MidoriExpression>& param)
 		{
-			std::visit([this](auto&& arg) {(*this)(arg); }, *param);
+			std::visit([this](auto&& arg)
+				{
+					(*this)(arg);
+				}, *param);
 		}
 	);
 
@@ -828,8 +947,21 @@ void CodeGenerator::operator()(Construct& construct)
 	{
 		EmitByte(OpCode::CONSTRUCT_UNION, line);
 	}
-
 	EmitByte(size, line);
+
+	if (!is_struct)
+	{
+		int tag = std::get<Construct::Union>(construct.m_construct_ctx).m_index;
+
+		if (tag > MAX_UNION_TAG)
+		{
+			AddError(MidoriError::GenerateCodeGeneratorError(std::format("Union tag too large (max {}).", MAX_UNION_TAG + 1), line));
+			return;
+		}
+
+		EmitByte(OpCode::SET_TAG, line);
+		EmitByte(static_cast<OpCode>(tag), line);
+	}
 }
 
 void CodeGenerator::operator()(Array& array)
@@ -845,10 +977,13 @@ void CodeGenerator::operator()(Array& array)
 
 	std::ranges::for_each
 	(
-		array.m_elems, 
+		array.m_elems,
 		[this](std::unique_ptr<MidoriExpression>& elem)
 		{
-			std::visit([this](auto&& arg) {(*this)(arg); }, *elem);
+			std::visit([this](auto&& arg)
+				{
+					(*this)(arg);
+				}, *elem);
 		}
 	);
 	EmitByte(OpCode::CREATE_ARRAY, line);
@@ -865,14 +1000,20 @@ void CodeGenerator::operator()(ArrayGet& array_get)
 		return;
 	}
 
-	std::visit([this](auto&& arg) {(*this)(arg); }, *array_get.m_arr_var);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *array_get.m_arr_var);
 
 	std::ranges::for_each
 	(
-		array_get.m_indices, 
+		array_get.m_indices,
 		[this](std::unique_ptr<MidoriExpression>& index)
 		{
-			std::visit([this](auto&& arg) {(*this)(arg); }, *index);
+			std::visit([this](auto&& arg)
+				{
+					(*this)(arg);
+				}, *index);
 		}
 	);
 
@@ -890,18 +1031,27 @@ void CodeGenerator::operator()(ArraySet& array_set)
 		return;
 	}
 
-	std::visit([this](auto&& arg) {(*this)(arg); }, *array_set.m_arr_var);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *array_set.m_arr_var);
 
 	std::ranges::for_each
 	(
-		array_set.m_indices, 
+		array_set.m_indices,
 		[this](std::unique_ptr<MidoriExpression>& index)
 		{
-			std::visit([this](auto&& arg) {(*this)(arg); }, *index);
+			std::visit([this](auto&& arg)
+				{
+					(*this)(arg);
+				}, *index);
 		}
 	);
 
-	std::visit([this](auto&& arg) {(*this)(arg); }, *array_set.m_value);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *array_set.m_value);
 
 	EmitByte(OpCode::SET_ARRAY, line);
 	EmitByte(static_cast<OpCode>(array_set.m_indices.size()), line);
@@ -910,13 +1060,30 @@ void CodeGenerator::operator()(ArraySet& array_set)
 void CodeGenerator::operator()(Ternary& ternary)
 {
 	int line = ternary.m_colon.m_line;
-	std::visit([this](auto&& arg) {(*this)(arg); }, *ternary.m_condition);
-	int jump_if_false = EmitJump(OpCode::JUMP_IF_FALSE, line);
-	EmitByte(OpCode::POP, line);
-	std::visit([this](auto&& arg) {(*this)(arg); }, *ternary.m_true_branch);
-	int jump = EmitJump(OpCode::JUMP, line);
-	PatchJump(jump_if_false, line);
-	EmitByte(OpCode::POP, line);
-	std::visit([this](auto&& arg) {(*this)(arg); }, *ternary.m_else_branch);
-	PatchJump(jump, line);
+	std::visit([this](auto&& arg)
+		{
+			(*this)(arg);
+		}, *ternary.m_condition);
+	
+	if (ternary.m_condition_operand_type == ConditionOperandType::INTEGER || ternary.m_condition_operand_type == ConditionOperandType::FRACTION)
+	{
+		EmitNumericConditionalJump<std::unique_ptr<MidoriExpression>&>(ternary.m_condition_operand_type, ternary.m_true_branch, ternary.m_else_branch, line);
+	}
+	else
+	{
+		int jump_if_false = EmitJump(OpCode::JUMP_IF_FALSE, line);
+		EmitByte(OpCode::POP, line);
+		std::visit([this](auto&& arg)
+			{
+				(*this)(arg);
+			}, *ternary.m_true_branch);
+		int jump = EmitJump(OpCode::JUMP, line);
+		PatchJump(jump_if_false, line);
+		EmitByte(OpCode::POP, line);
+		std::visit([this](auto&& arg)
+			{
+				(*this)(arg);
+			}, *ternary.m_else_branch);
+		PatchJump(jump, line);
+	}
 }

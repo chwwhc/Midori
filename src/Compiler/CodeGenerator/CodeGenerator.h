@@ -36,6 +36,7 @@ private:
 	MidoriExecutable m_executable;
 	std::optional<MainProcedureContext> m_main_function_ctx = std::nullopt;
 	int m_current_procedure_index = 0;
+	OpCode m_last_opcode = OpCode::HALT;
 
 public:
 
@@ -43,7 +44,100 @@ public:
 
 private:
 
+	template<typename T>
+	requires std::is_same_v<T, std::unique_ptr<MidoriExpression>&> || std::is_same_v<T, std::unique_ptr<MidoriStatement>&>
+	void EmitNumericConditionalJump(ConditionOperandType operand_type, T true_branch, T else_branch, int line)
+	{
+		int if_jump;
+		if (operand_type == ConditionOperandType::INTEGER)
+		{
+			PopByte(line);
+			switch (m_last_opcode)
+			{
+			case OpCode::LESS_INTEGER:
+				if_jump = EmitJump(OpCode::IF_INTEGER_LESS, line);
+				break;
+			case OpCode::LESS_EQUAL_INTEGER:
+				if_jump = EmitJump(OpCode::IF_INTEGER_LESS_EQUAL, line);
+				break;
+			case OpCode::GREATER_INTEGER:
+				if_jump = EmitJump(OpCode::IF_INTEGER_GREATER, line);
+				break;
+			case OpCode::GREATER_EQUAL_INTEGER:
+				if_jump = EmitJump(OpCode::IF_INTEGER_GREATER_EQUAL, line);
+				break;
+			case OpCode::EQUAL_INTEGER:
+				if_jump = EmitJump(OpCode::IF_INTEGER_EQUAL, line);
+				break;
+			case OpCode::NOT_EQUAL_INTEGER:
+				if_jump = EmitJump(OpCode::IF_INTEGER_NOT_EQUAL, line);
+				break;
+			default:
+				AddError(MidoriError::GenerateCodeGeneratorError("Invalid opcode for integer ternary condition.", line));
+				return;
+			}
+			std::visit([this](auto&& arg)
+				{
+					(*this)(arg);
+				}, *true_branch);
+			int else_jump = EmitJump(OpCode::JUMP, line);
+			PatchJump(if_jump, line);
+			if (else_branch != nullptr)
+			{
+				std::visit([this](auto&& arg)
+					{
+						(*this)(arg);
+					}, *else_branch);
+			}
+			PatchJump(else_jump, line);
+		}
+		else
+		{
+			PopByte(line);
+			switch (m_last_opcode)
+			{
+			case OpCode::LESS_FRACTION:
+				if_jump = EmitJump(OpCode::IF_FRACTION_LESS, line);
+				break;
+			case OpCode::LESS_EQUAL_FRACTION:
+				if_jump = EmitJump(OpCode::IF_FRACTION_LESS_EQUAL, line);
+				break;
+			case OpCode::GREATER_FRACTION:
+				if_jump = EmitJump(OpCode::IF_FRACTION_GREATER, line);
+				break;
+			case OpCode::GREATER_EQUAL_FRACTION:
+				if_jump = EmitJump(OpCode::IF_FRACTION_GREATER_EQUAL, line);
+				break;
+			case OpCode::EQUAL_FRACTION:
+				if_jump = EmitJump(OpCode::IF_FRACTION_EQUAL, line);
+				break;
+			case OpCode::NOT_EQUAL_FRACTION:
+				if_jump = EmitJump(OpCode::IF_FRACTION_NOT_EQUAL, line);
+				break;
+			default:
+				AddError(MidoriError::GenerateCodeGeneratorError("Invalid opcode for fraction ternary condition.", line));
+				return;
+			}
+			std::visit([this](auto&& arg)
+				{
+					(*this)(arg);
+				}, *true_branch);
+			int else_jump = EmitJump(OpCode::JUMP, line);
+			PatchJump(if_jump, line);
+			if (else_branch != nullptr)
+			{
+				std::visit([this](auto&& arg)
+					{
+						(*this)(arg);
+					}, *else_branch);
+			}
+			PatchJump(else_jump, line);
+		}
+	}
+
 	void AddError(std::string&& error);
+
+	void PopByte(int line);
 
 	void EmitByte(OpCode byte, int line);
 

@@ -414,7 +414,7 @@ MidoriResult::ExpressionResult Parser::ParseTernary()
 			MidoriResult::ExpressionResult else_branch = ParseTernary();
 			VERIFY_RESULT(else_branch);
 
-			return std::make_unique<MidoriExpression>(Ternary{ std::move(question), std::move(colon), std::move(condition.value()), std::move(true_branch.value()), std::move(else_branch.value()) });
+			return std::make_unique<MidoriExpression>(Ternary{ std::move(question), std::move(colon), std::move(condition.value()), std::move(true_branch.value()), std::move(else_branch.value()), ConditionOperandType::OTHER });
 		}
 		else
 		{
@@ -1062,7 +1062,7 @@ MidoriResult::StatementResult Parser::ParseIfStatement()
 		else_branch.emplace(std::move(else_branch_result.value()));
 	}
 
-	return std::make_unique<MidoriStatement>(If{ std::move(if_token), std::move(else_token), std::move(else_branch), std::move(condition.value()), std::move(then_branch.value()) });
+	return std::make_unique<MidoriStatement>(If{ std::move(if_token), std::move(else_token), std::move(else_branch), std::move(condition.value()), std::move(then_branch.value()), ConditionOperandType::OTHER });
 }
 
 MidoriResult::StatementResult Parser::ParseWhileStatement()

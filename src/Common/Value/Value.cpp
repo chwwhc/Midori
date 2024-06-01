@@ -382,10 +382,7 @@ void MidoriTraceable::Trace()
 		for (int i = 0; i < cell_values.GetLength(); i += 1)
 		{
 			MidoriValue& val = cell_values[i];
-			if (val.IsPointer())
-			{
-				val.GetPointer()->Trace();
-			}
+			val.GetPointer()->Trace();
 		}
 	}
 	else if (IsCellValue())
@@ -425,7 +422,8 @@ void MidoriTraceable::Trace()
 
 MidoriArray::MidoriArray(int size)
 {
-	m_size = size <= 0 ? s_initial_capacity : size;
+	m_size = size < 0 ? s_initial_capacity : size;
+	m_end = m_size;
 
 	m_data = static_cast<MidoriValue*>(std::malloc(static_cast<size_t>(size) * sizeof(MidoriValue)));
 	if (!m_data)
@@ -500,7 +498,7 @@ void MidoriArray::Expand()
 {
 	size_t new_size = m_size == 0u
 		? s_initial_capacity
-		: static_cast<size_t>(m_size) * 2;
+		: static_cast<size_t>(m_size) * 2u;
 	MidoriValue* new_data = static_cast<MidoriValue*>(std::realloc(m_data, new_size * sizeof(MidoriValue)));
 	if (!new_data)
 	{
