@@ -25,7 +25,3 @@ inline constexpr int MAX_UNION_TAG{ UINT8_MAX };
 inline constexpr int MAX_ARRAY_SIZE{ ((UINT16_MAX << 8) | 0xffff) };
 
 inline constexpr int MAX_NESTED_ARRAY_INDEX{ UINT8_MAX };
-
-inline constexpr MidoriInteger THREE_BYTES_INT_MAX{ 0x7FFFFFll };
-
-inline constexpr MidoriInteger THREE_BYTES_INT_MIN{ -0x800000ll };

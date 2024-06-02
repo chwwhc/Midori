@@ -34,18 +34,23 @@ namespace
 		Printer::Print(formated_str.str());
 	}
 
-	void SmallIntConstantInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
+	void IntegerConstantInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
-		int operand = static_cast<int>(executable.ReadByteCode(offset + 1, proc_index)) |
-			(static_cast<int>(executable.ReadByteCode(offset + 2, proc_index)) << 8) |
-			(static_cast<int>(executable.ReadByteCode(offset + 3, proc_index)) << 16);
-		offset += 4;
+		int64_t operand = static_cast<int64_t>(executable.ReadByteCode(offset + 1, proc_index)) |
+			(static_cast<int64_t>(executable.ReadByteCode(offset + 2, proc_index)) << 8) |
+			(static_cast<int64_t>(executable.ReadByteCode(offset + 3, proc_index)) << 16) |
+			(static_cast<int64_t>(executable.ReadByteCode(offset + 4, proc_index)) << 24) |
+			(static_cast<int64_t>(executable.ReadByteCode(offset + 5, proc_index)) << 32) |
+			(static_cast<int64_t>(executable.ReadByteCode(offset + 6, proc_index)) << 40) |
+			(static_cast<int64_t>(executable.ReadByteCode(offset + 7, proc_index)) << 48) |
+			(static_cast<int64_t>(executable.ReadByteCode(offset + 8, proc_index)) << 56);
+		offset += 9;
 
 		std::ostringstream formated_str;
 
 		formated_str << std::left << std::setw(instr_width) << name;
 		formated_str << ' ' << std::dec << operand;
-		formated_str << two_tabs << std::setw(comment_width) << " // small int value: " << std::to_string(operand) << std::setfill(' ') << '\n';
+		formated_str << two_tabs << std::setw(comment_width) << " // value: " << std::to_string(operand) << std::setfill(' ') << '\n';
 		Printer::Print(formated_str.str());
 	}
 
@@ -270,8 +275,8 @@ namespace Disassembler
 		case OpCode::LOAD_CONSTANT_LONG_LONG:
 			ConstantInstruction("LOAD_CONSTANT_LONG_LONG", executable, proc_index, offset);
 			break;
-		case OpCode::SMALL_INTEGER_CONSTANT:
-			SmallIntConstantInstruction("SMALL_INTEGER_CONSTANT", executable, proc_index, offset);
+		case OpCode::INTEGER_CONSTANT:
+			IntegerConstantInstruction("INTEGER_CONSTANT", executable, proc_index, offset);
 			break;
 		case OpCode::OP_UNIT:
 			SimpleInstruction("OP_UNIT", offset);

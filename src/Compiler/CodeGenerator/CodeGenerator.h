@@ -145,6 +145,8 @@ private:
 
 	void EmitThreeBytes(int byte1, int byte2, int byte3, int line);
 
+	void EmitIntegerConstant(MidoriInteger val, int line);
+
 	void EmitConstant(MidoriValue&& value, int line);
 
 	void EmitVariable(int variable_index, OpCode op, int line);

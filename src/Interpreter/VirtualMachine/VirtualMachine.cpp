@@ -15,7 +15,6 @@ VirtualMachine::VirtualMachine(MidoriExecutable&& executable) noexcept : m_execu
 
 	m_global_vars.resize(static_cast<size_t>(m_executable.GetGlobalVariableCount()));
 	m_instruction_pointer = &*m_executable.GetBytecodeStream(runtime_startup_proc_index).cbegin();
-	m_cells_to_promote.reserve(UINT8_MAX);
 	(*m_call_stack)[0u] = CallFrame{ nullptr, nullptr, nullptr, sentinel_closure };
 }
 
@@ -95,6 +94,13 @@ int VirtualMachine::ReadThreeBytes() noexcept
 #error "Endianness not defined!"
 #endif
 
+MidoriInteger VirtualMachine::ReadIntegerConstant() noexcept
+{
+	MidoriInteger value = *reinterpret_cast<const MidoriInteger*>(m_instruction_pointer);
+	m_instruction_pointer += sizeof(MidoriInteger);
+	return value;
+}
+
 const MidoriValue& VirtualMachine::ReadConstant(OpCode operand_length) noexcept
 {
 	int index = 0;
@@ -167,21 +173,17 @@ MidoriValue& VirtualMachine::Pop() noexcept
 
 void VirtualMachine::PromoteCells() noexcept
 {
-	std::for_each
-	(
-		std::execution::par_unseq,
-		m_cells_to_promote.begin(),
-		m_cells_to_promote.end(),
-		[this](MidoriCellValue* cell) -> void
+	for (size_t i = 0u; i < m_cell_promotion_count; i += 1u)
+	{
+		MidoriCellValue* cell = m_cells_to_promote[i];
+		if (cell->m_stack_value_ref >= m_value_stack_base_pointer)
 		{
-			if (cell->m_stack_value_ref >= m_value_stack_base_pointer)
-			{
-				cell->m_heap_value = *cell->m_stack_value_ref;
-				cell->m_is_on_heap = true;
-			}
+			cell->m_heap_value = *cell->m_stack_value_ref;
+			cell->m_is_on_heap = true;
 		}
-	);
-	m_cells_to_promote.clear();
+	}
+
+	m_cell_promotion_count = 0u;
 }
 
 void VirtualMachine::CheckIndexBounds(const MidoriValue& index, MidoriInteger size) noexcept
@@ -340,9 +342,9 @@ void VirtualMachine::Execute() noexcept
 					Push(ReadConstant(instruction));
 					break;
 				}
-				case OpCode::SMALL_INTEGER_CONSTANT:
+				case OpCode::INTEGER_CONSTANT:
 				{
-					Push(static_cast<MidoriInteger>(ReadThreeBytes()));
+					Push(static_cast<MidoriInteger>(ReadIntegerConstant()));
 					break;
 				}
 				case OpCode::OP_UNIT:
@@ -1180,7 +1182,7 @@ void VirtualMachine::Execute() noexcept
 							MidoriValue* stack_value_ref = &value;
 							MidoriValue cell_value = MidoriTraceable::AllocateTraceable(MidoriCellValue{ MidoriValue(), stack_value_ref, false });
 							captured_variables.Add(cell_value);
-							m_cells_to_promote.emplace_back(&cell_value.GetPointer()->GetCellValue());
+							m_cells_to_promote[m_cell_promotion_count++] = &cell_value.GetPointer()->GetCellValue();
 						}
 					);
 					CollectGarbage();

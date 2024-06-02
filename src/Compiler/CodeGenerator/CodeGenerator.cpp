@@ -33,19 +33,35 @@ void CodeGenerator::EmitThreeBytes(int byte1, int byte2, int byte3, int line)
 	EmitByte(static_cast<OpCode>(byte3 & 0xff), line);
 }
 
+void CodeGenerator::EmitIntegerConstant(MidoriInteger val, int line)
+{
+	int byte1 = val & 0xff;
+	int byte2 = (val >> 8) & 0xff;
+	int byte3 = (val >> 16) & 0xff;
+	int byte4 = (val >> 24) & 0xff;
+	int byte5 = (val >> 32) & 0xff;
+	int byte6 = (val >> 40) & 0xff;
+	int byte7 = (val >> 48) & 0xff;
+	int byte8 = (val >> 56) & 0xff;
+
+	EmitByte(OpCode::INTEGER_CONSTANT, line);
+	EmitByte(static_cast<OpCode>(byte1), line);
+	EmitByte(static_cast<OpCode>(byte2), line);
+	EmitByte(static_cast<OpCode>(byte3), line);
+	EmitByte(static_cast<OpCode>(byte4), line);
+	EmitByte(static_cast<OpCode>(byte5), line);
+	EmitByte(static_cast<OpCode>(byte6), line);
+	EmitByte(static_cast<OpCode>(byte7), line);
+	EmitByte(static_cast<OpCode>(byte8), line);
+}
+
 void CodeGenerator::EmitConstant(MidoriValue&& value, int line)
 {
 	if (value.IsInteger())
 	{
 		MidoriInteger integer_val = value.GetInteger();
-
-		if (integer_val <= THREE_BYTES_INT_MAX && integer_val >= THREE_BYTES_INT_MIN)
-		{
-			int i32_val = static_cast<int>(integer_val);
-			EmitByte(OpCode::SMALL_INTEGER_CONSTANT, line);
-			EmitThreeBytes(i32_val, i32_val >> 8, i32_val >> 16, line);
-			return;
-		}
+		EmitIntegerConstant(integer_val, line);
+		return;
 	}
 
 	if (value.IsPointer())

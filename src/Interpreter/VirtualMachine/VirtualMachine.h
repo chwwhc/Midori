@@ -46,10 +46,10 @@ private:
 
 	using CallStackPointer = CallFrame*;
 
+	std::array<MidoriCellValue*, 256> m_cells_to_promote;
 	MidoriExecutable m_executable;
 	GlobalVariables m_global_vars;
 	GarbageCollector m_garbage_collector;
-	std::vector<MidoriCellValue*> m_cells_to_promote;
 	std::unique_ptr<std::array<MidoriValue, s_value_stack_max>> m_value_stack{ std::make_unique<std::array<MidoriValue, s_value_stack_max>>() };
 	std::unique_ptr<std::array<CallFrame, s_call_stack_max>> m_call_stack{ std::make_unique<std::array<CallFrame, s_call_stack_max>>() };
 	MidoriClosure::Environment* m_curr_environment{ nullptr };
@@ -61,6 +61,7 @@ private:
 	CallStackPointer m_call_stack_pointer = &(*m_call_stack)[1u];
 	CallStackPointer m_call_stack_begin = &(*m_call_stack)[1u];
 	CallStackPointer m_call_stack_end = &(*m_call_stack)[static_cast<size_t>(s_call_stack_max) - 1u];
+	size_t m_cell_promotion_count{ 0u };
 
 #ifdef _WIN32
 	HMODULE m_library_handle = nullptr;
@@ -84,6 +85,8 @@ private:
 	int ReadShort() noexcept;
 
 	int ReadThreeBytes() noexcept;
+
+	MidoriInteger ReadIntegerConstant() noexcept;
 
 	const MidoriValue& ReadConstant(OpCode operand_length) noexcept;
 
