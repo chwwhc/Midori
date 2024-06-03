@@ -1,4 +1,4 @@
-#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+#include "E:\Projects\Midori\MidoriPrelude\IO.mdr"
 
 var makeRecursive = fn(var n : Int) : (Int) -> Int 
 {

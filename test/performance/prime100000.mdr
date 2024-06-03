@@ -1,4 +1,5 @@
-#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+#include "E:\Projects\Midori\MidoriPrelude\IO.mdr"
+#include "E:\Projects\Midori\MidoriPrelude\DateTime.mdr"
 
 fixed TestPrimeNumbers = fn() : Unit
 {

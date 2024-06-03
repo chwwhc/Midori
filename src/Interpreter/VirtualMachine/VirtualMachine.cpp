@@ -101,6 +101,13 @@ MidoriInteger VirtualMachine::ReadIntegerConstant() noexcept
 	return value;
 }
 
+MidoriFraction VirtualMachine::ReadFractionConstant() noexcept
+{
+	MidoriFraction value = *reinterpret_cast<const MidoriFraction*>(m_instruction_pointer);
+	m_instruction_pointer += sizeof(MidoriFraction);
+	return value;
+}
+
 const MidoriValue& VirtualMachine::ReadConstant(OpCode operand_length) noexcept
 {
 	int index = 0;
@@ -344,7 +351,12 @@ void VirtualMachine::Execute() noexcept
 				}
 				case OpCode::INTEGER_CONSTANT:
 				{
-					Push(static_cast<MidoriInteger>(ReadIntegerConstant()));
+					Push(ReadIntegerConstant());
+					break;
+				}
+				case OpCode::FRACTION_CONSTANT:
+				{
+					Push(ReadFractionConstant());
 					break;
 				}
 				case OpCode::OP_UNIT:
@@ -1301,8 +1313,11 @@ void VirtualMachine::Execute() noexcept
 				}
 				default:
 				{
-					TerminateExecution(GenerateRuntimeError("Unknown Instruction.", GetLine()));
-					break;
+#ifdef _MSC_VER
+					__assume(0);
+#else
+					__builtin_unreachable();
+#endif
 				}
 				}
 			}

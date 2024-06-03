@@ -34,23 +34,30 @@ namespace
 		Printer::Print(formated_str.str());
 	}
 
-	void IntegerConstantInstruction(std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
+	void NumericConstantInstruction(bool is_integer, std::string_view name, const MidoriExecutable& executable, int proc_index, int& offset)
 	{
-		int64_t operand = static_cast<int64_t>(executable.ReadByteCode(offset + 1, proc_index)) |
-			(static_cast<int64_t>(executable.ReadByteCode(offset + 2, proc_index)) << 8) |
-			(static_cast<int64_t>(executable.ReadByteCode(offset + 3, proc_index)) << 16) |
-			(static_cast<int64_t>(executable.ReadByteCode(offset + 4, proc_index)) << 24) |
-			(static_cast<int64_t>(executable.ReadByteCode(offset + 5, proc_index)) << 32) |
-			(static_cast<int64_t>(executable.ReadByteCode(offset + 6, proc_index)) << 40) |
-			(static_cast<int64_t>(executable.ReadByteCode(offset + 7, proc_index)) << 48) |
-			(static_cast<int64_t>(executable.ReadByteCode(offset + 8, proc_index)) << 56);
+		std::byte operand_bytes[8];
+		for (int i = 0; i < 8; i += 1)
+		{
+			operand_bytes[i] = static_cast<std::byte>(executable.ReadByteCode(offset + 1 + i, proc_index));
+		}
 		offset += 9;
 
 		std::ostringstream formated_str;
+		MidoriFraction as_fraction = *reinterpret_cast<MidoriFraction*>(operand_bytes);
+		MidoriInteger as_integer = *reinterpret_cast<MidoriInteger*>(operand_bytes);
 
 		formated_str << std::left << std::setw(instr_width) << name;
-		formated_str << ' ' << std::dec << operand;
-		formated_str << two_tabs << std::setw(comment_width) << " // value: " << std::to_string(operand) << std::setfill(' ') << '\n';
+		if (is_integer)
+		{
+			formated_str << ' ' << std::dec << as_integer;
+			formated_str << two_tabs << std::setw(comment_width) << " // value: " << std::to_string(as_integer) << std::setfill(' ') << '\n';
+		}
+		else
+		{
+			formated_str << ' ' << std::dec << as_fraction;
+			formated_str << two_tabs << std::setw(comment_width) << " // value: " << std::to_string(as_fraction) << std::setfill(' ') << '\n';
+		}
 		Printer::Print(formated_str.str());
 	}
 
@@ -276,7 +283,10 @@ namespace Disassembler
 			ConstantInstruction("LOAD_CONSTANT_LONG_LONG", executable, proc_index, offset);
 			break;
 		case OpCode::INTEGER_CONSTANT:
-			IntegerConstantInstruction("INTEGER_CONSTANT", executable, proc_index, offset);
+			NumericConstantInstruction(true, "INTEGER_CONSTANT", executable, proc_index, offset);
+			break;
+		case OpCode::FRACTION_CONSTANT:
+			NumericConstantInstruction(false, "INTEGER_CONSTANT", executable, proc_index, offset);
 			break;
 		case OpCode::OP_UNIT:
 			SimpleInstruction("OP_UNIT", offset);

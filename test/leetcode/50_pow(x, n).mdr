@@ -1,4 +1,4 @@
-#include "E:\Projects\Midori\MidoriUtil\MidoriUtil.mdr"
+#include "E:\Projects\Midori\MidoriPrelude\IO.mdr"
 
 fixed Pow = fn(fixed x : Frac, fixed n : Int) : Frac
 {

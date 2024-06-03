@@ -33,7 +33,7 @@ void CodeGenerator::EmitThreeBytes(int byte1, int byte2, int byte3, int line)
 	EmitByte(static_cast<OpCode>(byte3 & 0xff), line);
 }
 
-void CodeGenerator::EmitIntegerConstant(MidoriInteger val, int line)
+void CodeGenerator::EmitNumericConstant(MidoriInteger val, int line, bool is_integer)
 {
 	int byte1 = val & 0xff;
 	int byte2 = (val >> 8) & 0xff;
@@ -44,7 +44,14 @@ void CodeGenerator::EmitIntegerConstant(MidoriInteger val, int line)
 	int byte7 = (val >> 48) & 0xff;
 	int byte8 = (val >> 56) & 0xff;
 
-	EmitByte(OpCode::INTEGER_CONSTANT, line);
+	if (is_integer)
+	{
+		EmitByte(OpCode::INTEGER_CONSTANT, line);
+	}
+	else
+	{
+		EmitByte(OpCode::FRACTION_CONSTANT, line);
+	}
 	EmitByte(static_cast<OpCode>(byte1), line);
 	EmitByte(static_cast<OpCode>(byte2), line);
 	EmitByte(static_cast<OpCode>(byte3), line);
@@ -60,7 +67,14 @@ void CodeGenerator::EmitConstant(MidoriValue&& value, int line)
 	if (value.IsInteger())
 	{
 		MidoriInteger integer_val = value.GetInteger();
-		EmitIntegerConstant(integer_val, line);
+		EmitNumericConstant(integer_val, line, true);
+		return;
+	}
+	else if (value.IsFraction())
+	{
+		MidoriFraction fraction_val = value.GetFraction();
+		MidoriInteger reinterpreted_int = *reinterpret_cast<MidoriInteger*>(&fraction_val);
+		EmitNumericConstant(reinterpreted_int, line, false);
 		return;
 	}
 

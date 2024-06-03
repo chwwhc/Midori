@@ -88,6 +88,8 @@ private:
 
 	MidoriInteger ReadIntegerConstant() noexcept;
 
+	MidoriFraction ReadFractionConstant() noexcept;
+
 	const MidoriValue& ReadConstant(OpCode operand_length) noexcept;
 
 	int ReadGlobalVariable() noexcept;

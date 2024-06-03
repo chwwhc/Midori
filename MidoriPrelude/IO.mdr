@@ -2,15 +2,14 @@ namespace IO
 {
 	foreign "Print" Print : (Text) -> Unit;
 
+	foreign "OverwriteToFile" OverwriteToFile : (Text, Text) -> Bool;
+
+	foreign "AppendToFile" AppendToFile : (Text, Text) -> Bool;
+
 	fixed PrintLine = fn(fixed text : Text) : Unit
 	{
 		Print(text);
 		Print("\n");
 		return ();
 	};
-}
-
-namespace DateTime
-{
-	foreign "GetTime" GetTime : () -> Frac;
 }

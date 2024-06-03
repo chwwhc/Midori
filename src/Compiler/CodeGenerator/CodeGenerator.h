@@ -145,7 +145,7 @@ private:
 
 	void EmitThreeBytes(int byte1, int byte2, int byte3, int line);
 
-	void EmitIntegerConstant(MidoriInteger val, int line);
+	void EmitNumericConstant(MidoriInteger val, int line, bool is_integer);
 
 	void EmitConstant(MidoriValue&& value, int line);
 
