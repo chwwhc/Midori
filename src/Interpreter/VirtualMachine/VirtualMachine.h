@@ -106,6 +106,8 @@ private:
 
 	void CheckIndexBounds(const MidoriValue& index, MidoriInteger size) noexcept;
 
+	void CheckNewArraySize(MidoriInteger size) noexcept;
+
 	MidoriTraceable::GarbageCollectionRoots GetValueStackGarbageCollectionRoots() const noexcept;
 
 	MidoriTraceable::GarbageCollectionRoots GetGlobalTableGarbageCollectionRoots() const noexcept;

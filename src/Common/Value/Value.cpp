@@ -189,7 +189,7 @@ MidoriText MidoriTraceable::ToText()
 				{
 					result.Append(arg[idx].ToText()).Append(", ");
 				}
-				result.Pop().Append("]");
+				result.Pop().Pop().Append("]");
 				return result;
 			}
 			else if constexpr (std::is_same_v<T, MidoriCellValue>)

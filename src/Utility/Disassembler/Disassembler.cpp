@@ -306,6 +306,9 @@ namespace Disassembler
 		case OpCode::SET_ARRAY:
 			ArrayInstruction("SET_ARRAY", executable, proc_index, offset);
 			break;
+		case OpCode::DUP_ARRAY:
+			SimpleInstruction("DUP_ARRAY", offset);
+			break;
 		case OpCode::CAST_TO_FRACTION:
 			SimpleInstruction("CAST_TO_FRACTION", offset);
 			break;

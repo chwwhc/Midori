@@ -20,6 +20,7 @@ enum class OpCode : uint8_t
 	CREATE_ARRAY,
 	GET_ARRAY,
 	SET_ARRAY,
+	DUP_ARRAY,
 
 	// Atomic type casting
 	CAST_TO_FRACTION,

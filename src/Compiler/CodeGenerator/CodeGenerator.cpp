@@ -641,7 +641,11 @@ void CodeGenerator::operator()(Binary& binary)
 		MidoriTypeUtil::IsFractionType(expr_type) ? EmitByte(OpCode::SUBTRACT_FRACTION, line) : EmitByte(OpCode::SUBTRACT_INTEGER, line);
 		break;
 	case Token::Name::STAR:
-		MidoriTypeUtil::IsFractionType(expr_type) ? EmitByte(OpCode::MULTIPLY_FRACTION, line) : EmitByte(OpCode::MULTIPLY_INTEGER, line);
+		MidoriTypeUtil::IsFractionType(expr_type) 
+			? EmitByte(OpCode::MULTIPLY_FRACTION, line) 
+			: MidoriTypeUtil::IsIntegerType(expr_type)
+			? EmitByte(OpCode::MULTIPLY_INTEGER, line)
+			: EmitByte(OpCode::DUP_ARRAY, line);
 		break;
 	case Token::Name::SLASH:
 		MidoriTypeUtil::IsFractionType(expr_type) ? EmitByte(OpCode::DIVIDE_FRACTION, line) : EmitByte(OpCode::DIVIDE_INTEGER, line);
@@ -1094,7 +1098,7 @@ void CodeGenerator::operator()(Ternary& ternary)
 		{
 			(*this)(arg);
 		}, *ternary.m_condition);
-	
+
 	if (ternary.m_condition_operand_type == ConditionOperandType::INTEGER || ternary.m_condition_operand_type == ConditionOperandType::FRACTION)
 	{
 		EmitNumericConditionalJump<std::unique_ptr<MidoriExpression>&>(ternary.m_condition_operand_type, ternary.m_true_branch, ternary.m_else_branch, line);

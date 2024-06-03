@@ -1,6 +1,7 @@
 #include "VirtualMachine.h"
 #include "Utility/Disassembler/Disassembler.h"
 #include "Common/Printer/Printer.h"
+#include "Common/Constant/Constant.h"
 
 #include <cmath>
 #include <algorithm>
@@ -196,10 +197,22 @@ void VirtualMachine::PromoteCells() noexcept
 void VirtualMachine::CheckIndexBounds(const MidoriValue& index, MidoriInteger size) noexcept
 {
 	MidoriInteger val = index.GetInteger();
-	if (val < 0ll || val >= size) [[unlikely]]
-		{
-			TerminateExecution(GenerateRuntimeError(std::format("Index out of bounds at index: {}.", val), GetLine()));
-		}
+	if (val < 0ll || val >= size)
+	{
+		TerminateExecution(GenerateRuntimeError(std::format("Index out of bounds at index: {}.", val), GetLine()));
+	}
+}
+
+void VirtualMachine::CheckNewArraySize(MidoriInteger size) noexcept
+{
+	if (size < 0)
+	{
+		TerminateExecution(GenerateRuntimeError("Array size cannot be negative.", GetLine()));
+	}
+	else if (size > MAX_ARRAY_SIZE)
+	{
+		TerminateExecution(GenerateRuntimeError("Array size exceeds maximum array size.", GetLine()));
+	}
 }
 
 MidoriTraceable::GarbageCollectionRoots VirtualMachine::GetGlobalTableGarbageCollectionRoots() const noexcept
@@ -452,6 +465,25 @@ void VirtualMachine::Execute() noexcept
 					}
 
 					Push(value_to_set);
+					break;
+				}
+				case OpCode::DUP_ARRAY:
+				{
+					MidoriValue& size = Pop();
+					MidoriValue& arr = Pop();
+					MidoriArray& arr_ref = arr.GetPointer()->GetArray();
+
+					MidoriInteger new_size = size.GetInteger() * arr_ref.GetLength();
+					CheckNewArraySize(new_size);
+
+					MidoriArray new_arr(static_cast<int>(new_size));
+					for (int i = 0; i < static_cast<int>(new_size); i += 1)
+					{
+						new_arr[i] = arr_ref[i % arr_ref.GetLength()];
+					}
+
+					Push(MidoriTraceable::AllocateTraceable(std::move(new_arr)));
+					CollectGarbage();
 					break;
 				}
 				case OpCode::CAST_TO_FRACTION:
@@ -1055,7 +1087,7 @@ void VirtualMachine::Execute() noexcept
 				{
 					MidoriValue& union_val = Pop();
 					MidoriUnion& union_ref = union_val.GetPointer()->GetUnion();
-					
+
 					for (int i = 0; i < union_ref.m_values.GetLength(); i += 1)
 					{
 						Push(union_ref.m_values[i]);
@@ -1065,7 +1097,7 @@ void VirtualMachine::Execute() noexcept
 					break;
 				}
 				case OpCode::SET_TAG:
-				{ 
+				{
 					int tag = static_cast<int>(ReadByte());
 					MidoriUnion& union_ref = Peek().GetPointer()->GetUnion();
 					union_ref.m_index = tag;

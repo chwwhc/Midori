@@ -567,19 +567,29 @@ MidoriResult::TypeResult TypeChecker::operator()(Binary& binary)
 	{
 		return right_result;
 	}
-	m_expression_type_info[binary.m_left.get()] = left_result.value();
-	m_expression_type_info[binary.m_right.get()] = right_result.value();
 
-	if (*left_result.value() != *right_result.value())
+	const MidoriType* left_type = left_result.value();
+	const MidoriType* right_type = right_result.value();
+	m_expression_type_info[binary.m_left.get()] = left_type;
+	m_expression_type_info[binary.m_right.get()] = right_type;
+
+	// Handle array duplication
+	if (binary.m_op.m_token_name == Token::Name::STAR && MidoriTypeUtil::IsArrayType(left_type) && MidoriTypeUtil::IsIntegerType(right_type))
 	{
-		std::string left_type = MidoriTypeUtil::GetTypeName(left_result.value());
-		std::string right_type = MidoriTypeUtil::GetTypeName(right_result.value());
-		std::string error_message = std::format("Binary expression type error: left type is {}, right type is {}", left_type, right_type);
-		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError(error_message, binary.m_op, {}, right_result.value()));
+		binary.m_type = left_type;
+		return left_type;
 	}
 
-	binary.m_type = left_result.value();
-	const MidoriType* actual_type = left_result.value();
+	if (*left_type != *right_type)
+	{
+		std::string left_type_str = MidoriTypeUtil::GetTypeName(left_type);
+		std::string right_type_str = MidoriTypeUtil::GetTypeName(right_type);
+		std::string error_message = std::format("Binary expression type error: left type is {}, right type is {}", left_type_str, right_type_str);
+		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError(error_message, binary.m_op, {}, right_type));
+	}
+
+	binary.m_type = left_type;
+	const MidoriType* actual_type = left_type;
 
 	if (std::find(m_binary_partial_order_comparison_operators.cbegin(), m_binary_partial_order_comparison_operators.cend(), binary.m_op.m_token_name) != m_binary_partial_order_comparison_operators.cend())
 	{
@@ -619,7 +629,7 @@ MidoriResult::TypeResult TypeChecker::operator()(Binary& binary)
 	}
 	else if (std::find(m_binary_logical_operators.cbegin(), m_binary_logical_operators.cend(), binary.m_op.m_token_name) != m_binary_logical_operators.cend())
 	{
-		if (!MidoriTypeUtil::IsBoolType(left_result.value()))
+		if (!MidoriTypeUtil::IsBoolType(left_type))
 		{
 			std::array<const MidoriType*, 1> expected_types = { MidoriTypeUtil::GetType("Bool"s) };
 			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Binary expression type error", binary.m_op, expected_types, actual_type));
@@ -629,7 +639,7 @@ MidoriResult::TypeResult TypeChecker::operator()(Binary& binary)
 	}
 	else if (std::find(m_binary_concatenation_operators.cbegin(), m_binary_concatenation_operators.cend(), binary.m_op.m_token_name) != m_binary_concatenation_operators.cend())
 	{
-		if (!(MidoriTypeUtil::IsTextType(left_result.value()) || MidoriTypeUtil::IsArrayType(left_result.value())))
+		if (!(MidoriTypeUtil::IsTextType(left_type) || MidoriTypeUtil::IsArrayType(left_type)))
 		{
 			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Binary expression type error: expected array or text", binary.m_op, {}, actual_type));
 		}
