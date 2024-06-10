@@ -322,6 +322,10 @@ MidoriResult::TokenResult Lexer::LexOneToken()
 		{
 			return MakeToken(Token::Name::DOUBLE_PLUS);
 		}
+		else if (MatchNext(':'))
+		{
+			return MakeToken(Token::Name::PLUS_COLON);
+		}
 		else
 		{
 			return MakeToken(Token::Name::SINGLE_PLUS);
@@ -345,6 +349,10 @@ MidoriResult::TokenResult Lexer::LexOneToken()
 		if (MatchNext(':'))
 		{
 			return MakeToken(Token::Name::DOUBLE_COLON);
+		}
+		else if (MatchNext('+'))
+		{
+			return MakeToken(Token::Name::COLON_PLUS);
 		}
 		else
 		{

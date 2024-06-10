@@ -720,9 +720,17 @@ void CodeGenerator::operator()(Binary& binary)
 		PatchJump(jump_if_false, line);
 		break;
 	}
-	default:
-		AddError(MidoriError::GenerateCodeGeneratorError("Unrecognized binary operator.", line));
-		break; // Unreachable
+	case Token::Name::PLUS_COLON:
+		EmitByte(OpCode::ADD_FRONT_ARRAY, line);
+		break;
+	case Token::Name::COLON_PLUS:
+		EmitByte(OpCode::ADD_BACK_ARRAY, line);
+		break;
+#ifdef _MSC_VER
+		__assume(0);
+#else
+		__builtin_unreachable();
+#endif 
 	}
 	return;
 }
@@ -740,7 +748,7 @@ void CodeGenerator::operator()(UnaryPrefix& unary)
 	std::visit([this](auto&& arg)
 		{
 			(*this)(arg);
-		}, *unary.m_right);
+		}, *unary.m_expr);
 
 	switch (unary.m_op.m_token_name)
 	{
@@ -756,9 +764,19 @@ void CodeGenerator::operator()(UnaryPrefix& unary)
 		EmitByte(OpCode::BITWISE_NOT, unary.m_op.m_line);
 		break;
 	default:
-		break; // Unreachable
+#ifdef _MSC_VER
+		__assume(0);
+#else
+		__builtin_unreachable();
+#endif
 	}
 
+	return;
+}
+
+void CodeGenerator::operator()(UnarySuffix& unary)
+{
+	// TODO: no suffix operators at the moment
 	return;
 }
 

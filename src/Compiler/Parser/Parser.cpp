@@ -280,7 +280,7 @@ MidoriResult::ExpressionResult Parser::ParseShift()
 
 MidoriResult::ExpressionResult Parser::ParseTerm()
 {
-	return ParseBinary(&Parser::ParseFactor, Token::Name::SINGLE_PLUS, Token::Name::DOUBLE_PLUS, Token::Name::SINGLE_MINUS);
+	return ParseBinary(&Parser::ParseFactor, Token::Name::SINGLE_PLUS, Token::Name::DOUBLE_PLUS, Token::Name::SINGLE_MINUS, Token::Name::COLON_PLUS, Token::Name::PLUS_COLON);
 }
 
 MidoriResult::ExpressionResult Parser::ParseComparison()
@@ -435,13 +435,13 @@ MidoriResult::ExpressionResult Parser::ParseAs()
 	MidoriResult::ExpressionResult expr = ParseBind();
 	VERIFY_RESULT(expr);
 
-	if (Match(Token::Name::AS))
+	while (Match(Token::Name::AS))
 	{
 		Token& as = Previous();
 		MidoriResult::TypeResult type = ParseType();
 		VERIFY_RESULT(type);
 
-		return std::make_unique<MidoriExpression>(As{ std::move(as), std::move(expr.value()), std::move(type.value()) });
+		expr = std::make_unique<MidoriExpression>(As{ std::move(as), std::move(expr.value()), std::move(type.value()) });
 	}
 
 	return expr;

@@ -8,11 +8,16 @@
 
 using namespace std::string_literals;
 
-struct FractionType {};
-struct IntegerType {};
-struct TextType {};
-struct BoolType {};
-struct UnitType {};
+struct FractionType
+{};
+struct IntegerType
+{};
+struct TextType
+{};
+struct BoolType
+{};
+struct UnitType
+{};
 struct ArrayType;
 struct FunctionType;
 struct StructType;
@@ -51,29 +56,65 @@ struct UnionType
 	std::string m_name;
 };
 
-inline bool operator==(const IntegerType&, const IntegerType&) { return true; }
+inline bool operator==(const IntegerType&, const IntegerType&)
+{
+	return true;
+}
 
-inline bool operator==(const FractionType&, const FractionType&) { return true; }
+inline bool operator==(const FractionType&, const FractionType&)
+{
+	return true;
+}
 
-inline bool operator==(const TextType&, const TextType&) { return true; }
+inline bool operator==(const TextType&, const TextType&)
+{
+	return true;
+}
 
-inline bool operator==(const BoolType&, const BoolType&) { return true; }
+inline bool operator==(const BoolType&, const BoolType&)
+{
+	return true;
+}
 
-inline bool operator==(const UnitType&, const UnitType&) { return true; }
+inline bool operator==(const UnitType&, const UnitType&)
+{
+	return true;
+}
 
-inline bool operator!=(const IntegerType& lhs, const IntegerType& rhs) { return !(lhs == rhs); }
+inline bool operator!=(const IntegerType& lhs, const IntegerType& rhs)
+{
+	return !(lhs == rhs);
+}
 
-inline bool operator!=(const FractionType& lhs, const FractionType& rhs) { return !(lhs == rhs); }
+inline bool operator!=(const FractionType& lhs, const FractionType& rhs)
+{
+	return !(lhs == rhs);
+}
 
-inline bool operator!=(const TextType& lhs, const TextType& rhs) { return !(lhs == rhs); }
+inline bool operator!=(const TextType& lhs, const TextType& rhs)
+{
+	return !(lhs == rhs);
+}
 
-inline bool operator!=(const BoolType& lhs, const BoolType& rhs) { return !(lhs == rhs); }
+inline bool operator!=(const BoolType& lhs, const BoolType& rhs)
+{
+	return !(lhs == rhs);
+}
 
-inline bool operator!=(const UnitType& lhs, const UnitType& rhs) { return !(lhs == rhs); }
+inline bool operator!=(const UnitType& lhs, const UnitType& rhs)
+{
+	return !(lhs == rhs);
+}
 
-inline bool operator==(const ArrayType& lhs, const ArrayType& rhs) { return *lhs.m_element_type == *rhs.m_element_type; }
+inline bool operator==(const ArrayType& lhs, const ArrayType& rhs)
+{
+	return *lhs.m_element_type == *rhs.m_element_type;
+}
 
-inline bool operator!=(const ArrayType& lhs, const ArrayType& rhs) { return !(lhs == rhs); }
+inline bool operator!=(const ArrayType& lhs, const ArrayType& rhs)
+{
+	return !(lhs == rhs);
+}
 
 inline bool operator==(const FunctionType& lhs, const FunctionType& rhs)
 {
@@ -91,15 +132,30 @@ inline bool operator==(const FunctionType& lhs, const FunctionType& rhs)
 	return *lhs.m_return_type == *rhs.m_return_type;
 }
 
-inline bool operator!=(const FunctionType& lhs, const FunctionType& rhs) { return !(lhs == rhs); }
+inline bool operator!=(const FunctionType& lhs, const FunctionType& rhs)
+{
+	return !(lhs == rhs);
+}
 
-inline bool operator==(const StructType& lhs, const StructType& rhs) { return lhs.m_name == rhs.m_name; }
+inline bool operator==(const StructType& lhs, const StructType& rhs)
+{
+	return lhs.m_name == rhs.m_name;
+}
 
-inline bool operator!=(const StructType& lhs, const StructType& rhs) { return !(lhs == rhs); }
+inline bool operator!=(const StructType& lhs, const StructType& rhs)
+{
+	return !(lhs == rhs);
+}
 
-inline bool operator==(const UnionType& lhs, const UnionType& rhs) { return lhs.m_name == rhs.m_name; }
+inline bool operator==(const UnionType& lhs, const UnionType& rhs)
+{
+	return lhs.m_name == rhs.m_name;
+}
 
-inline bool operator!=(const UnionType& lhs, const UnionType& rhs) { return !(lhs == rhs); }
+inline bool operator!=(const UnionType& lhs, const UnionType& rhs)
+{
+	return !(lhs == rhs);
+}
 
 inline bool operator==(const MidoriType& lhs, const MidoriType& rhs)
 {
@@ -117,10 +173,14 @@ inline bool operator==(const MidoriType& lhs, const MidoriType& rhs)
 			{
 				// Types match, compare values
 				return a == b;
-			}}, lhs, rhs);
+			}
+		}, lhs, rhs);
 }
 
-inline bool operator!=(const MidoriType& lhs, const MidoriType& rhs) { return !(lhs == rhs); }
+inline bool operator!=(const MidoriType& lhs, const MidoriType& rhs)
+{
+	return !(lhs == rhs);
+}
 
 class MidoriTypeUtil
 {

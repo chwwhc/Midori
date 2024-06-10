@@ -1,6 +1,10 @@
-fixed main = fn() : Unit
+var main = fn() : Unit
 {
-	var x = [[0, 0, 0] * 10] * 10;
+	var list = [1, 2, 3];
+	//var one = @list;
+	var two = 2 + 0 +: list :+ 4 ++ [2];
+
+	//var x = 1.1 as Int as Frac;
 
 	return ();
 };

@@ -4,6 +4,7 @@
 #include <list>
 #include <variant>
 #include <unordered_set>
+#include <optional>
 
 class MidoriTraceable;
 class MidoriText;
@@ -179,7 +180,11 @@ public:
 
 	MidoriValue& operator[](int index);
 
-	void Add(const MidoriValue& value);
+	void AddBack(const MidoriValue& value);
+
+	void AddFront(const MidoriValue& value);
+
+	std::optional<MidoriValue> Pop();
 
 	int GetLength() const;
 
@@ -187,6 +192,8 @@ public:
 
 private:
 	void Expand();
+
+	void Shrink();
 };
 
 struct MidoriCellValue

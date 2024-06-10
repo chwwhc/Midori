@@ -46,6 +46,8 @@ struct Token
 		AT,
 		HASH,
 		TILDE,
+		COLON_PLUS,
+		PLUS_COLON,
 
 		// Literal
 		IDENTIFIER_LITERAL,

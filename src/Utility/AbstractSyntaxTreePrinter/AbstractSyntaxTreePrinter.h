@@ -45,6 +45,8 @@ struct PrintAbstractSyntaxTree
 
 	void operator()(const UnaryPrefix& unary, int depth = 0) const;
 
+	void operator()(const UnarySuffix& unary, int depth = 0) const;
+
 	void operator()(const Call& call, int depth = 0) const;
 
 	void operator()(const Get& get, int depth = 0) const;

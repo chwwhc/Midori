@@ -21,6 +21,8 @@ enum class OpCode : uint8_t
 	GET_ARRAY,
 	SET_ARRAY,
 	DUP_ARRAY,
+	ADD_BACK_ARRAY,
+	ADD_FRONT_ARRAY,
 
 	// Atomic type casting
 	CAST_TO_FRACTION,
@@ -49,7 +51,7 @@ enum class OpCode : uint8_t
 	DIVIDE_INTEGER,
 	MODULO_INTEGER,
 
-	// Aggregate Operations
+	// Concatenations 
 	CONCAT_ARRAY,
 	CONCAT_TEXT,
 

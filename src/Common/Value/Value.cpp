@@ -508,7 +508,55 @@ void MidoriArray::Expand()
 	m_size = static_cast<int>(new_size);
 }
 
-void MidoriArray::Add(const MidoriValue& value)
+std::optional<MidoriValue> MidoriArray::Pop()
+{
+	if (m_end > 0)
+	{
+		m_end -= 1;
+
+		if (m_end < m_size / 2)
+		{
+			Shrink();
+		}
+
+		return std::optional<MidoriValue>(m_data[m_end]);
+	}
+	else
+	{
+		return std::nullopt;
+	}
+}
+
+void MidoriArray::AddFront(const MidoriValue& value)
+{
+		if (m_end >= m_size)
+		{
+			Expand();
+		}
+
+		for (int i = m_end; i > 0; i -= 1)
+		{
+			size_t idx = static_cast<size_t>(i);
+			m_data[idx] = m_data[idx - 1u];
+		}
+
+		m_data[0u] = value;
+		m_end += 1;
+}
+
+void MidoriArray::Shrink()
+{
+	size_t new_size = static_cast<size_t>(m_size) / 2u;
+	MidoriValue* new_data = static_cast<MidoriValue*>(std::realloc(m_data, new_size * sizeof(MidoriValue)));
+	if (!new_data)
+	{
+		throw std::bad_alloc();
+	}
+	m_data = new_data;
+	m_size = static_cast<int>(new_size);
+}
+
+void MidoriArray::AddBack(const MidoriValue& value)
 {
 	if (m_end >= m_size)
 	{
@@ -678,14 +726,7 @@ bool MidoriText::operator==(const MidoriText& other) const
 	}
 	else
 	{
-		for (int i = 0; i < m_size; i++)
-		{
-			if ((*this)[i] != other[i])
-			{
-				return false;
-			}
-		}
-		return true;
+		return std::strcmp(m_data, other.m_data) == 0;
 	}
 }
 

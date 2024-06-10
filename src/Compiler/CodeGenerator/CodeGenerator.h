@@ -197,6 +197,8 @@ private:
 
 	void operator()(UnaryPrefix& unary);
 
+	void operator()(UnarySuffix& unary);
+
 	void operator()(Call& call);
 
 	void operator()(Get& get);

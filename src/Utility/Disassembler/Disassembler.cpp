@@ -309,6 +309,12 @@ namespace Disassembler
 		case OpCode::DUP_ARRAY:
 			SimpleInstruction("DUP_ARRAY", offset);
 			break;
+		case OpCode::ADD_BACK_ARRAY:
+			SimpleInstruction("ADD_BACK_ARRAY", offset);
+			break;
+		case OpCode::ADD_FRONT_ARRAY:
+			SimpleInstruction("ADD_FRONT_ARRAY", offset);
+			break;
 		case OpCode::CAST_TO_FRACTION:
 			SimpleInstruction("CAST_TO_FRACTION", offset);
 			break;
@@ -544,7 +550,11 @@ namespace Disassembler
 			SimpleInstruction("HALT", offset);
 			break;
 		default:
-			break;
+#ifdef _MSC_VER
+			__assume(0);
+#else
+			__builtin_unreachable();
+#endif
 		}
 	}
 }

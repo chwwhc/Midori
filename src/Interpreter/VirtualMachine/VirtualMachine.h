@@ -108,6 +108,8 @@ private:
 
 	void CheckNewArraySize(MidoriInteger size) noexcept;
 
+	void CheckArrayPopResult(const std::optional<MidoriValue>& result) noexcept;
+
 	MidoriTraceable::GarbageCollectionRoots GetValueStackGarbageCollectionRoots() const noexcept;
 
 	MidoriTraceable::GarbageCollectionRoots GetGlobalTableGarbageCollectionRoots() const noexcept;

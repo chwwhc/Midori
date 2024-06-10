@@ -32,9 +32,6 @@ VirtualMachine::~VirtualMachine()
 void VirtualMachine::TerminateExecution(std::string_view message) noexcept
 {
 	Printer::Print<Printer::Color::RED>(message);
-
-	std::destroy_at(this);
-
 	std::exit(EXIT_FAILURE);
 }
 
@@ -170,7 +167,7 @@ void VirtualMachine::PushCallFrame(ValueStackPointer return_bp, ValueStackPointe
 
 MidoriValue& VirtualMachine::Peek() noexcept
 {
-	return *std::prev(m_value_stack_pointer);
+	return *(m_value_stack_pointer - 1);
 }
 
 MidoriValue& VirtualMachine::Pop() noexcept
@@ -212,6 +209,14 @@ void VirtualMachine::CheckNewArraySize(MidoriInteger size) noexcept
 	else if (size > MAX_ARRAY_SIZE)
 	{
 		TerminateExecution(GenerateRuntimeError("Array size exceeds maximum array size.", GetLine()));
+	}
+}
+
+void VirtualMachine::CheckArrayPopResult(const std::optional<MidoriValue>& result) noexcept
+{
+	if (!result.has_value())
+	{
+		TerminateExecution(GenerateRuntimeError("Cannot pop from an empty array.", GetLine()));
 	}
 }
 
@@ -469,21 +474,65 @@ void VirtualMachine::Execute() noexcept
 				}
 				case OpCode::DUP_ARRAY:
 				{
-					MidoriValue& size = Pop();
-					MidoriValue& arr = Pop();
-					MidoriArray& arr_ref = arr.GetPointer()->GetArray();
+					MidoriValue size_val = Pop();
+					MidoriValue arr_val = Pop();
+					MidoriArray& arr_ref = arr_val.GetPointer()->GetArray();
 
-					MidoriInteger new_size = size.GetInteger() * arr_ref.GetLength();
+					MidoriInteger original_size = arr_ref.GetLength();
+					MidoriInteger repeat_count = size_val.GetInteger();
+					MidoriInteger new_size = repeat_count * original_size;
+
 					CheckNewArraySize(new_size);
 
 					MidoriArray new_arr(static_cast<int>(new_size));
-					for (int i = 0; i < static_cast<int>(new_size); i += 1)
+
+					if (new_size <= 1000)
 					{
-						new_arr[i] = arr_ref[i % arr_ref.GetLength()];
+						for (int i = 0; i < static_cast<int>(new_size); i += 1)
+						{
+							new_arr[i] = arr_ref[i % original_size];
+						}
+					}
+					else 
+					{
+						// Process big arrays in parallel
+						std::ranges::iota_view<int, int> counters = std::views::iota(0, static_cast<int>(new_size));
+						std::for_each
+						(
+							std::execution::par_unseq,
+							counters.cbegin(), 
+							counters.cend(),
+							[&new_arr, &arr_ref, original_size](int i)
+							{
+								new_arr[i] = arr_ref[i % original_size];
+							}
+						);
 					}
 
 					Push(MidoriTraceable::AllocateTraceable(std::move(new_arr)));
 					CollectGarbage();
+					break;
+				}
+				case OpCode::ADD_BACK_ARRAY:
+				{
+					MidoriValue& val = Pop();
+					MidoriValue& arr = Peek();
+
+					MidoriArray& arr_ref = arr.GetPointer()->GetArray();
+					arr_ref.AddBack(val);
+
+					break;
+				}
+				case OpCode::ADD_FRONT_ARRAY:
+				{
+					MidoriValue& arr = Pop();
+					MidoriValue& val = Peek();
+
+					MidoriArray& arr_ref = arr.GetPointer()->GetArray();
+					arr_ref.AddFront(val);
+
+					val = arr;
+
 					break;
 				}
 				case OpCode::CAST_TO_FRACTION:
@@ -1225,7 +1274,7 @@ void VirtualMachine::Execute() noexcept
 						{
 							MidoriValue* stack_value_ref = &value;
 							MidoriValue cell_value = MidoriTraceable::AllocateTraceable(MidoriCellValue{ MidoriValue(), stack_value_ref, false });
-							captured_variables.Add(cell_value);
+							captured_variables.AddBack(cell_value);
 							m_cells_to_promote[m_cell_promotion_count++] = &cell_value.GetPointer()->GetCellValue();
 						}
 					);

@@ -240,8 +240,20 @@ void PrintAbstractSyntaxTree::operator()(const UnaryPrefix& unary, int depth) co
 {
 	PrintWithIndentation(depth, "UnaryPrefix {");
 	PrintWithIndentation(depth + 1, "Operator: " + unary.m_op.m_lexeme);
-	PrintWithIndentation(depth + 1, "Right: ");
-	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *unary.m_right);
+	PrintWithIndentation(depth + 1, "Operand: ");
+	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *unary.m_expr);
+	PrintWithIndentation(depth, "}");
+}
+
+void PrintAbstractSyntaxTree::operator()(const UnarySuffix& unary, int depth) const
+{
+	PrintWithIndentation(depth, "UnarySuffix {");
+	PrintWithIndentation(depth + 1, "Operator: " + unary.m_op.m_lexeme);
+	PrintWithIndentation(depth + 1, "Operand: ");
+	std::visit([depth, this](auto&& arg)
+		{
+			(*this)(arg, depth + 2);
+		}, *unary.m_expr);
 	PrintWithIndentation(depth, "}");
 }
 
