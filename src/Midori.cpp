@@ -22,7 +22,7 @@ std::optional<std::string> ReadFile(const char* filename) noexcept
 
 int main(int argc, char* argv[]) noexcept
 {
-	std::string file_name = "E:\\Projects\\Midori\\test\\test.mdr"s;
+	std::string file_name = "C:\\Users\\jk381\\source\\repos\\chwwhc\\Midori\\test\\test.mdr"s;
 
 	std::optional<std::string> code = ReadFile(file_name.data());
 	if (!code.has_value())

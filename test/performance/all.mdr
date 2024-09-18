@@ -1,5 +1,5 @@
-#include "E:\Projects\Midori\MidoriPrelude\IO.mdr"
-#include "E:\Projects\Midori\MidoriPrelude\DateTime.mdr"
+#include "C:\Users\jk381\source\repos\chwwhc\Midori\MidoriPrelude\IO.mdr"
+#include "C:\Users\jk381\source\repos\chwwhc\Midori\MidoriPrelude\DateTime.mdr"
 
 fixed TestPrimeNumbers = fn() : Unit
 {
@@ -89,7 +89,7 @@ fixed TestParenthesisGeneration = fn(fixed max_len : Int) : Unit
         }
         if (left == len && right == len)
         {
-            output = output ++ [acc];
+            output = output :+ acc;
             return ();
         }
 

@@ -118,8 +118,7 @@ void TypeChecker::operator()(Define& def)
 			const MidoriType* annotated_type = def.m_annotated_type.value();
 			if (*annotated_type != *actual_type)
 			{
-				std::array<const MidoriType*, 1> expected_types = { annotated_type };
-				AddError(MidoriError::GenerateTypeCheckerError("Define statement type error", def.m_name, expected_types, actual_type));
+				AddError(MidoriError::GenerateTypeCheckerError("Define statement type error", def.m_name, actual_type, annotated_type));
 				return;
 			}
 		}
@@ -147,8 +146,7 @@ void TypeChecker::operator()(Define& def)
 			const MidoriType* annotated_type = def.m_annotated_type.value();
 			if (*annotated_type != *actual_type)
 			{
-				std::array<const MidoriType*, 1> expected_types = { annotated_type };
-				AddError(MidoriError::GenerateTypeCheckerError("Define statement type error", def.m_name, expected_types, actual_type));
+				AddError(MidoriError::GenerateTypeCheckerError("Define statement type error", def.m_name, actual_type, annotated_type));
 				return;
 			}
 			m_name_type_table.back().emplace(def.m_name.m_lexeme, annotated_type);
@@ -204,8 +202,7 @@ void TypeChecker::operator()(Define& def)
 
 				if (*annotated_type != *actual_type)
 				{
-					std::array<const MidoriType*, 1> expected_types = { annotated_type };
-					AddError(MidoriError::GenerateTypeCheckerError("Define statement type error", def.m_name, expected_types, actual_type));
+					AddError(MidoriError::GenerateTypeCheckerError("Define statement type error", def.m_name, actual_type, annotated_type));
 					return;
 				}
 			}
@@ -232,8 +229,7 @@ void TypeChecker::operator()(Define& def)
 
 			if (*def.m_annotated_type.value() != *init_expr_type.value())
 			{
-				std::array<const MidoriType*, 1> expected_types = { annotated_type };
-				AddError(MidoriError::GenerateTypeCheckerError("Define statement type error", def.m_name, expected_types, actual_type));
+				AddError(MidoriError::GenerateTypeCheckerError("Define statement type error", def.m_name, actual_type, annotated_type));
 				return;
 			}
 
@@ -255,8 +251,7 @@ void TypeChecker::operator()(If& if_stmt)
 		if (!MidoriTypeUtil::IsBoolType(condition_type.value()))
 		{
 			const MidoriType* actual_type = condition_type.value();
-			std::array<const MidoriType*, 1> expected_types = { MidoriTypeUtil::GetType("Bool"s) };
-			AddError(MidoriError::GenerateTypeCheckerError("If statement condition must be of type bool.", if_stmt.m_if_keyword, expected_types, actual_type));
+			AddError(MidoriError::GenerateTypeCheckerError("If statement condition must be of type bool.", if_stmt.m_if_keyword, actual_type, MidoriTypeUtil::GetType("Bool"s)));
 		}
 
 		UpdateConditionOperandType(if_stmt.m_condition_operand_type, if_stmt.m_condition);
@@ -291,8 +286,7 @@ void TypeChecker::operator()(While& while_stmt)
 		const MidoriType* actual_type = condition_type.value();
 		if (!MidoriTypeUtil::IsBoolType(actual_type))
 		{
-			std::array<const MidoriType*, 1> expected = { MidoriTypeUtil::GetType("Bool"s) };
-			AddError(MidoriError::GenerateTypeCheckerError("While statement condition must be of type bool.", while_stmt.m_while_keyword, std::span<const MidoriType*>(expected), actual_type));
+			AddError(MidoriError::GenerateTypeCheckerError("While statement condition must be of type bool.", while_stmt.m_while_keyword, actual_type, MidoriTypeUtil::GetType("Bool"s)));
 			return;
 		}
 	}
@@ -329,8 +323,7 @@ void TypeChecker::operator()(For& for_stmt)
 			const MidoriType* actual_type = condition_type.value();
 			if (!MidoriTypeUtil::IsBoolType(actual_type))
 			{
-				std::array<const MidoriType*, 1> expected = { MidoriTypeUtil::GetType("Bool"s) };
-				AddError(MidoriError::GenerateTypeCheckerError("For statement condition must be of type bool.", for_stmt.m_for_keyword, std::span<const MidoriType*>(expected), actual_type));
+				AddError(MidoriError::GenerateTypeCheckerError("For statement condition must be of type bool.", for_stmt.m_for_keyword, actual_type, MidoriTypeUtil::GetType("Bool"s)));
 				return;
 			}
 		}
@@ -382,8 +375,7 @@ void TypeChecker::operator()(Return& return_stmt)
 	const MidoriType* expected_type = m_curr_closure_return_type;
 	if (*actual_type != *expected_type)
 	{
-		std::array<const MidoriType*, 1> expected = { expected_type };
-		AddError(MidoriError::GenerateTypeCheckerError("Return statement expression type error.", return_stmt.m_keyword, std::span<const MidoriType*>(expected), actual_type));
+		AddError(MidoriError::GenerateTypeCheckerError("Return statement expression type error.", return_stmt.m_keyword, actual_type, expected_type));
 		return;
 	}
 }
@@ -621,8 +613,7 @@ MidoriResult::TypeResult TypeChecker::operator()(Binary& binary)
 	{
 		if (!MidoriTypeUtil::IsNumericType(actual_type))
 		{
-			std::array<const MidoriType*, 2> expected_types = { MidoriTypeUtil::GetType("Int"s), MidoriTypeUtil::GetType("Frac"s) };
-			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Binary expression type error", binary.m_op, expected_types, actual_type));
+			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Binary expression type error", binary.m_op, actual_type, MidoriTypeUtil::GetType("Int"s), MidoriTypeUtil::GetType("Frac"s)));
 		}
 
 		return MidoriTypeUtil::GetType("Bool"s);
@@ -631,24 +622,21 @@ MidoriResult::TypeResult TypeChecker::operator()(Binary& binary)
 	{
 		if (!MidoriTypeUtil::IsNumericType(actual_type))
 		{
-			std::array<const MidoriType*, 2> expected_types = { MidoriTypeUtil::GetType("Int"s), MidoriTypeUtil::GetType("Frac"s) };
-			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Binary expression type error", binary.m_op, expected_types, actual_type));
+			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Binary expression type error", binary.m_op, actual_type, MidoriTypeUtil::GetType("Int"s), MidoriTypeUtil::GetType("Frac"s)));
 		}
 	}
 	else if (std::find(m_binary_bitwise_operators.cbegin(), m_binary_bitwise_operators.cend(), binary.m_op.m_token_name) != m_binary_bitwise_operators.cend())
 	{
 		if (!MidoriTypeUtil::IsIntegerType(actual_type))
 		{
-			std::array<const MidoriType*, 1> expected_types = { MidoriTypeUtil::GetType("Int"s) };
-			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Binary expression type error", binary.m_op, expected_types, actual_type));
+			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Binary expression type error", binary.m_op, actual_type, MidoriTypeUtil::GetType("Int"s)));
 		}
 	}
 	else if (std::find(m_binary_equality_operators.cbegin(), m_binary_equality_operators.cend(), binary.m_op.m_token_name) != m_binary_equality_operators.cend())
 	{
 		if (!MidoriTypeUtil::IsNumericType(actual_type) && !MidoriTypeUtil::IsTextType(actual_type))
 		{
-			std::array<const MidoriType*, 3> expected_types = { MidoriTypeUtil::GetType("Int"s), MidoriTypeUtil::GetType("Frac"s), MidoriTypeUtil::GetType("Text"s) };
-			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Binary expression type error", binary.m_op, expected_types, actual_type));
+			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Binary expression type error", binary.m_op, actual_type, MidoriTypeUtil::GetType("Int"s), MidoriTypeUtil::GetType("Frac"s), MidoriTypeUtil::GetType("Text"s)));
 		}
 
 		return MidoriTypeUtil::GetType("Bool"s);
@@ -657,8 +645,7 @@ MidoriResult::TypeResult TypeChecker::operator()(Binary& binary)
 	{
 		if (!MidoriTypeUtil::IsBoolType(left_type))
 		{
-			std::array<const MidoriType*, 1> expected_types = { MidoriTypeUtil::GetType("Bool"s) };
-			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Binary expression type error", binary.m_op, expected_types, actual_type));
+			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Binary expression type error", binary.m_op, actual_type, MidoriTypeUtil::GetType("Bool"s)));
 		}
 
 		return MidoriTypeUtil::GetType("Bool"s);
@@ -713,24 +700,21 @@ MidoriResult::TypeResult TypeChecker::operator()(UnaryPrefix& unary)
 	{
 		if (!MidoriTypeUtil::IsNumericType(actual_type))
 		{
-			std::array<const MidoriType*, 2> expected_types = { MidoriTypeUtil::GetType("Int"s), MidoriTypeUtil::GetType("Frac"s) };
-			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Unary prefix expression type error", unary.m_op, expected_types, actual_type));
+			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Unary prefix expression type error", unary.m_op, actual_type, MidoriTypeUtil::GetType("Int"s), MidoriTypeUtil::GetType("Frac"s)));
 		}
 	}
 	else if (unary.m_op.m_token_name == Token::Name::BANG)
 	{
 		if (!MidoriTypeUtil::IsBoolType(actual_type))
 		{
-			std::array<const MidoriType*, 1> expected_types = { MidoriTypeUtil::GetType("Bool"s) };
-			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Unary prefix expression type error", unary.m_op, expected_types, actual_type));
+			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Unary prefix expression type error", unary.m_op, actual_type, MidoriTypeUtil::GetType("Bool"s)));
 		}
 	}
 	else if (unary.m_op.m_token_name == Token::Name::TILDE)
 	{
 		if (!MidoriTypeUtil::IsIntegerType(actual_type))
 		{
-			std::array<const MidoriType*, 1> expected_types = { MidoriTypeUtil::GetType("Int"s) };
-			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Unary prefix expression type error", unary.m_op, expected_types, actual_type));
+			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Unary prefix expression type error", unary.m_op, actual_type, MidoriTypeUtil::GetType("Int"s)));
 		}
 	}
 
@@ -787,11 +771,10 @@ MidoriResult::TypeResult TypeChecker::operator()(Call& call)
 	const std::vector<const MidoriType*>& param_types = function_type.m_param_types;
 	for (size_t idx : std::views::iota(0u, arg_results.size()))
 	{
-		std::array<const MidoriType*, 1> expected_types = { std::addressof(*param_types[idx]) };
 		const MidoriType* actual_param_type = arg_results[idx];
-		if (*expected_types[0] != *actual_param_type)
+		if (*param_types[idx] != *actual_param_type)
 		{
-			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Call expression type error", call.m_paren, expected_types, actual_param_type));
+			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Call expression type error", call.m_paren, actual_param_type, &*param_types[idx]));
 		}
 	}
 
@@ -873,8 +856,7 @@ MidoriResult::TypeResult TypeChecker::operator()(Set& set)
 
 	if (*value_type != *member_type)
 	{
-		std::array<const MidoriType*, 1> expected = { &*member_type };
-		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Set expression type error", set.m_member_name, std::span<const MidoriType*>(expected), value_result.value()));
+		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Set expression type error", set.m_member_name, value_result.value(), &*member_type));
 	}
 
 	return value_type;
@@ -913,13 +895,12 @@ MidoriResult::TypeResult TypeChecker::operator()(Bind& bind)
 		TypeEnvironment::const_iterator var = it->find(bind.m_name.m_lexeme);
 		if (var != it->end())
 		{
-			std::array<const MidoriType*, 1> expected_types = { std::addressof(*var->second) };
 			const MidoriType* actual_type = value_result.value();
 			m_expression_type_info[bind.m_value.get()] = actual_type;
 
-			if (*expected_types[0u] != *actual_type)
+			if (*var->second != *actual_type)
 			{
-				return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Bind expression type error", bind.m_name, expected_types, actual_type));
+				return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Bind expression type error", bind.m_name, actual_type, &*var->second));
 			}
 			else
 			{
@@ -1028,9 +1009,8 @@ MidoriResult::TypeResult TypeChecker::operator()(Construct& construct)
 
 		if (*param_result.value() != *constructor_type.value()->m_param_types[idx])
 		{
-			std::array<const MidoriType*, 1> expected_types = { std::addressof(*constructor_type.value()->m_param_types[idx]) };
 			const MidoriType* actual_type = param_result.value();
-			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Construct expression type error", construct.m_data_name, expected_types, actual_type));
+			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Construct expression type error", construct.m_data_name, actual_type, constructor_type.value()->m_param_types[idx]));
 		}
 	}
 
@@ -1063,13 +1043,11 @@ MidoriResult::TypeResult TypeChecker::operator()(Array& array)
 		element_results.emplace_back(result.value());
 	}
 
-	std::array<const MidoriType*, 1> expected_types = { std::addressof(*element_results[0]) };
-
 	for (size_t idx : std::views::iota(0u, element_results.size()))
 	{
-		if (*expected_types[0u] != *element_results[idx])
+		if (*element_results[0u] != *element_results[idx])
 		{
-			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Array expression type error", array.m_op, expected_types, element_results[idx]));
+			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Array expression type error", array.m_op, element_results[idx], &*element_results[0u]));
 		}
 	}
 
@@ -1103,9 +1081,8 @@ MidoriResult::TypeResult TypeChecker::operator()(ArrayGet& array_get)
 
 		if (!MidoriTypeUtil::IsIntegerType(index_result.value()))
 		{
-			std::array<const MidoriType*, 1> expected_types = { MidoriTypeUtil::GetType("Int"s) };
 			const MidoriType* actual_type = index_result.value();
-			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Array get expression type error", array_get.m_op, expected_types, actual_type));
+			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Array get expression type error", array_get.m_op, actual_type, MidoriTypeUtil::GetType("Int"s)));
 		}
 	}
 
@@ -1116,8 +1093,7 @@ MidoriResult::TypeResult TypeChecker::operator()(ArrayGet& array_get)
 		{
 			// TODO: improve error message, expect generic array type
 			const MidoriType* actual_type = array_var_type;
-			std::array<const MidoriType*, 1> expected_types = { MidoriTypeUtil::GetType("Unit"s) };
-			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Array get expression type error", array_get.m_op, expected_types, actual_type));
+			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Array get expression type error", array_get.m_op, actual_type, MidoriTypeUtil::GetType("Unit"s)));
 		}
 
 		array_var_type = MidoriTypeUtil::GetArrayType(array_var_type).m_element_type;
@@ -1162,9 +1138,8 @@ MidoriResult::TypeResult TypeChecker::operator()(ArraySet& array_set)
 
 		if (!MidoriTypeUtil::IsIntegerType(index_result.value()))
 		{
-			std::array<const MidoriType*, 1> expected_types = { MidoriTypeUtil::GetType("Int"s) };
 			const MidoriType* actual_type = index_result.value();
-			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Array get expression type error", array_set.m_op, expected_types, actual_type));
+			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Array get expression type error", array_set.m_op, actual_type, MidoriTypeUtil::GetType("Int"s)));
 		}
 	}
 
@@ -1175,8 +1150,7 @@ MidoriResult::TypeResult TypeChecker::operator()(ArraySet& array_set)
 		{
 			// TODO: improve error message, expect generic array type
 			const MidoriType* actual_type = array_var_type;
-			std::array<const MidoriType*, 1> expected_types = { MidoriTypeUtil::GetType("Unit"s) };
-			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Array get expression type error", array_set.m_op, expected_types, actual_type));
+			return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Array get expression type error", array_set.m_op, actual_type, MidoriTypeUtil::GetType("Unit"s)));
 		}
 
 		array_var_type = MidoriTypeUtil::GetArrayType(array_var_type).m_element_type;
@@ -1185,8 +1159,7 @@ MidoriResult::TypeResult TypeChecker::operator()(ArraySet& array_set)
 	const MidoriType* value_type = value_result.value();
 	if (*array_var_type != *value_type)
 	{
-		std::array<const MidoriType*, 1> expected_types = { std::addressof(*array_var_type) };
-		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Array set expression type error", array_set.m_op, expected_types, value_type));
+		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Array set expression type error", array_set.m_op, value_type, &*array_var_type));
 	}
 
 	return value_result.value();
@@ -1206,9 +1179,8 @@ MidoriResult::TypeResult TypeChecker::operator()(Ternary& ternary)
 
 	if (!MidoriTypeUtil::IsBoolType(condition_result.value()))
 	{
-		std::array<const MidoriType*, 1> expected_types = { MidoriTypeUtil::GetType("Bool"s) };
 		const MidoriType* actual_type = condition_result.value();
-		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Ternary expression type error", ternary.m_question, expected_types, actual_type));
+		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Ternary expression type error", ternary.m_question, actual_type, MidoriTypeUtil::GetType("Bool"s)));
 	}
 
 	UpdateConditionOperandType(ternary.m_condition_operand_type, ternary.m_condition);
@@ -1235,9 +1207,8 @@ MidoriResult::TypeResult TypeChecker::operator()(Ternary& ternary)
 
 	if (*true_result.value() != *else_result.value())
 	{
-		std::array<const MidoriType*, 1> expected_types = { &*true_result.value() };
 		const MidoriType* actual_type = else_result.value();
-		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Ternary expression type error", ternary.m_question, expected_types, actual_type));
+		return std::unexpected<std::string>(MidoriError::GenerateTypeCheckerError("Ternary expression type error", ternary.m_question, actual_type, &*true_result.value()));
 	}
 
 	return true_result;

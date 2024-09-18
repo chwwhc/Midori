@@ -33,33 +33,6 @@ std::string MidoriError::GenerateParserError(std::string_view message, const Tok
 	return GenerateBaseError(std::format("Parser Error\n{}", message), token.m_line, &token);
 }
 
-std::string MidoriError::GenerateTypeCheckerError(std::string_view message, const Token& token, const std::span<const MidoriType*>& expected, const MidoriType* actual)
-{
-	if (expected.empty())
-	{
-		return GenerateBaseError(std::format("Type Checker Error\n{}", message), token.m_line, &token);
-	}
-
-	std::string expected_types;
-	if (expected.size() > 1u)
-	{
-		for (size_t i = 0u; i < expected.size(); i += 1u)
-		{
-			expected_types.append(MidoriTypeUtil::GetTypeName(expected[i]));
-			if (i != expected.size() - 1)
-			{
-				expected_types.append(" or ");
-			}
-		}
-	}
-	else
-	{
-		expected_types = MidoriTypeUtil::GetTypeName(expected[0]);
-	}
-
-	return GenerateBaseError(std::format("Type Checker Error\n{}\nExpected {}, but got {}", message, expected_types, MidoriTypeUtil::GetTypeName(actual)), token.m_line, &token);
-}
-
 std::string MidoriError::GenerateRuntimeError(std::string_view message, int line)
 {
 	return GenerateBaseError(std::format("Runtime Error\n{}", message), line);
