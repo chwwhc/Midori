@@ -1,49 +1,54 @@
-﻿#include "Compiler/Compiler.h"
-#include "Interpreter/VirtualMachine/VirtualMachine.h"
-#include "Common/Printer/Printer.h"
-
+﻿#include <algorithm>
 #include <fstream>
 #include <sstream>
-#include <algorithm>
 
-std::optional<std::string> ReadFile(const char* filename) noexcept
+#include "Common/Printer/Printer.h"
+#include "Compiler/Compiler.h"
+#include "Interpreter/VirtualMachine/VirtualMachine.h"
+
+std::string ReadFile(const char* filename)
 {
 	std::ifstream file(filename);
 	if (!file.is_open())
 	{
-		Printer::Print<Printer::Color::RED>("Could not open file: \n");
-		return std::nullopt;
+		Printer::Print<Printer::Color::RED>(std::format("Could not open file: {}\n", filename));
+		std::exit(EXIT_FAILURE);
 	}
 
 	std::ostringstream buffer;
 	buffer << file.rdbuf();
-	return std::optional(buffer.str());
+	if (!buffer)
+	{
+		Printer::Print<Printer::Color::RED>(std::format("Could not read file to buffer: {}\n", filename));
+		std::exit(EXIT_FAILURE);
+	}
+
+	return buffer.str();
 }
 
-int main(int argc, char* argv[]) noexcept
+int main(int argc, char* argv[])
 {
 	std::string file_name = "C:\\Users\\jk381\\source\\repos\\chwwhc\\Midori\\test\\test.mdr"s;
+	std::string file_content = ReadFile(file_name.data());
 
-	std::optional<std::string> code = ReadFile(file_name.data());
-	if (!code.has_value())
-	{
-		Printer::Print<Printer::Color::RED>("Could not read file: \n");
-		std::exit(EXIT_FAILURE);
-	}
-
-	MidoriResult::CompilerResult compilation_result = Compiler::Compile(std::move(code.value()), std::move(file_name));
-	if (compilation_result.has_value())
-	{
-		MidoriExecutable& compilation_result_value = compilation_result.value();
-		VirtualMachine vm(std::move(compilation_result_value));
-		vm.Execute();
-	}
-	else
-	{
-		Printer::Print<Printer::Color::RED>("Compilation failed :( \n");
-		Printer::Print<Printer::Color::RED>(std::format("{}\n", compilation_result.error()));
-		std::exit(EXIT_FAILURE);
-	}
-
-	return 0;
+	return Compiler::Compile(std::move(file_content), std::move(file_name))
+		.and_then
+		(
+			[](MidoriExecutable&& executable)
+			{
+				VirtualMachine virtual_machine(std::move(executable));
+				virtual_machine.Execute();
+				return std::expected<int, std::string>(0);
+			}
+		)
+		.or_else
+		(
+			[](std::string&& compilation_error)
+			{
+				Printer::Print<Printer::Color::RED>("Compilation failed :( \n");
+				Printer::Print<Printer::Color::RED>(std::format("{}\n", compilation_error));
+				return std::expected<int, std::string>(EXIT_FAILURE);
+			}
+		)
+		.value();
 }
