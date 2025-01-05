@@ -1,7 +1,5 @@
 #include "Error.h"
 
-#include <format>
-
 std::string MidoriError::GenerateBaseError(std::string&& message, int line, const Token* token)
 {
 	std::string generated_message;

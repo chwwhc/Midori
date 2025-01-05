@@ -1,10 +1,10 @@
 #pragma once
 
+#include <format>
+
+#include "Common/Value/Value.h"
 #include "Compiler/AbstractSyntaxTree/AbstractSyntaxTree.h"
 #include "Compiler/Token/Token.h"
-#include "Common/Value/Value.h"
-
-#include <format>
 
 class MidoriError
 {
