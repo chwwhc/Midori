@@ -1,9 +1,10 @@
 #ifdef DEBUG
-#include "AbstractSyntaxTreePrinter.h"
-#include "Common\Printer\Printer.h"
 
 #include <algorithm>
 #include <ranges>
+
+#include "AbstractSyntaxTreePrinter.h"
+#include "Common\Printer\Printer.h"
 
 void PrintAbstractSyntaxTree::PrintWithIndentation(int depth, std::string_view text) const
 {
@@ -186,10 +187,14 @@ void PrintAbstractSyntaxTree::operator()(const Switch& switch_stmt, int depth) c
 	PrintWithIndentation(depth + 1, "Value: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *switch_stmt.m_arg_expr);
 	PrintWithIndentation(depth + 1, "Cases: ");
-	std::ranges::for_each(switch_stmt.m_cases, [depth, this](const Switch::Case& switch_case)
+	std::ranges::for_each
+	(
+		switch_stmt.m_cases, 
+		[depth, this](const Switch::Case& switch_case)
 		{
 			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *Switch::GetCaseStatement(switch_case));
-		});
+		}
+	);
 	PrintWithIndentation(depth, "}");
 }
 
@@ -198,13 +203,20 @@ void PrintAbstractSyntaxTree::operator()(const Namespace& namespace_stmt, int de
 	PrintWithIndentation(depth, "Namespace {");
 	PrintWithIndentation(depth + 1, "Name: " + namespace_stmt.m_name.m_lexeme);
 	PrintWithIndentation(depth + 1, "Body: ");
-	std::ranges::for_each(namespace_stmt.m_stmts, [depth, this](const std::unique_ptr<MidoriStatement>& stmt)
+	std::ranges::for_each
+	(
+		namespace_stmt.m_stmts, [depth, this](const std::unique_ptr<MidoriStatement>& stmt)
 		{
-			std::visit([depth, this](auto&& arg)
+			std::visit
+			(
+				[depth, this](auto&& arg)
 				{
 					(*this)(arg, depth + 1);
-				}, *stmt);
-		});
+				}, 
+				*stmt
+			);
+		}
+	);
 	PrintWithIndentation(depth, "}");
 }
 
@@ -250,10 +262,14 @@ void PrintAbstractSyntaxTree::operator()(const UnarySuffix& unary, int depth) co
 	PrintWithIndentation(depth, "UnarySuffix {");
 	PrintWithIndentation(depth + 1, "Operator: " + unary.m_op.m_lexeme);
 	PrintWithIndentation(depth + 1, "Operand: ");
-	std::visit([depth, this](auto&& arg)
+	std::visit
+	(
+		[depth, this](auto&& arg)
 		{
 			(*this)(arg, depth + 2);
-		}, *unary.m_expr);
+		}, 
+		*unary.m_expr
+	);
 	PrintWithIndentation(depth, "}");
 }
 
@@ -263,10 +279,14 @@ void PrintAbstractSyntaxTree::operator()(const Call& call, int depth) const
 	PrintWithIndentation(depth + 1, "Callee: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *call.m_callee);
 	PrintWithIndentation(depth + 1, "Args: ");
-	std::ranges::for_each(call.m_arguments, [depth, this](const std::unique_ptr<MidoriExpression>& arg)
+	std::ranges::for_each
+	(
+		call.m_arguments, 
+		[depth, this](const std::unique_ptr<MidoriExpression>& arg)
 		{
 			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *arg);
-		});
+		}
+	);
 	PrintWithIndentation(depth, "}");
 }
 
@@ -347,15 +367,23 @@ void PrintAbstractSyntaxTree::operator()(const Closure& closure, int depth) cons
 {
 	PrintWithIndentation(depth, "Closure {");
 	PrintWithIndentation(depth + 1, "Params: ");
-	std::ranges::for_each(closure.m_params, [depth, this](const Token& param)
+	std::ranges::for_each
+	(
+		closure.m_params, 
+		[depth, this](const Token& param)
 		{
 			PrintWithIndentation(depth + 2, param.m_lexeme);
-		});
+		}
+	);
 	PrintWithIndentation(depth + 1, "ParamTypes: ");
-	std::ranges::for_each(closure.m_param_types, [depth, this](const MidoriType* param_type)
+	std::ranges::for_each
+	(
+		closure.m_param_types, 
+		[depth, this](const MidoriType* param_type)
 		{
 			PrintWithIndentation(depth + 2, MidoriTypeUtil::GetTypeName(param_type));
-		});
+		}
+	);
 	PrintWithIndentation(depth + 1, "Body: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *closure.m_body);
 	PrintWithIndentation(depth, "}");
@@ -366,10 +394,14 @@ void PrintAbstractSyntaxTree::operator()(const Construct& construct, int depth) 
 	PrintWithIndentation(depth, "Construct {");
 	PrintWithIndentation(depth + 1, "Type: " + MidoriTypeUtil::GetTypeName(construct.m_return_type));
 	PrintWithIndentation(depth + 1, "Params: ");
-	std::ranges::for_each(construct.m_params, [depth, this](const std::unique_ptr<MidoriExpression>& expr)
+	std::ranges::for_each
+	(
+		construct.m_params, 
+		[depth, this](const std::unique_ptr<MidoriExpression>& expr)
 		{
 			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *expr);
-		});
+		}
+	);
 	PrintWithIndentation(depth, "}");
 }
 
@@ -377,10 +409,14 @@ void PrintAbstractSyntaxTree::operator()(const Array& array, int depth) const
 {
 	PrintWithIndentation(depth, "Array {");
 	PrintWithIndentation(depth + 1, "Elements: ");
-	std::ranges::for_each(array.m_elems, [depth, this](const std::unique_ptr<MidoriExpression>& element)
+	std::ranges::for_each
+	(
+		array.m_elems, 
+		[depth, this](const std::unique_ptr<MidoriExpression>& element)
 		{
 			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *element);
-		});
+		}
+	);
 	PrintWithIndentation(depth, "}");
 }
 
@@ -390,10 +426,14 @@ void PrintAbstractSyntaxTree::operator()(const ArrayGet& array_get, int depth) c
 	PrintWithIndentation(depth + 1, "Array: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *array_get.m_arr_var);
 	PrintWithIndentation(depth + 1, "Index: ");
-	std::ranges::for_each(array_get.m_indices, [depth, this](const std::unique_ptr<MidoriExpression>& index)
+	std::ranges::for_each
+	(
+		array_get.m_indices, 
+		[depth, this](const std::unique_ptr<MidoriExpression>& index)
 		{
 			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *index);
-		});
+		}
+	);
 	PrintWithIndentation(depth, "}");
 }
 
@@ -403,10 +443,14 @@ void PrintAbstractSyntaxTree::PrintAbstractSyntaxTree::operator()(const ArraySet
 	PrintWithIndentation(depth + 1, "Array: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *array_set.m_arr_var);
 	PrintWithIndentation(depth + 1, "Index: ");
-	std::ranges::for_each(array_set.m_indices, [depth, this](const std::unique_ptr<MidoriExpression>& index)
+	std::ranges::for_each
+	(
+		array_set.m_indices, 
+		[depth, this](const std::unique_ptr<MidoriExpression>& index)
 		{
 			std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *index);
-		});
+		}
+	);
 	PrintWithIndentation(depth + 1, "Value: ");
 	std::visit([depth, this](auto&& arg) { (*this)(arg, depth + 2); }, *array_set.m_value);
 	PrintWithIndentation(depth, "}");
