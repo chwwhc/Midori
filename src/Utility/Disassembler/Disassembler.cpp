@@ -1,11 +1,12 @@
 #ifdef DEBUG
-#include "Disassembler.h"
+
+#include <iomanip>
+#include <sstream>
+#include <string>
+
 #include "Common/Executable/Executable.h"
 #include "Common/Printer/Printer.h"
-
-#include <sstream>
-#include <iomanip>
-#include <string>
+#include "Disassembler.h"
 
 namespace
 {
@@ -272,7 +273,8 @@ namespace Disassembler
 		Printer::Print(formated_str.str());
 
 		OpCode instruction = executable.ReadByteCode(offset, proc_index);
-		switch (instruction) {
+		switch (instruction) 
+		{
 		case OpCode::LOAD_CONSTANT:
 			ConstantInstruction("LOAD_CONSTANT", executable, proc_index, offset);
 			break;
